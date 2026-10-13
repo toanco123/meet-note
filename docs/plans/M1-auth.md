@@ -137,7 +137,7 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
     - rehash khi `needsRehash`;
     - `test/support/factories.ts` (`createUser`, `loginAs`).
   - Test (e2e): 201/200 trả đủ token; email trùng (khác hoa thường) → 409; sai mật khẩu và email không tồn tại → **cùng** 401 + cùng message; body thừa field → 400.
-- [ ] **B7 — Guard toàn cục** (skill `authorization`)
+- [x] **B7 — Guard toàn cục** (skill `authorization`)
   - Việc:
     - `JwtAuthGuard` (`APP_GUARD`), `@Public()`, `@CurrentUser()`;
     - khai báo kiểu `req.user`;
@@ -192,3 +192,7 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
 12. **Query phải viết đúng biểu thức của index.** Index là `lower(email)` thì điều kiện phải là `lower(email) = lower($1)`. Viết `email ILIKE $1` cho kết quả đúng nhưng không dùng được index, nên sẽ quét cả bảng.
 13. **Swagger plugin + `classValidatorShim` sinh ràng buộc từ class-validator:** `@MaxLength(254)` thành `maxLength`, `@IsEmail()` thành `format: email`, JSDoc `@example` thành `example`. DTO không cần một decorator `@ApiProperty` nào.
 14. **`needsRehash` chỉ dùng được lúc đăng nhập thành công**, vì đó là lúc duy nhất server có mật khẩu gốc. Đã test bằng cách chèn hash tham số yếu vào DB rồi đăng nhập.
+15. **Guard toàn cục mặc định đóng.** `APP_GUARD` áp cho mọi controller của app, kể cả controller thuộc module khác và controller chỉ có trong test. Route nào quên `@Public()` sẽ bị chặn, tức là sai theo hướng an toàn. `/docs`, `/docs-json` không đi qua guard vì SwaggerModule đăng ký thẳng lên HTTP adapter, không phải route của Nest.
+16. **Swagger: Bearer mặc định + `@Public()` ghi đè bằng `ApiSecurity({})`.** Theo OpenAPI, `security: [{}]` ở cấp operation nghĩa là "không cần xác thực" và ghi đè `security` cấp tài liệu. Dùng API công khai của `@nestjs/swagger`, không phải import vào `dist/constants`.
+17. **`JwtAuthGuard` đặt trong `modules/auth/guards/`, không đặt trong `common/auth/`** như skill `authorization` gợi ý ban đầu. Guard cần `TokenService`/`SessionsService`, nên đặt ở `common` thì `common` phụ thuộc ngược vào module nghiệp vụ. Decorator `@Public`/`@CurrentUser` và kiểu `AuthUser` thì vẫn ở `common/auth/`.
+18. **Test guard bằng controller thăm dò chỉ có trong test** (`createTestApp({ controllers: [ProbeController] })`). Nhờ vậy test guard độc lập với tính năng, trước khi có `/me`.

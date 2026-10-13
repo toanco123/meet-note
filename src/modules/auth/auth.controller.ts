@@ -1,6 +1,7 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
+import { Public } from '../../common/auth/public.decorator.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { AuthService } from './auth.service.js';
 import { AuthTokensResponseDto } from './dto/auth-tokens-response.dto.js';
@@ -18,6 +19,7 @@ export class AuthController {
    *
    * @remarks Email trùng (không phân biệt hoa thường) trả 409 `AUTH_EMAIL_TAKEN`.
    */
+  @Public()
   @Post('register')
   @ApiErrorResponses(400, 409)
   async register(@Body() dto: RegisterDto, @Req() req: Request): Promise<AuthTokensResponseDto> {
@@ -29,6 +31,7 @@ export class AuthController {
    *
    * @remarks Sai email hoặc sai mật khẩu đều trả CÙNG 401 `AUTH_INVALID_CREDENTIALS`.
    */
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiErrorResponses(400, 401)

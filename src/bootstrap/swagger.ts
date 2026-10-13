@@ -33,7 +33,10 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       scheme: 'bearer',
       bearerFormat: 'JWT',
       description: 'Access token lấy từ `POST /v1/auth/login`.',
-    });
+    })
+    // Mặc định MỌI route yêu cầu Bearer (khớp với JwtAuthGuard toàn cục). Route @Public()
+    // ghi đè bằng `security: [{}]` ở cấp operation.
+    .addSecurityRequirements('bearer');
 
   for (const [name, description] of TAGS) {
     builder.addTag(name, description);

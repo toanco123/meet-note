@@ -18,6 +18,9 @@
             }
           }
         },
+        "security": [
+          {}
+        ],
         "summary": "Liveness — tiến trình còn sống.",
         "tags": [
           "Health"
@@ -51,6 +54,9 @@
             }
           }
         },
+        "security": [
+          {}
+        ],
         "summary": "Readiness — sẵn sàng nhận traffic.",
         "tags": [
           "Health"
@@ -104,6 +110,9 @@
             }
           }
         },
+        "security": [
+          {}
+        ],
         "summary": "Đăng ký tài khoản mới và đăng nhập luôn.",
         "tags": [
           "Auth"
@@ -157,6 +166,9 @@
             }
           }
         },
+        "security": [
+          {}
+        ],
         "summary": "Đăng nhập bằng email + mật khẩu.",
         "tags": [
           "Auth"
@@ -421,5 +433,10 @@
         ]
       }
     }
-  }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ]
 }
