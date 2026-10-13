@@ -66,7 +66,11 @@ export class OrganizationsController {
     @Body() dto: UpdateOrganizationDto,
   ): Promise<OrganizationResponseDto> {
     return OrganizationResponseDto.from(
-      await this.orgs.update(orgId, { name: dto.name }, audit),
+      await this.orgs.update(
+        orgId,
+        { name: dto.name, requireJoinApproval: dto.requireJoinApproval },
+        audit,
+      ),
       membership.role,
     );
   }

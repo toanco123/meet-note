@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsString, Length } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -14,10 +14,17 @@ export class CreateOrganizationDto {
   name: string;
 }
 
+/** Sửa một phần: chỉ field gửi lên mới được đổi. Body rỗng → không đổi gì (200). */
 export class UpdateOrganizationDto {
   /** @example "Bình Minh Group" */
+  @IsOptional()
   @Transform(trim)
   @IsString()
   @Length(1, 100)
-  name: string;
+  name?: string;
+
+  /** Bật: chấp nhận link mời chỉ tạo yêu cầu tham gia, Owner/Admin phải duyệt. */
+  @IsOptional()
+  @IsBoolean()
+  requireJoinApproval?: boolean;
 }

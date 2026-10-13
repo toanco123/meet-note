@@ -24,6 +24,7 @@ export interface OrganizationPatch {
 export interface OrganizationDetailRow {
   id: string;
   name: string;
+  requireJoinApproval: boolean;
   createdAt: Date;
   memberCount: number;
 }
@@ -87,6 +88,7 @@ export class OrganizationsRepository {
         id: organizations.id,
         name: organizations.name,
         createdAt: organizations.createdAt,
+        requireJoinApproval: organizations.requireJoinApproval,
         // Sub-query đếm trên PK (org_id, …) — index-only scan, không cần GROUP BY cả bảng org.
         memberCount: sql<number>`(
           select count(*)::int from ${organizationMembers}
