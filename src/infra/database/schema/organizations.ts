@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   foreignKey,
   index,
@@ -26,6 +27,8 @@ export const organizations = pgTable(
     name: text().notNull(),
     /** Ai tạo. SET NULL khi user bị xoá: lịch sử tạo không quan trọng bằng việc giữ org. */
     createdBy: uuid(),
+    /** Bật: chấp nhận link mời chỉ tạo YÊU CẦU tham gia, Owner/Admin phải duyệt (M3). */
+    requireJoinApproval: boolean().notNull().default(false),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

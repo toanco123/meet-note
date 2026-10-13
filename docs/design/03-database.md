@@ -93,11 +93,10 @@ Không có `FOR UPDATE` thì 2 request refresh song song cùng đọc thấy tok
 
 ### `organizations`
 
-id (uuidv7), name, created_by (FK → users, `ON DELETE SET NULL`), created_at, updated_at, deleted_at.
+id (uuidv7), name, created_by (FK → users, `ON DELETE SET NULL`), `require_join_approval boolean NOT NULL DEFAULT false` (M3), created_at, updated_at, deleted_at.
 CHECK `organizations_name_length_ck` (1–100 ký tự). Tên **không** unique toàn hệ thống.
 
 - Chưa có `slug` (M2 Q1): API dùng `:orgId`.
-- `require_join_approval` thêm ở migration của M3, khi có tính năng dùng nó.
 - PK đã unique nên đủ làm đích cho composite FK của bảng con.
 
 ### `organization_members`
@@ -121,12 +120,29 @@ Index:
 
 > **Bẫy:** Partial unique index **không thể** `DEFERRABLE`. Khi chuyển quyền sở hữu phải **hạ owner cũ trước, rồi mới nâng owner mới**. Làm ngược thứ tự thì dính lỗi 23505.
 
-### `organization_invites`
+### `organization_invites` (M3)
 
-id, org_id, token_hash (bytea UNIQUE), role (`'admin'|'member'`, mặc định member), created_by, expires_at, max_uses (NULL = không giới hạn), use_count int DEFAULT 0, revoked_at, created_at.
-`CHECK (max_uses IS NULL OR use_count <= max_uses)`.
+| Cột        | Kiểu                            | Ghi chú                                                                                       |
+| ---------- | ------------------------------- | --------------------------------------------------------------------------------------------- |
+| id         | uuid PK                         |                                                                                               |
+| org_id     | uuid FK → organizations CASCADE |                                                                                               |
+| token_hash | bytea NOT NULL                  | SHA-256 của token (32 byte ngẫu nhiên, base64url). **Token chỉ hiện một lần lúc tạo** (M3 Q1) |
+| role       | text CHECK ∈ admin/member       | vai trò người vào sẽ nhận                                                                     |
+| created_by | uuid NULL FK → users SET NULL   |                                                                                               |
+| expires_at | timestamptz NOT NULL            |                                                                                               |
+| max_uses   | int NULL                        | NULL = không giới hạn                                                                         |
+| use_count  | int NOT NULL DEFAULT 0          |                                                                                               |
+| revoked_at | timestamptz NULL                |                                                                                               |
+| created_at | timestamptz                     |                                                                                               |
 
-**Không cần khoá dòng.** Một câu UPDATE có điều kiện đã là nguyên tử:
+Ràng buộc:
+
+- `organization_invites_token_hash_uq UNIQUE (token_hash)`.
+- CHECK `max_uses IS NULL OR max_uses > 0`.
+- CHECK `use_count >= 0 AND (max_uses IS NULL OR use_count <= max_uses)`.
+- Index `(org_id, created_at DESC, id DESC)` cho danh sách mới nhất trước.
+
+**Dùng link không cần khoá dòng.** Một câu UPDATE có điều kiện đã là nguyên tử:
 
 ```sql
 UPDATE organization_invites SET use_count = use_count + 1
@@ -135,12 +151,16 @@ WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > now()
 RETURNING *;
 ```
 
-0 dòng trả về nghĩa là link hết hạn, hết lượt hoặc đã bị thu hồi. 100 người bấm cùng lúc với `max_uses = 10` thì đúng 10 người thành công.
+0 dòng trả về nghĩa là link hết hạn, hết lượt hoặc đã bị thu hồi. 100 người bấm cùng lúc với `max_uses = 10` thì đúng 10 người thành công. Lượt dùng bị trừ **trong cùng transaction** với việc thêm thành viên / tạo yêu cầu, nên nếu bước sau lỗi (vd đã là thành viên) thì lượt dùng cũng được hoàn lại.
 
-### `organization_join_requests`
+### `organization_join_requests` (M3)
 
-id, org_id, user_id, invite_id, status (`pending|approved|rejected|cancelled`), decided_by, decided_at, created_at.
-`UNIQUE (org_id, user_id) WHERE status = 'pending'`.
+id, org_id (FK CASCADE), user_id (FK → users CASCADE), invite_id (FK → invites SET NULL), role (admin/member, copy từ link), status (`pending|approved|rejected`), decided_by (FK → users SET NULL), decided_at, created_at.
+
+- `organization_join_requests_one_pending_uq UNIQUE (org_id, user_id) WHERE status = 'pending'`.
+- CHECK `(status = 'pending') = (decided_at IS NULL)`.
+- Index `(org_id, status, created_at DESC, id DESC)`.
+
 **Duyệt:** `SELECT … FOR UPDATE` → kiểm tra `pending` → `INSERT organization_members … ON CONFLICT DO NOTHING` → cập nhật status → audit. Tất cả trong 1 transaction.
 
 ## 3. Kênh
@@ -328,11 +348,14 @@ Index:
 - `(user_id, created_at DESC, id) WHERE deleted_at IS NULL`.
 - `(user_id) WHERE read_at IS NULL AND deleted_at IS NULL`: đếm số chưa đọc.
 
-### `audit_logs`
+### `audit_logs` (M3)
 
-id bigint identity, org_id, actor_id NULL (NULL = hệ thống), action text (vd `org.member.role_changed`), target_type, target_id, metadata jsonb (`{ before, after }`), request_id, ip, created_at.
-Index: `(org_id, created_at DESC, id)`.
-Ghi **trong cùng transaction** với thao tác: thao tác rollback thì log cũng rollback, không có log "ma". Chỉ INSERT, không UPDATE/DELETE. Có thể `REVOKE UPDATE, DELETE` với role ứng dụng.
+id bigint identity, org_id, actor_id NULL (NULL = hệ thống), action text (vd `org.member.role_changed`), target_type, target_id, metadata jsonb (`{ before, after }`), request_id, ip inet, created_at.
+
+- Index `(org_id, created_at DESC, id DESC)`.
+- **Không FK** tới organizations/users: log phải sống lâu hơn bản ghi mà nó mô tả.
+- Ghi **trong cùng transaction** với thao tác. Thao tác rollback thì log cũng rollback, không có log "ma".
+- **Chỉ ghi thêm**, ép bằng trigger `audit_logs_append_only` (chặn `UPDATE`/`DELETE`/`TRUNCATE`). `REVOKE` không đủ, vì user ứng dụng là chủ của bảng.
 
 ### `idempotency_keys` (M5)
 

@@ -22,6 +22,20 @@
       "when": 1791884335863,
       "tag": "0002_organizations",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791886618787,
+      "tag": "0003_invites_join_requests_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791886629440,
+      "tag": "0004_audit_logs_append_only",
+      "breakpoints": true
     }
   ]
 }
