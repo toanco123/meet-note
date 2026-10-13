@@ -5,7 +5,7 @@ import { ErrorCode } from '../../common/errors/error-code.js';
 import type { EnvironmentVariables } from '../../config/env.validation.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database } from '../../infra/database/database.types.js';
-import type { SessionRevokedReason } from '../../infra/database/schema/index.js';
+import type { SessionRevokedReason, SessionRow } from '../../infra/database/schema/index.js';
 import { type SessionMeta, SessionsRepository } from './sessions.repository.js';
 import { hashRefreshToken, type IssuedToken, TokenService } from './token.service.js';
 
@@ -143,6 +143,11 @@ export class SessionsService {
 
   revokeAll(userId: string): Promise<number> {
     return this.repo.revokeAllSessions(userId, 'logout_all', new Date());
+  }
+
+  /** Phiên còn sống, mới dùng gần nhất trước. */
+  listActive(userId: string): Promise<SessionRow[]> {
+    return this.repo.listActive(userId);
   }
 
   isActive(sessionId: string, userId: string): Promise<boolean> {

@@ -147,7 +147,7 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
   - Test (e2e): không token / token sai / token hết hạn / phiên đã thu hồi → 401 đúng mã; `/health/*` vẫn public; `/docs-json` thể hiện đúng security.
 - [x] **B8 — Refresh, logout, logout-all**
   - Test (e2e), luồng đầy đủ: login → refresh → access token mới gọi `/me` được → dùng lại refresh cũ (quá grace, giả lập bằng cách lùi `rotated_at` trong DB) → 401 `REUSED` → access token của phiên đó cũng bị 401 `SESSION_REVOKED`.
-- [ ] **B9 — `/me` và `/me/sessions`** (`UsersModule`)
+- [x] **B9 — `/me` và `/me/sessions`** (`UsersModule`)
   - Test (e2e): `GET/PATCH /me`; liệt kê phiên có cờ `current`; xoá phiên của chính mình → phiên đó 401; xoá phiên của người khác → 404.
 - [ ] **B10 — Đóng mốc**
   - Việc:
@@ -198,3 +198,6 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
 18. **Test guard bằng controller thăm dò chỉ có trong test** (`createTestApp({ controllers: [ProbeController] })`). Nhờ vậy test guard độc lập với tính năng, trước khi có `/me`.
 19. **Dời mọi test ra `test/` (yêu cầu của người dùng, 2026-10-13).** `src/` chỉ còn code ứng dụng. `test/unit` và `test/integration` mô phỏng cây `src/`. Dời bằng `git mv` để giữ lịch sử, đổi import tương đối bằng script, sửa `include` trong 2 file vitest config. Số test trước và sau giữ nguyên (unit 45, integration + e2e 51). Đánh đổi: import trong test dài hơn (`../../../../src/...`).
 20. **Đường đi của một refresh token bị đánh cắp, đã kiểm chứng qua HTTP:** refresh → kẻ trộm dùng lại token cũ (quá grace) → 401 `REUSED` → access token _còn hạn_ của phiên đó bị 401 `SESSION_REVOKED` ngay, nhờ guard kiểm tra phiên ở mỗi request (Q1). Nếu chọn JWT stateless, access token đó còn dùng được thêm tối đa 15 phút.
+21. **Vòng phụ thuộc module: đặt `/me` trong `UsersModule` như plan ban đầu sẽ tạo vòng `UsersModule ↔ AuthModule`.** Auth cần `UsersRepository`, còn `/me/sessions` cần `SessionsService`. Có thể gỡ bằng `forwardRef()`, nhưng đó là triệu chứng của phân tầng sai. Cách đã chọn: tách `MeModule` để phụ thuộc đi một chiều `users ← auth ← me`.
+22. **Response DTO map tường minh từng field, không spread row** (`MeResponseDto.from`). Spread `{...row}` sẽ lộ `passwordHash`. Test e2e kiểm tra body không chứa chuỗi `argon2`.
+23. **Thu hồi phiên của người khác trả 404, không trả 403**, và cũng 404 với id không tồn tại hoặc đã thu hồi. Nhờ vậy kẻ tấn công không dò được session id nào tồn tại. Điều kiện `user_id` nằm ngay trong câu `UPDATE … WHERE`, không phải đọc trước rồi kiểm tra.

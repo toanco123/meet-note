@@ -37,6 +37,15 @@ export class UsersRepository {
     return row;
   }
 
+  async updateDisplayName(id: string, displayName: string): Promise<UserRow | undefined> {
+    const [row] = await this.db
+      .update(users)
+      .set({ displayName })
+      .where(eq(users.id, id))
+      .returning();
+    return row;
+  }
+
   async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
     await this.db.update(users).set({ passwordHash }).where(eq(users.id, id));
   }
