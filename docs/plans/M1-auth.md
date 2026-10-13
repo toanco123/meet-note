@@ -109,12 +109,12 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
     - email trùng khác hoa thường → 23505 với constraint `users_email_lower_uq`;
     - `search_text` của "Nguyễn Văn A" chứa `nguyen van a`;
     - xoá user → cascade sessions + refresh_tokens.
-- [ ] **B3 — `PasswordHasher`**
+- [x] **B3 — `PasswordHasher`**
   - Việc:
     - argon2id theo tham số OWASP (m = 19 MiB, t = 2, p = 1);
     - `verify`, `needsRehash`;
     - `verifyDummy()` để email không tồn tại cũng tốn thời gian như sai mật khẩu.
-  - Test (unit): hash ≠ mật khẩu; verify đúng/sai; `needsRehash` khi đổi tham số; mật khẩu > 128 ký tự bị chặn ở DTO (tránh DoS bằng chuỗi cực dài).
+  - Test (unit): hash ≠ mật khẩu; verify đúng/sai; `needsRehash` khi đổi tham số; giới hạn 128 ký tự export thành hằng `PASSWORD_MAX_LENGTH`, còn test chặn ở DTO chuyển sang B6 (lúc đó mới có DTO).
 - [ ] **B4 — `TokenService`**
   - Việc:
     - ký/verify access JWT (claims `sub`, `sid`, `iss`, `aud`, `exp`);
@@ -183,3 +183,4 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
 5. **Drizzle ghi tên cột có kèm tên bảng (`"users"."display_name"`) trong generated column và CHECK.** Postgres 18 chấp nhận, đã kiểm chứng bằng integration test. Generated column chỉ được gọi hàm IMMUTABLE, nên phải dùng `f_unaccent()` chứ không dùng `unaccent()`.
 6. **Lỗi unique trên _index_ (không phải constraint) vẫn trả `constraint` = tên index** trong lỗi `pg` (vd `users_email_lower_uq`). Nhờ vậy service map được sang mã lỗi cụ thể. Bất biến giữa hai cột viết thành CHECK dạng `(a IS NULL) = (b IS NULL)`, gọn hơn viết OR.
 7. **zsh không tách từ biến không có nháy.** `P="npx -y pnpm"; $P format` coi cả chuỗi là tên lệnh, nên lệnh lỗi mà không báo gì vì output đã đẩy vào `/dev/null`. Trong zsh phải viết lệnh trực tiếp, hoặc dùng mảng `P=(npx -y pnpm); $P format`.
+8. **Thứ tự tham số trong chuỗi PHC của argon2 0.45 là `m,p,t`** (`$argon2id$v=19$m=19456,p=1,t=2$…`), không phải `m,t,p` như nhiều ví dụ trên mạng. Test không nên khớp nguyên chuỗi, mà nên tách tham số ra rồi so như một tập hợp.
