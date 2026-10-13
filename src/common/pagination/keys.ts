@@ -22,6 +22,13 @@ export function expectTimestampKey(value: CursorKey | undefined): string {
   return value;
 }
 
+/** Khoá số nguyên dương (vd id `bigint identity`) — chặn số thực, số âm, số vượt `Number.MAX_SAFE_INTEGER`. */
+export function expectPositiveIntKey(value: CursorKey | undefined): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0)
+    throw invalidCursor();
+  return value;
+}
+
 export function expectUuidKey(value: CursorKey | undefined): string {
   if (!isUuid(value)) throw invalidCursor();
   return value;

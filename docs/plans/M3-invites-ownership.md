@@ -1,6 +1,6 @@
 # M3 — Mời, duyệt, chuyển quyền sở hữu, rời tổ chức, audit log
 
-- **Trạng thái:** Đang làm (plan đã duyệt 2026-10-13, chọn ★ cho Q1–Q5)
+- **Trạng thái:** Xong ở local (2026-10-13). Còn chờ CI trên PR
 - **Nhánh:** `m3-invites-ownership`
 - **Tài liệu thiết kế liên quan:** [01-overview D7](../design/01-overview.md), [03-database §2, §6](../design/03-database.md), [04-authorization §1](../design/04-authorization.md), [05-api Organizations](../design/05-api.md), [06-flows](../design/06-flows.md)
 
@@ -131,17 +131,18 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
   - Test (e2e): Owner cũ thành Admin và mất quyền Owner ngay; người nhận không phải thành viên → 404; chuyển cho chính mình → 409; Owner rời → 409; Admin rời → 204 và mất quyền.
   - **Đột biến 1:** nâng trước hạ sau → 23505. Chứng minh partial unique index không deferrable.
   - **Race:** Owner chuyển cho B ‖ cho C → đúng 1 Owner, request kia **403** (không còn là Owner). Bỏ khoá thì vẫn chỉ 1 Owner nhờ unique index, nhưng request kia nhận **409 CONFLICT** chung chung thay cho 403. Constraint là lưới an toàn cuối, còn khoá cho ra **ngữ nghĩa lỗi đúng**.
-- [ ] **B8 — API xem audit log + đóng mốc**
+- [x] **B8 — API xem audit log + đóng mốc**
   - Việc: `GET /orgs/:orgId/audit-logs` (cursor giảm dần, lọc theo `action`/`actorId`); cập nhật `openapi.json`, đối chiếu tài liệu, chạy tay trên Docker Compose.
   - Test (e2e): Member → 403; lọc đúng; thứ tự mới nhất trước.
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở local và CI; 3 race test (B5, B6, B7) đều đã được đột biến để chứng minh đỏ được
-- [ ] Mọi thao tác quản trị của M2 + M3 đều có audit log trong cùng transaction
-- [ ] `openapi.json` có đủ route mới, có response 410 cho link hết hạn
-- [ ] `docs/design/` khớp với code
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 115)
+- [x] `pnpm test:e2e` xanh ở local (integration + e2e 206). 3 race test (B5 link 30 người, B6 hai Admin duyệt, B7 chuyển cho B ‖ C) đều đã đột biến và đỏ đúng dự đoán
+- [ ] `pnpm test:e2e` xanh trên CI: **chờ push nhánh**
+- [x] Mọi thao tác quản trị của M2 + M3 đều có audit log trong cùng transaction (12 loại hành động). Chạy tay trên Docker Compose: audit ghi đủ 9 sự kiện của luồng mời → duyệt → chuyển sở hữu → rời; trigger chặn `UPDATE` kể cả qua psql
+- [x] `openapi.json` có đủ route mới (24 path), có response 410 cho link hết hạn/hết lượt
+- [x] `docs/design/` khớp với code (02, 03, 04, 05, 07, 10)
 
 ## Điều sẽ học
 
@@ -182,3 +183,5 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
 20. **Thứ tự ghi khi có partial unique index không deferrable.** Đột biến "nâng người nhận trước, hạ owner cũ sau" làm **mọi** lần chuyển sở hữu lỗi `23505` (→ 409). Giữa hai câu `UPDATE` trong cùng transaction cũng không được phép có hai owner, vì unique index được kiểm tra **ngay sau từng câu lệnh** chứ không đợi tới commit. Cách đúng: hạ trước, nâng sau. (Cách khác là `UNIQUE … DEFERRABLE INITIALLY DEFERRED`, nhưng partial unique _index_ không deferrable được, chỉ unique _constraint_ toàn bảng mới được.)
 21. **Constraint giữ dữ liệu, khoá giữ ngữ nghĩa (đã chứng minh hai lần: B5 và B7).** Bỏ `FOR UPDATE` khi Owner chuyển cho B ‖ cho C: vẫn đúng 1 owner nhờ unique index, nhưng request thua cuộc nhận `23505` thay vì 403 `FORBIDDEN` ("bạn không còn là Owner"). Có khoá + kiểm tra lại sau khi khoá thì request sau đọc được trạng thái mới và trả lỗi có nghĩa.
 22. **Owner không bao giờ rời được khi chưa chuyển quyền** (409 `ORG_OWNER_MUST_TRANSFER`), nên org không thể mất owner. e2e kiểm cả đường "chuyển quyền rồi mới rời". Ghi chú M4: `leave` cũng phải chuyển các kênh người đó làm chủ (đã để comment).
+23. **Tách `AuditModule` (chỉ ghi, global) khỏi `AuditLogsModule` (API đọc).** Worker ở M6 cần ghi audit mà không kéo theo controller và guard tổ chức. Cursor của audit log dùng khoá thứ hai là `id bigint`, nên thêm `expectPositiveIntKey` để chặn số âm, số thực, số vượt `MAX_SAFE_INTEGER` trong cursor bị sửa tay.
+24. **Trigger chỉ-ghi-thêm có hiệu lực cả với người vận hành DB.** Chạy tay trên Docker Compose: `UPDATE audit_logs …` bằng psql với user chủ bảng vẫn nhận `audit_logs là bảng chỉ ghi thêm: UPDATE bị từ chối`. Muốn sửa phải chủ động `DISABLE TRIGGER`, và hành động đó để lại dấu vết.

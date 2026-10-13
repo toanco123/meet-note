@@ -10,19 +10,21 @@ export interface AuditContext {
 }
 
 /** Danh sách đóng các hành động được ghi — gõ sai là lỗi compile. Quy ước `domain.object.verb_past`. */
-export type AuditAction =
-  | 'org.created'
-  | 'org.updated'
-  | 'org.member.role_changed'
-  | 'org.member.removed'
-  | 'org.member.joined'
-  | 'org.member.left'
-  | 'org.invite.created'
-  | 'org.invite.revoked'
-  | 'org.join_request.created'
-  | 'org.join_request.approved'
-  | 'org.join_request.rejected'
-  | 'org.ownership.transferred';
+export const AUDIT_ACTIONS = [
+  'org.created',
+  'org.updated',
+  'org.member.role_changed',
+  'org.member.removed',
+  'org.member.joined',
+  'org.member.left',
+  'org.invite.created',
+  'org.invite.revoked',
+  'org.join_request.created',
+  'org.join_request.approved',
+  'org.join_request.rejected',
+  'org.ownership.transferred',
+] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export interface AuditEntry {
   orgId: string;

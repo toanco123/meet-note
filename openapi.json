@@ -1867,6 +1867,139 @@
           "Organizations"
         ]
       }
+    },
+    "/v1/orgs/{orgId}/audit-logs": {
+      "get": {
+        "description": "Lọc theo `action`, `actorId`. Log chỉ ghi thêm, không sửa/xoá được.",
+        "operationId": "AuditLogs_list",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Lọc theo loại hành động.",
+            "schema": {
+              "$ref": "#/components/schemas/AuditAction"
+            }
+          },
+          {
+            "name": "actorId",
+            "required": false,
+            "in": "query",
+            "description": "Lọc theo người thực hiện.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponseDto"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "data"
+                      ],
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AuditLogResponseDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Nhật ký thao tác quản trị của tổ chức, mới nhất trước (Admin trở lên).",
+        "tags": [
+          "Organizations"
+        ]
+      }
     }
   },
   "info": {
@@ -2748,6 +2881,84 @@
         "required": [
           "status",
           "id"
+        ]
+      },
+      "AuditAction": {
+        "type": "string",
+        "enum": [
+          "org.created",
+          "org.updated",
+          "org.member.role_changed",
+          "org.member.removed",
+          "org.member.joined",
+          "org.member.left",
+          "org.invite.created",
+          "org.invite.revoked",
+          "org.join_request.created",
+          "org.join_request.approved",
+          "org.join_request.rejected",
+          "org.ownership.transferred"
+        ]
+      },
+      "AuditLogResponseDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuditAction"
+              }
+            ]
+          },
+          "actorId": {
+            "type": "string",
+            "nullable": true,
+            "description": "`null` = hệ thống."
+          },
+          "actorDisplayName": {
+            "type": "string",
+            "nullable": true,
+            "description": "`null` nếu người thực hiện đã bị xoá (log không có FK, vẫn giữ nguyên)."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Thường là `{ before, after }`."
+          },
+          "requestId": {
+            "type": "string",
+            "nullable": true
+          },
+          "ip": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "number",
+            "example": 1024
+          },
+          "targetType": {
+            "type": "string",
+            "example": "member"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "actorDisplayName",
+          "metadata",
+          "requestId",
+          "ip",
+          "id",
+          "targetType",
+          "targetId",
+          "createdAt"
         ]
       }
     }
