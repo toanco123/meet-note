@@ -1,11 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppException } from '../../common/errors/app.exception.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
+import { AuditService } from '../audit/audit.service.js';
+import type { UserAuditContext } from '../audit/audit.types.js';
 import type { Database } from '../../infra/database/database.types.js';
 import { OrgRole } from './organization.policy.js';
 import {
   type MyOrganizationRow,
   type OrganizationDetailRow,
+  type OrganizationPatch,
   OrganizationsRepository,
 } from './organizations.repository.js';
 
@@ -14,19 +17,27 @@ export class OrganizationsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly repo: OrganizationsRepository,
+    private readonly audit: AuditService,
   ) {}
 
   /**
-   * Org và Owner đầu tiên phải cùng tồn tại: org không có owner là trạng thái hỏng (không ai
-   * quản trị được), nên hai INSERT nằm chung một transaction.
+   * Org, Owner đầu tiên và dòng audit phải cùng tồn tại hoặc cùng không: org không có owner là
+   * trạng thái hỏng; thao tác không có audit là lỗ hổng truy vết.
    */
-  async create(userId: string, name: string): Promise<MyOrganizationRow> {
+  async create(name: string, ctx: UserAuditContext): Promise<MyOrganizationRow> {
     return this.db.transaction(async (tx) => {
-      const org = await this.repo.insertOrganization(name, userId, tx);
+      const org = await this.repo.insertOrganization(name, ctx.actorId, tx);
       const owner = await this.repo.insertMember(
-        { orgId: org.id, userId, role: OrgRole.Owner },
+        { orgId: org.id, userId: ctx.actorId, role: OrgRole.Owner },
         tx,
       );
+      await this.audit.record(tx, ctx, {
+        orgId: org.id,
+        action: 'org.created',
+        targetType: 'organization',
+        targetId: org.id,
+        metadata: { after: { name: org.name } },
+      });
       return { id: org.id, name: org.name, role: owner.role, joinedAt: owner.joinedAt };
     });
   }
@@ -42,10 +53,43 @@ export class OrganizationsService {
     return detail;
   }
 
-  async rename(orgId: string, name: string): Promise<OrganizationDetailRow> {
-    if (!(await this.repo.updateName(orgId, name))) {
-      throw AppException.notFound('Không tìm thấy tổ chức.');
-    }
+  /** Khoá dòng org → đọc giá trị cũ → ghi → audit `{ before, after }` (chỉ field thực sự đổi). */
+  async update(
+    orgId: string,
+    patch: OrganizationPatch,
+    ctx: UserAuditContext,
+  ): Promise<OrganizationDetailRow> {
+    await this.db.transaction(async (tx) => {
+      const current = await this.repo.lockForUpdate(orgId, tx);
+      if (!current) throw AppException.notFound('Không tìm thấy tổ chức.');
+
+      const changed = changedFields(current, patch);
+      if (Object.keys(changed.after).length === 0) return; // không đổi gì → không ghi, không log
+
+      await this.repo.update(orgId, changed.after, tx);
+      await this.audit.record(tx, ctx, {
+        orgId,
+        action: 'org.updated',
+        targetType: 'organization',
+        targetId: orgId,
+        metadata: changed,
+      });
+    });
     return this.getDetail(orgId);
   }
+}
+
+function changedFields(
+  current: Required<OrganizationPatch>,
+  patch: OrganizationPatch,
+): { before: OrganizationPatch; after: OrganizationPatch } {
+  const before: Record<string, unknown> = {};
+  const after: Record<string, unknown> = {};
+  for (const key of Object.keys(patch) as Array<keyof OrganizationPatch>) {
+    if (patch[key] !== undefined && patch[key] !== current[key]) {
+      before[key] = current[key];
+      after[key] = patch[key];
+    }
+  }
+  return { before: before as OrganizationPatch, after: after as OrganizationPatch };
 }

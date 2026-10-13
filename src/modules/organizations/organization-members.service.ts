@@ -5,6 +5,8 @@ import { decodeCursor, type Page, toPage } from '../../common/pagination/cursor.
 import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, Transaction } from '../../infra/database/database.types.js';
+import { AuditService } from '../audit/audit.service.js';
+import type { UserAuditContext } from '../audit/audit.types.js';
 import type { ListMembersQueryDto } from './dto/list-members-query.dto.js';
 import { MemberResponseDto } from './dto/member-response.dto.js';
 import type { AssignableOrgRole } from './dto/update-member-role.dto.js';
@@ -16,6 +18,7 @@ export class OrganizationMembersService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly repo: OrganizationMembersRepository,
+    private readonly audit: AuditService,
   ) {}
 
   async list(orgId: string, query: ListMembersQueryDto): Promise<Page<MemberResponseDto>> {
@@ -41,14 +44,22 @@ export class OrganizationMembersService {
    */
   async changeRole(
     orgId: string,
-    actorId: string,
     targetId: string,
     newRole: AssignableOrgRole,
+    ctx: UserAuditContext,
   ): Promise<MemberResponseDto> {
     await this.db.transaction(async (tx) => {
-      const { actor, target } = await this.lockActorAndTarget(orgId, actorId, targetId, tx);
+      const { actor, target } = await this.lockActorAndTarget(orgId, ctx.actorId, targetId, tx);
       assertAllowed(canChangeRole(actor, target, newRole));
+      if (target === newRole) return; // không đổi gì → không ghi audit
       await this.repo.updateRole(orgId, targetId, newRole, tx);
+      await this.audit.record(tx, ctx, {
+        orgId,
+        action: 'org.member.role_changed',
+        targetType: 'member',
+        targetId,
+        metadata: { before: { role: target }, after: { role: newRole } },
+      });
     });
 
     const updated = await this.repo.findMember(orgId, targetId);
@@ -63,11 +74,18 @@ export class OrganizationMembersService {
    * M4: khi đã có kênh, phải chuyển các kênh mà người bị gỡ làm chủ sang người khác TRONG cùng
    * transaction này (cascade FK sẽ xoá luôn dòng chủ kênh → kênh mồ côi).
    */
-  async remove(orgId: string, actorId: string, targetId: string): Promise<void> {
+  async remove(orgId: string, targetId: string, ctx: UserAuditContext): Promise<void> {
     await this.db.transaction(async (tx) => {
-      const { actor, target } = await this.lockActorAndTarget(orgId, actorId, targetId, tx);
+      const { actor, target } = await this.lockActorAndTarget(orgId, ctx.actorId, targetId, tx);
       assertAllowed(canRemoveMember(actor, target));
       await this.repo.deleteMember(orgId, targetId, tx);
+      await this.audit.record(tx, ctx, {
+        orgId,
+        action: 'org.member.removed',
+        targetType: 'member',
+        targetId,
+        metadata: { before: { role: target } },
+      });
     });
   }
 

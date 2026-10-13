@@ -3,6 +3,8 @@ import { ApiTags } from '@nestjs/swagger';
 import type { AuthUser } from '../../common/auth/auth-user.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
+import { UserAuditCtx } from '../audit/audit-context.decorator.js';
+import type { UserAuditContext } from '../audit/audit.types.js';
 import { CreateOrganizationDto, UpdateOrganizationDto } from './dto/organization-name.dto.js';
 import {
   MyOrganizationResponseDto,
@@ -22,10 +24,10 @@ export class OrganizationsController {
   @Post()
   @ApiErrorResponses(400, 401)
   async create(
-    @CurrentUser() user: AuthUser,
+    @UserAuditCtx() audit: UserAuditContext,
     @Body() dto: CreateOrganizationDto,
   ): Promise<MyOrganizationResponseDto> {
-    return MyOrganizationResponseDto.from(await this.orgs.create(user.id, dto.name));
+    return MyOrganizationResponseDto.from(await this.orgs.create(dto.name, audit));
   }
 
   /**
@@ -60,8 +62,12 @@ export class OrganizationsController {
   async rename(
     @Param('orgId') orgId: string,
     @CurrentOrgMembership() membership: OrgMembershipContext,
+    @UserAuditCtx() audit: UserAuditContext,
     @Body() dto: UpdateOrganizationDto,
   ): Promise<OrganizationResponseDto> {
-    return OrganizationResponseDto.from(await this.orgs.rename(orgId, dto.name), membership.role);
+    return OrganizationResponseDto.from(
+      await this.orgs.update(orgId, { name: dto.name }, audit),
+      membership.role,
+    );
   }
 }

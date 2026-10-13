@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
+import { AuditService } from '../../../../src/modules/audit/audit.service.js';
 import { organizationMembers, organizations } from '../../../../src/infra/database/schema/index.js';
 import { OrganizationsRepository } from '../../../../src/modules/organizations/organizations.repository.js';
 import { OrganizationsService } from '../../../../src/modules/organizations/organizations.service.js';
@@ -19,6 +20,7 @@ describe('OrganizationsService (Postgres thật)', () => {
       providers: [
         OrganizationsService,
         OrganizationsRepository,
+        AuditService,
         { provide: DRIZZLE, useValue: t.db },
       ],
     }).compile();
@@ -33,7 +35,7 @@ describe('OrganizationsService (Postgres thật)', () => {
   it('create: tạo org + đúng 1 membership owner cho người tạo', async () => {
     const user = await insertUser(t.db);
 
-    const created = await service.create(user.id, 'Công ty ABC');
+    const created = await service.create('Công ty ABC', { actorId: user.id });
 
     expect(created).toMatchObject({ name: 'Công ty ABC', role: 'owner' });
     const members = await t.db
@@ -52,7 +54,9 @@ describe('OrganizationsService (Postgres thật)', () => {
       .spyOn(repo, 'insertMember')
       .mockRejectedValueOnce(new Error('giả lập lỗi ở INSERT thứ hai'));
 
-    await expect(service.create(user.id, orgName)).rejects.toThrow('giả lập lỗi ở INSERT thứ hai');
+    await expect(service.create(orgName, { actorId: user.id })).rejects.toThrow(
+      'giả lập lỗi ở INSERT thứ hai',
+    );
 
     expect(spy).toHaveBeenCalledOnce();
     const leftovers = await t.db
@@ -105,10 +109,12 @@ describe('OrganizationsService (Postgres thật)', () => {
     expect(await repo.findMembership(org.id, owner.id)).toBeUndefined();
   });
 
-  it('rename: đổi tên và trả chi tiết mới', async () => {
+  it('update: đổi tên và trả chi tiết mới', async () => {
     const owner = await insertUser(t.db);
     const org = await insertOrg(t.db, owner.id, 'Tên cũ');
 
-    expect(await service.rename(org.id, 'Tên mới')).toMatchObject({ name: 'Tên mới' });
+    expect(await service.update(org.id, { name: 'Tên mới' }, { actorId: owner.id })).toMatchObject({
+      name: 'Tên mới',
+    });
   });
 });

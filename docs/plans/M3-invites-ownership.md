@@ -103,7 +103,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
     - CHECK của `use_count` / `max_uses`;
     - 2 yêu cầu `pending` cùng user + org → 23505;
     - `UPDATE`/`DELETE` audit log → lỗi do trigger.
-- [ ] **B2 — `AuditModule` + gắn ngược vào M2** (skill `db-transactions`)
+- [x] **B2 — `AuditModule` + gắn ngược vào M2** (skill `db-transactions`)
   - Việc:
     - `AuditService.record(tx, entry)`, `@AuditCtx()` (Q3);
     - tạo org / đổi tên / đổi vai trò / gỡ thành viên ghi audit trong cùng transaction (đổi tên chuyển vào transaction).
@@ -158,3 +158,12 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
 2. **Test `EXPLAIN` phải chốt điều kiện planner.** Lần đầu ca "khớp index" vẫn ra `Sort`, vì bảng trong test chưa có thống kê nên planner chọn **bitmap scan**, mà bitmap scan không giữ thứ tự. Cách làm: `ANALYZE` trước, rồi `SET LOCAL enable_seqscan = off` + `enable_bitmapscan = off` trong một transaction riêng. Không nên tin plan của một bảng chưa `ANALYZE`.
 3. **`REVOKE` không bảo vệ được bảng khỏi chính chủ của nó.** User ứng dụng là chủ bảng `audit_logs`, nên "chỉ ghi thêm" được ép bằng trigger: `BEFORE UPDATE OR DELETE FOR EACH ROW` cộng thêm `BEFORE TRUNCATE FOR EACH STATEMENT`, vì TRUNCATE không kích hoạt trigger cấp dòng. Lỗi mang SQLSTATE `23001` (`restrict_violation`).
 4. **Audit log không có FK.** FK `ON DELETE SET NULL` sẽ phải UPDATE dòng log, đúng điều trigger cấm. Log cũng phải sống lâu hơn bản ghi mà nó mô tả.
+5. **Dùng `this.db` bên trong transaction có khoá dòng thì request treo vô hạn, Postgres không báo deadlock.** Đột biến "xoá thành viên ngoài transaction" không cho ra kết quả "thành viên bị xoá" như dự đoán, mà **treo 30s tới timeout**:
+   - transaction đã `FOR UPDATE` dòng đó trên connection A;
+   - lệnh `DELETE` qua `this.db` lấy connection B của pool và chờ khoá của A;
+   - A lại đang chờ B xong.
+     Postgres chỉ thấy A "idle in transaction", không phải hai transaction khoá chéo nhau, nên không có `40P01`. Bài học kép:
+   - trong transaction **mọi** câu lệnh phải đi qua `tx` (AuditService cố ý không có default `this.db`);
+   - production nên đặt `lock_timeout` / `idle_in_transaction_session_timeout` để lỗi thay vì treo (ghi vào M11 hardening).
+6. **Không ghi audit cho thao tác không đổi gì** (đổi vai trò member → member, sửa org với tên y nguyên). Log chỉ chứa field thực sự đổi (`{ before, after }`), để audit đọc được chứ không thành nhiễu.
+7. **Quy trình: nối bước commit bằng `;` sau `format:check` là sai.** Commit B1 lọt một file chưa format vì `;` không dừng khi lệnh trước lỗi. Đã sửa bằng `--amend` (commit chưa push). Bước commit chỉ được chạy khi kiểm tra trước đó qua.

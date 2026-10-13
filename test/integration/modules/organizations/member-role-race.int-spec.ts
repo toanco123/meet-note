@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AppException } from '../../../../src/common/errors/app.exception.js';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
+import { AuditService } from '../../../../src/modules/audit/audit.service.js';
 import { organizationMembers } from '../../../../src/infra/database/schema/index.js';
 import { OrganizationMembersRepository } from '../../../../src/modules/organizations/organization-members.repository.js';
 import { OrganizationMembersService } from '../../../../src/modules/organizations/organization-members.service.js';
@@ -39,6 +40,7 @@ describe('Race: đổi vai trò vs gỡ cùng một thành viên (Postgres thậ
       providers: [
         OrganizationMembersService,
         OrganizationMembersRepository,
+        AuditService,
         { provide: DRIZZLE, useValue: t.db },
       ],
     }).compile();
@@ -61,8 +63,8 @@ describe('Race: đổi vai trò vs gỡ cùng một thành viên (Postgres thậ
       await addMember(t.db, org.id, b.id, 'member');
 
       const [promote, removal] = await Promise.all([
-        outcomeOf(service.changeRole(org.id, owner.id, b.id, 'admin')),
-        outcomeOf(service.remove(org.id, admin.id, b.id)),
+        outcomeOf(service.changeRole(org.id, b.id, 'admin', { actorId: owner.id })),
+        outcomeOf(service.remove(org.id, b.id, { actorId: admin.id })),
       ]);
 
       const [row] = await t.db
