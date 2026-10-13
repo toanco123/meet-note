@@ -1,6 +1,6 @@
 # M2 — Tổ chức (lõi)
 
-- **Trạng thái:** Đang làm (plan đã duyệt 2026-10-13, chọn ★ cho Q1–Q4)
+- **Trạng thái:** Xong ở local (2026-10-13). Còn chờ CI trên PR
 - **Nhánh:** `m2-organizations`
 - **Tài liệu thiết kế liên quan:** [01-overview D1](../design/01-overview.md), [03-database §2](../design/03-database.md), [04-authorization §1, §4](../design/04-authorization.md), [05-api Organizations](../design/05-api.md), [07-conventions §2, §4](../design/07-conventions.md)
 
@@ -137,7 +137,7 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
     - Member gỡ → 403;
     - người bị gỡ gọi lại org → 404.
   - **Test concurrency** (integration, 10 vòng): Owner nâng B **song song** với Admin A gỡ B → hai thao tác không bao giờ cùng thành công. **Bỏ `FOR UPDATE` thì test phải đỏ.**
-- [ ] **B8 — `/me` có danh sách org + đóng mốc**
+- [x] **B8 — `/me` có danh sách org + đóng mốc**
   - Việc:
     - `MeResponseDto.organizations`;
     - cập nhật `openapi.json`;
@@ -147,11 +147,12 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở local và trên CI. Test concurrency đã chứng minh "bỏ lock là đỏ"
-- [ ] Unit test phủ toàn bộ ma trận quyền cấp tổ chức của M2
-- [ ] `openapi.json` có đủ route mới, mọi route `:orgId` khai báo 403/404
-- [ ] `docs/design/` khớp với code
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 94)
+- [x] `pnpm test:e2e` xanh ở local (integration + e2e 141). Race test đã chứng minh "bỏ lock là đỏ" (bài học 16)
+- [ ] `pnpm test:e2e` xanh trên CI: **chờ push nhánh**
+- [x] Unit test phủ toàn bộ ma trận quyền cấp tổ chức của M2, kèm test tự đỏ nếu thêm permission mà quên bảng (bài học 4)
+- [x] `openapi.json` có đủ route mới (14 path). Mọi route `:orgId` khai báo 401/403/404 qua `@RequireOrgPermission`
+- [x] `docs/design/` khớp với code (02, 03, 04, 05, 07). Chạy tay trên Docker Compose: tạo org → `/me` có org → tìm "nguyen" → người lạ 404 → `:orgId` rác 404 → owner tự gỡ 409
 
 ## Điều sẽ học
 
@@ -190,3 +191,4 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
 16. **Race "Owner nâng B ‖ Admin A gỡ B" được bắt bằng khoá (actor, target) theo `user_id`.** Chạy 20 vòng thấy **cả hai thứ tự** xảy ra (`OK/FORBIDDEN/admin` và `NOT_FOUND/OK/gone`), tức test thật sự đo race. Bỏ `FOR UPDATE` thì vòng 1 đã ra `OK/OK/gone`: Admin gỡ được người vừa thành Admin, vi phạm ma trận. Không deadlock vì cả hai thao tác khoá theo cùng thứ tự `user_id` và chỉ chồng nhau ở dòng B.
 17. **Assertion cho race: gộp kết cục thành một chuỗi rồi `toContain` trong tập hợp lệ**, thay cho `if/else` + nhiều `expect`. Không còn `expect` có điều kiện, và khi đỏ, thông báo chỉ thẳng kết cục sai (`to include 'OK/OK/gone'`).
 18. **Ghi chú cho M4:** `remove()` hiện chỉ xoá membership. Khi có kênh, composite FK `channel_members → organization_members ON DELETE CASCADE` sẽ xoá luôn dòng chủ kênh. Vì vậy `remove()` phải chuyển các kênh người đó làm chủ sang người khác **trong cùng transaction** (đã để comment tại chỗ).
+19. **Script thử nghiệm cũng cần dữ liệu hợp lệ.** Smoke test đầu tiên nhận 401 khi tạo org vì email được ghép từ tên tiếng Việt (`Chủ Nguyễn-…@example.com`), nên đăng ký trả 400 và không có token. Lỗi nằm ở script, không ở app. Nên kiểm tra status của từng bước trong script thay vì giả định đã thành công.

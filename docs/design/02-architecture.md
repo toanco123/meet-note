@@ -122,25 +122,25 @@ channels/
 
 ## 4. Danh sách module
 
-| Module                       | Tiến trình                        | Trách nhiệm                                                                                          |
-| ---------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `ConfigModule` (global)      | api, worker                       | Đọc + validate env khi khởi động, sai thì dừng ngay                                                  |
-| `LoggerModule` (nestjs-pino) | api, worker                       | Log JSON, `requestId` mỗi request (`x-request-id`), redact header nhạy cảm                           |
-| `DatabaseModule` (global)    | api, worker                       | Pool `pg`, instance Drizzle, helper `withTransaction`                                                |
-| `RedisModule`                | api, worker                       | Kết nối ioredis cho cache/pub-sub                                                                    |
-| `QueueModule`                | api (producer), worker (consumer) | Kết nối BullMQ, khai báo queue, kiểu payload                                                         |
-| `HealthModule`               | api                               | `/health/live`, `/health/ready` (DB + Redis)                                                         |
-| `AuthModule`                 | api                               | Đăng ký, đăng nhập, refresh rotation, logout, guard JWT global                                       |
-| `UsersModule`                | api                               | Dữ liệu người dùng (`UsersRepository`). Không có controller, không phụ thuộc module khác             |
-| `MeModule`                   | api                               | `/me`, `/me/sessions`. Import `UsersModule` + `AuthModule`, phụ thuộc đi một chiều users ← auth ← me |
-| `OrganizationsModule`        | api                               | Org CRUD, thành viên, vai trò, link mời, yêu cầu tham gia, chuyển sở hữu, `OrgMemberGuard`           |
-| `ChannelsModule`             | api, worker (purge)               | Kênh, thành viên kênh, vai trò, chuyển chủ kênh, lưu trữ/xoá, `ChannelAccessGuard`                   |
-| `UploadsModule`              | api, worker (dọn upload hết hạn)  | Chunked upload, resume, S3 multipart                                                                 |
-| `MeetingsModule`             | api, worker                       | Meeting CRUD, share vào kênh, state machine xử lý, pipeline processor                                |
-| `TranscriptsModule`          | api, worker                       | Lưu segment, search full-text, xuất SRT/VTT                                                          |
-| `ReportsModule`              | api, worker                       | Job scheduler cron, tạo báo cáo, tạo lại có quota, phiên bản                                         |
-| `NotificationsModule`        | api, worker                       | Tạo thông báo (có dedupe key), danh sách, đã đọc, xoá mềm                                            |
-| `RealtimeModule`             | api                               | Socket.IO gateway, xác thực handshake, join room theo quyền                                          |
-| `AuditModule` (global)       | api, worker                       | `AuditService.record(tx, …)` ghi trong cùng transaction với thao tác quản trị                        |
+| Module                       | Tiến trình                        | Trách nhiệm                                                                                                                                                                 |
+| ---------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ConfigModule` (global)      | api, worker                       | Đọc + validate env khi khởi động, sai thì dừng ngay                                                                                                                         |
+| `LoggerModule` (nestjs-pino) | api, worker                       | Log JSON, `requestId` mỗi request (`x-request-id`), redact header nhạy cảm                                                                                                  |
+| `DatabaseModule` (global)    | api, worker                       | Pool `pg`, instance Drizzle, helper `withTransaction`                                                                                                                       |
+| `RedisModule`                | api, worker                       | Kết nối ioredis cho cache/pub-sub                                                                                                                                           |
+| `QueueModule`                | api (producer), worker (consumer) | Kết nối BullMQ, khai báo queue, kiểu payload                                                                                                                                |
+| `HealthModule`               | api                               | `/health/live`, `/health/ready` (DB + Redis)                                                                                                                                |
+| `AuthModule`                 | api                               | Đăng ký, đăng nhập, refresh rotation, logout, guard JWT global                                                                                                              |
+| `UsersModule`                | api                               | Dữ liệu người dùng (`UsersRepository`). Không có controller, không phụ thuộc module khác                                                                                    |
+| `MeModule`                   | api                               | `/me`, `/me/sessions`. Import `UsersModule` + `AuthModule`, phụ thuộc đi một chiều users ← auth ← me                                                                        |
+| `OrganizationsModule`        | api                               | Org, thành viên, vai trò (M2); link mời, yêu cầu tham gia, chuyển sở hữu (M3). `OrgMemberGuard`, `OrgPermissionGuard`, `@RequireOrgPermission` (export để module khác dùng) |
+| `ChannelsModule`             | api, worker (purge)               | Kênh, thành viên kênh, vai trò, chuyển chủ kênh, lưu trữ/xoá, `ChannelAccessGuard`                                                                                          |
+| `UploadsModule`              | api, worker (dọn upload hết hạn)  | Chunked upload, resume, S3 multipart                                                                                                                                        |
+| `MeetingsModule`             | api, worker                       | Meeting CRUD, share vào kênh, state machine xử lý, pipeline processor                                                                                                       |
+| `TranscriptsModule`          | api, worker                       | Lưu segment, search full-text, xuất SRT/VTT                                                                                                                                 |
+| `ReportsModule`              | api, worker                       | Job scheduler cron, tạo báo cáo, tạo lại có quota, phiên bản                                                                                                                |
+| `NotificationsModule`        | api, worker                       | Tạo thông báo (có dedupe key), danh sách, đã đọc, xoá mềm                                                                                                                   |
+| `RealtimeModule`             | api                               | Socket.IO gateway, xác thực handshake, join room theo quyền                                                                                                                 |
+| `AuditModule` (global)       | api, worker                       | `AuditService.record(tx, …)` ghi trong cùng transaction với thao tác quản trị                                                                                               |
 
 > **Bẫy:** Khi một module cần dùng cho cả api và worker, đừng import cả controller vào worker. Tách `XxxCoreModule` (service + repository) và `XxxHttpModule` (controller) khi cần. Worker chỉ import Core.

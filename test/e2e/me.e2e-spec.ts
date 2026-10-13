@@ -48,8 +48,27 @@ describe('Me: /v1/me và /v1/me/sessions (e2e)', () => {
         email: user.email,
         displayName: 'Phạm Thu',
         createdAt: expect.any(String),
+        organizations: [],
       });
       expect(JSON.stringify(res.body)).not.toContain('argon2');
+    });
+
+    it('có danh sách org của tôi kèm vai trò, theo thứ tự tham gia (M2)', async () => {
+      const user = await registerUser(app);
+      for (const name of ['Org A', 'Org B']) {
+        await http()
+          .post('/v1/orgs')
+          .set(bearer(user.tokens.accessToken))
+          .send({ name })
+          .expect(201);
+      }
+
+      const res = await http().get('/v1/me').set(bearer(user.tokens.accessToken)).expect(200);
+
+      expect(res.body.organizations).toEqual([
+        { id: expect.any(String), name: 'Org A', role: 'owner' },
+        { id: expect.any(String), name: 'Org B', role: 'owner' },
+      ]);
     });
 
     it('không có token → 401', async () => {

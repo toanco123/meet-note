@@ -21,7 +21,7 @@
 | POST   | `/v1/auth/refresh`           | Public (gửi refresh token) | 200 `AuthTokensResponseDto`. Xoay vòng, xem `03-database.md` §1                                |
 | POST   | `/v1/auth/logout`            | User                       | 204. Thu hồi phiên hiện tại                                                                    |
 | POST   | `/v1/auth/logout-all`        | User                       | 204. Thu hồi mọi phiên của user                                                                |
-| GET    | `/v1/me`                     | User                       | `MeResponseDto` (M2 thêm danh sách org: id, name, role)                                        |
+| GET    | `/v1/me`                     | User                       | `MeResponseDto` gồm `organizations: [{ id, name, role }]` theo thứ tự tham gia (từ M2)         |
 | PATCH  | `/v1/me`                     | User                       | Đổi display name                                                                               |
 | GET    | `/v1/me/sessions`            | User                       | `SessionResponseDto[]`, phiên đang dùng có `current: true`. Ít phần tử nên không phân trang    |
 | DELETE | `/v1/me/sessions/:sessionId` | User                       | 204. Phiên của người khác → 404                                                                |

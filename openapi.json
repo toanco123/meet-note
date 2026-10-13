@@ -1276,6 +1276,38 @@
           "refreshToken"
         ]
       },
+      "OrgRole": {
+        "type": "string",
+        "enum": [
+          "owner",
+          "admin",
+          "member"
+        ]
+      },
+      "MeOrganizationDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrgRole"
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Công ty TNHH Bình Minh"
+          }
+        },
+        "required": [
+          "role",
+          "id",
+          "name"
+        ]
+      },
       "MeResponseDto": {
         "type": "object",
         "properties": {
@@ -1293,13 +1325,21 @@
           "createdAt": {
             "type": "string",
             "example": "2026-10-13T08:00:00.000Z"
+          },
+          "organizations": {
+            "description": "Các tổ chức tôi là thành viên, theo thứ tự tham gia.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MeOrganizationDto"
+            }
           }
         },
         "required": [
           "id",
           "email",
           "displayName",
-          "createdAt"
+          "createdAt",
+          "organizations"
         ]
       },
       "UpdateMeDto": {
@@ -1368,15 +1408,6 @@
         "required": [
           "name"
         ]
-      },
-      "OrgRole": {
-        "type": "string",
-        "enum": [
-          "owner",
-          "admin",
-          "member"
-        ],
-        "description": "Vai trò của tôi trong org này."
       },
       "MyOrganizationResponseDto": {
         "type": "object",
