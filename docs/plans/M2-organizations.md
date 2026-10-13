@@ -101,7 +101,7 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
 - [x] **B1 — Schema + migration** (skill `drizzle-schema`)
   - Việc: `schema/organizations.ts`, `pnpm db:generate --name=organizations`, đọc SQL.
   - Test (integration): 2 owner trong 1 org → 23505 `organization_members_one_owner_uq`; role lạ → 23514; xoá org → cascade membership; một user thuộc nhiều org.
-- [ ] **B2 — Policy thuần** (skill `authorization`)
+- [x] **B2 — Policy thuần** (skill `authorization`)
   - Việc: `organization.policy.ts`: `OrgRole`, thứ hạng vai trò, `orgPolicy` (`org.read`, `org.update`, `org.member.list`, `org.member.role.change`, `org.member.remove`), `canChangeRole`, `canRemoveMember`.
   - Test (unit): `it.each` trên **toàn bộ** ma trận vai trò × hành động × vai trò đích.
 - [ ] **B3 — Tạo org, org của tôi, xem, đổi tên** (skill `nest-endpoint`)
@@ -166,3 +166,5 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
 
 1. **`@ts-expect-error` để test constraint ở tầng DB.** Drizzle gõ `role` thành union `'owner' | 'admin' | 'member'`, nên `'superadmin'` bị TypeScript chặn từ lúc compile. Muốn chứng minh CHECK ở DB vẫn chặn khi dữ liệu đi vào bằng đường khác (SQL thô, script), test phải cố tình vượt tầng kiểu. Nếu một ngày kiểu được nới lỏng, TS sẽ báo `Unused '@ts-expect-error'`, tức là test cũng tự "kêu".
 2. **Index riêng cho `user_id` dù đã có PK `(org_id, user_id)`.** B-tree chỉ dùng được khi điều kiện chạm cột đầu tiên, nên "các org của tôi" (`WHERE user_id = ?`) không dùng được PK. `test/support/db-factories.ts` (`insertUser`, `insertOrg`, `addMember`) chèn thẳng DB vì M2 chưa có API thêm thành viên.
+3. **Bớt tham số `isSelf` khỏi `canRemoveMember`.** Viết bảng test ra mới thấy quy tắc "Owner không tự gỡ mình" đã bị quy tắc "Owner bất biến" bao, còn "Admin tự gỡ mình" rơi vào "Admin chỉ gỡ Member". Ít tham số hơn thì ít tổ hợp phải test hơn. Viết **bảng test trước** giúp phát hiện quy tắc thừa.
+4. **Test "bảng phủ đủ permission"** so `Object.keys(orgPolicy)` với cột đầu của bảng test. Thêm permission mới mà quên thêm dòng test thì test đỏ, nên ma trận và test không thể lệch nhau mà không ai biết.
