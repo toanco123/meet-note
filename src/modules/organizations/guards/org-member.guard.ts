@@ -1,9 +1,8 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 import { AppException } from '../../../common/errors/app.exception.js';
+import { isUuid } from '../../../common/validation/uuid.js';
 import { OrganizationsRepository } from '../organizations.repository.js';
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Tầng 2 của phân quyền: người gọi có phải thành viên org `:orgId` không?
@@ -23,7 +22,7 @@ export class OrgMemberGuard implements CanActivate {
     if (!user) throw new Error('OrgMemberGuard cần JwtAuthGuard chạy trước (route @Public?)');
 
     const orgId = request.params['orgId'];
-    if (typeof orgId !== 'string' || !UUID.test(orgId)) throw notFound();
+    if (!isUuid(orgId)) throw notFound();
 
     const membership = await this.repo.findMembership(orgId, user.id);
     if (!membership) throw notFound();

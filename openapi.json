@@ -685,6 +685,141 @@
           "Organizations"
         ]
       }
+    },
+    "/v1/orgs/{orgId}/members": {
+      "get": {
+        "description": "Phân trang cursor theo thời điểm tham gia. `q` tìm không dấu theo tên/email.",
+        "operationId": "OrganizationMembers_list",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "description": "Lọc theo vai trò.",
+            "schema": {
+              "$ref": "#/components/schemas/OrgRole"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Tìm theo tên hoặc email, không phân biệt hoa thường và dấu (\"nguyen\" khớp \"Nguyễn\").\nKý tự `%` và `_` được tìm nguyên văn.",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "example": "nguyen",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponseDto"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "data"
+                      ],
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/MemberResponseDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Danh sách thành viên.",
+        "tags": [
+          "Organizations"
+        ]
+      }
     }
   },
   "info": {
@@ -1135,6 +1270,55 @@
         },
         "required": [
           "name"
+        ]
+      },
+      "PaginatedResponseDto": {
+        "type": "object",
+        "properties": {
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Cursor để lấy trang sau. `null` nghĩa là đã hết dữ liệu.",
+            "example": "eyJ2IjoxLCJrIjpbIjIwMjYtMTAtMTMiLCIwMTk5Il19"
+          }
+        },
+        "required": [
+          "nextCursor"
+        ]
+      },
+      "MemberResponseDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrgRole"
+              }
+            ]
+          },
+          "userId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Nguyễn Văn An"
+          },
+          "email": {
+            "type": "string",
+            "description": "Hiển thị cho mọi thành viên cùng org (M2 Q3).",
+            "example": "an.nguyen@example.com"
+          },
+          "joinedAt": {
+            "type": "string",
+            "example": "2026-10-13T08:00:00.000Z"
+          }
+        },
+        "required": [
+          "role",
+          "userId",
+          "displayName",
+          "email",
+          "joinedAt"
         ]
       }
     }

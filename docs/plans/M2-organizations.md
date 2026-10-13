@@ -114,7 +114,7 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
     - `:orgId` = `abc` → 404 (không phải 500);
     - Member `PATCH` → 403, Admin `PATCH` → 200;
     - org của người khác không lộ trong `GET /orgs`.
-- [ ] **B5 — Danh sách thành viên: cursor + tìm không dấu**
+- [x] **B5 — Danh sách thành viên: cursor + tìm không dấu**
   - Việc: keyset pagination trên `(joined_at, user_id)` (timestamp lấy dạng text), lọc `role`, `q` tìm qua `users.search_text` (trigram). **Escape `%` `_` `\`** trong `q` trước khi đưa vào `LIKE`.
   - Test (e2e):
     - 25 thành viên, `limit=10` → 3 trang, không trùng, không sót;
@@ -179,3 +179,8 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
    - Sửa: dùng user có thật, rồi `vi.spyOn(repo, 'insertMember').mockRejectedValueOnce(...)` để chỉ bước thứ hai hỏng.
    - Kiểm chứng ngược: cho INSERT org chạy ngoài transaction thì test mới **đỏ** (sót 1 org).
    - Bài học: `toThrow()` không kèm điều kiện là assertion yếu. Mỗi test về transaction/khoá phải được "đột biến" (bỏ khoá / bỏ transaction) ít nhất một lần để chắc nó đỏ được.
+10. **Cursor là dữ liệu từ client, phải kiểm tra như input.** Cursor bị sửa (thời gian rác, `' or 1=1 --`, thời gian chỉ có mili giây) mà đưa thẳng vào `::timestamptz` / `::uuid` sẽ thành 500. Khoá thời gian giờ do DB sinh bằng `to_char(... at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`, định dạng cố định, nên kiểm tra được bằng regex (`common/pagination/keys.ts`).
+11. **Đột biến xác nhận test có giá trị:**
+    - Bỏ `escapeLike` thì 2 test `%`/`_` đỏ.
+    - Bỏ tie-breaker `user_id` khỏi điều kiện cursor thì chỉ test `limit=4` đỏ (**23/25**). Test `limit=10` vẫn xanh vì trang đầu tình cờ chứa trọn nhóm 6 người cùng thời điểm. Phải có test **cố tình cắt ngang** nhóm trùng khoá sort.
+12. **`search_text` được chuẩn hoá ở DB (`f_unaccent(lower(...))`) thì `q` cũng phải chuẩn hoá bằng đúng hàm đó trong SQL**, đừng tự bỏ dấu ở JS. Hai bên dùng cùng `unaccent.rules` nên `Đức` ↔ `duc`, `NGUYỄN` ↔ `nguyen` khớp nhau.
