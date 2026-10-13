@@ -129,7 +129,7 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
     - đổi Owner → 409;
     - `role: 'owner'` → 400;
     - người ngoài org → 404.
-- [ ] **B7 — Gỡ thành viên + test concurrency**
+- [x] **B7 — Gỡ thành viên + test concurrency**
   - Test (e2e, bảng):
     - Owner gỡ Admin/Member → 204;
     - Admin gỡ Member → 204, Admin gỡ Admin → 403;
@@ -187,3 +187,6 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
 13. **Đổi vai trò có hiệu lực ngay, không cần đăng nhập lại** (quyết định D1: không nhét role vào JWT, guard đọc membership mỗi request). Đã kiểm chứng bằng e2e: cùng một access token, `PATCH /orgs/:id` trả 403 → Owner nâng lên admin → lần gọi tiếp theo trả 200.
 14. **Khi nào được `throw` trong transaction?** Ở `changeRole`, mọi kiểm tra đều diễn ra _trước_ lệnh ghi, nên `throw` ngay trong callback chỉ rollback những thứ chưa xảy ra, tức là an toàn. Ở `SessionsService.rotate` (M1) có một lệnh ghi (thu hồi phiên) _trước khi_ báo lỗi, nên ở đó phải trả kết quả ra rồi mới `throw` sau commit. Quy tắc: **có ghi rồi mới báo lỗi thì không được throw trong transaction.**
 15. **Bảng test có `if (status === 200) expect(...)` là dấu hiệu nên tách bảng** (oxlint `no-conditional-expect`). Tách thành bảng "thành công" (kiểm tra vai trò mới) và bảng "thất bại" (kiểm tra mã lỗi), để mỗi dòng đều có assertion về nội dung chứ không chỉ status.
+16. **Race "Owner nâng B ‖ Admin A gỡ B" được bắt bằng khoá (actor, target) theo `user_id`.** Chạy 20 vòng thấy **cả hai thứ tự** xảy ra (`OK/FORBIDDEN/admin` và `NOT_FOUND/OK/gone`), tức test thật sự đo race. Bỏ `FOR UPDATE` thì vòng 1 đã ra `OK/OK/gone`: Admin gỡ được người vừa thành Admin, vi phạm ma trận. Không deadlock vì cả hai thao tác khoá theo cùng thứ tự `user_id` và chỉ chồng nhau ở dòng B.
+17. **Assertion cho race: gộp kết cục thành một chuỗi rồi `toContain` trong tập hợp lệ**, thay cho `if/else` + nhiều `expect`. Không còn `expect` có điều kiện, và khi đỏ, thông báo chỉ thẳng kết cục sai (`to include 'OK/OK/gone'`).
+18. **Ghi chú cho M4:** `remove()` hiện chỉ xoá membership. Khi có kênh, composite FK `channel_members → organization_members ON DELETE CASCADE` sẽ xoá luôn dòng chủ kênh. Vì vậy `remove()` phải chuyển các kênh người đó làm chủ sang người khác **trong cùng transaction** (đã để comment tại chỗ).

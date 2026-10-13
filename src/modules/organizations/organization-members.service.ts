@@ -8,7 +8,7 @@ import type { Database, Transaction } from '../../infra/database/database.types.
 import type { ListMembersQueryDto } from './dto/list-members-query.dto.js';
 import { MemberResponseDto } from './dto/member-response.dto.js';
 import type { AssignableOrgRole } from './dto/update-member-role.dto.js';
-import { canChangeRole, type TargetDecision } from './organization.policy.js';
+import { canChangeRole, canRemoveMember, type TargetDecision } from './organization.policy.js';
 import { OrganizationMembersRepository } from './organization-members.repository.js';
 
 @Injectable()
@@ -54,6 +54,21 @@ export class OrganizationMembersService {
     const updated = await this.repo.findMember(orgId, targetId);
     if (!updated) throw memberNotFound(); // bị gỡ ngay sau khi commit — hiếm, nhưng đừng trả 500
     return MemberResponseDto.from(updated);
+  }
+
+  /**
+   * Gỡ thành viên. Cùng mẫu khoá với `changeRole` → hai thao tác chạm cùng người được tuần tự hoá:
+   * thao tác đến sau đọc vai trò MỚI (vd B vừa thành admin) rồi mới quyết định.
+   *
+   * M4: khi đã có kênh, phải chuyển các kênh mà người bị gỡ làm chủ sang người khác TRONG cùng
+   * transaction này (cascade FK sẽ xoá luôn dòng chủ kênh → kênh mồ côi).
+   */
+  async remove(orgId: string, actorId: string, targetId: string): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const { actor, target } = await this.lockActorAndTarget(orgId, actorId, targetId, tx);
+      assertAllowed(canRemoveMember(actor, target));
+      await this.repo.deleteMember(orgId, targetId, tx);
+    });
   }
 
   private async lockActorAndTarget(

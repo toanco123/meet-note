@@ -99,6 +99,12 @@ export class OrganizationMembersRepository {
       .where(and(eq(organizationMembers.orgId, orgId), eq(organizationMembers.userId, userId)));
   }
 
+  async deleteMember(orgId: string, userId: string, executor: DbExecutor): Promise<void> {
+    await executor
+      .delete(organizationMembers)
+      .where(and(eq(organizationMembers.orgId, orgId), eq(organizationMembers.userId, userId)));
+  }
+
   async findMember(orgId: string, userId: string): Promise<MemberRow | undefined> {
     const [row] = await this.db
       .select({

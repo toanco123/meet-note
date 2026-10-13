@@ -1,5 +1,16 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Query,
+} from '@nestjs/common';
+import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
 import type { Page } from '../../common/pagination/cursor.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { ApiPaginatedResponse } from '../../common/swagger/api-paginated-response.decorator.js';
@@ -47,5 +58,24 @@ export class OrganizationMembersController {
     @Body() dto: UpdateMemberRoleDto,
   ): Promise<MemberResponseDto> {
     return this.members.changeRole(orgId, actor.id, userId, dto.role);
+  }
+
+  /**
+   * Gỡ thành viên khỏi tổ chức.
+   *
+   * @remarks Owner gỡ được Admin/Member; Admin chỉ gỡ được Member. Gỡ Owner → 409. Rời tổ chức
+   * (tự gỡ mình) là chức năng riêng ở M3.
+   */
+  @Delete(':userId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequireOrgPermission('org.member.remove')
+  @ApiNoContentResponse({ description: 'Đã gỡ thành viên.' })
+  @ApiErrorResponses(400, 409)
+  async remove(
+    @Param('orgId') orgId: string,
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<void> {
+    await this.members.remove(orgId, actor.id, userId);
   }
 }
