@@ -10,7 +10,12 @@ import type { UserAuditContext } from '../audit/audit.types.js';
 import type { ListMembersQueryDto } from './dto/list-members-query.dto.js';
 import { MemberResponseDto } from './dto/member-response.dto.js';
 import type { AssignableOrgRole } from './dto/update-member-role.dto.js';
-import { canChangeRole, canRemoveMember, type TargetDecision } from './organization.policy.js';
+import {
+  canChangeRole,
+  canRemoveMember,
+  OrgRole,
+  type TargetDecision,
+} from './organization.policy.js';
 import { OrganizationMembersRepository } from './organization-members.repository.js';
 
 @Injectable()
@@ -85,6 +90,70 @@ export class OrganizationMembersService {
         targetType: 'member',
         targetId,
         metadata: { before: { role: target } },
+      });
+    });
+  }
+
+  /**
+   * Chuyển quyền sở hữu. Khoá (owner, người nhận) theo user_id → kiểm tra LẠI người gọi còn là owner
+   * (request song song có thể vừa chuyển đi) → HẠ owner cũ TRƯỚC, NÂNG người nhận SAU: partial unique
+   * index "một owner / org" không deferrable, làm ngược sẽ có lúc 2 owner → 23505.
+   */
+  async transferOwnership(
+    orgId: string,
+    newOwnerId: string,
+    ctx: UserAuditContext,
+  ): Promise<{ orgId: string; ownerId: string }> {
+    if (newOwnerId === ctx.actorId) {
+      throw AppException.conflict(
+        ErrorCode.OrgTransferInvalidTarget,
+        'Bạn đã là Owner của tổ chức này.',
+      );
+    }
+
+    await this.db.transaction(async (tx) => {
+      const { actor, target } = await this.lockActorAndTarget(orgId, ctx.actorId, newOwnerId, tx);
+      if (actor !== OrgRole.Owner) {
+        throw AppException.forbidden('Bạn không còn là Owner của tổ chức này.');
+      }
+
+      await this.repo.updateRole(orgId, ctx.actorId, OrgRole.Admin, tx); // 1. hạ
+      await this.repo.updateRole(orgId, newOwnerId, OrgRole.Owner, tx); //  2. nâng
+      await this.audit.record(tx, ctx, {
+        orgId,
+        action: 'org.ownership.transferred',
+        targetType: 'member',
+        targetId: newOwnerId,
+        metadata: {
+          before: { ownerId: ctx.actorId, newOwnerRole: target },
+          after: { ownerId: newOwnerId, previousOwnerRole: OrgRole.Admin },
+        },
+      });
+    });
+    return { orgId, ownerId: newOwnerId };
+  }
+
+  /**
+   * Tự rời tổ chức. Owner phải chuyển quyền sở hữu trước (409) — org không bao giờ mất owner.
+   * M4: phải chuyển các kênh người này làm chủ trong cùng transaction (như `remove`).
+   */
+  async leave(orgId: string, ctx: UserAuditContext): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [self] = await this.repo.lockMembers(orgId, [ctx.actorId], tx);
+      if (!self) throw AppException.notFound('Không tìm thấy tổ chức.');
+      if (self.role === OrgRole.Owner) {
+        throw AppException.conflict(
+          ErrorCode.OrgOwnerMustTransfer,
+          'Owner phải chuyển quyền sở hữu trước khi rời tổ chức.',
+        );
+      }
+      await this.repo.deleteMember(orgId, ctx.actorId, tx);
+      await this.audit.record(tx, ctx, {
+        orgId,
+        action: 'org.member.left',
+        targetType: 'member',
+        targetId: ctx.actorId,
+        metadata: { before: { role: self.role } },
       });
     });
   }

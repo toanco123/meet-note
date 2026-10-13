@@ -126,7 +126,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
   - Việc: `PATCH /orgs/:orgId` có `requireJoinApproval`; liệt kê, duyệt, từ chối (`FOR UPDATE`).
   - Test (e2e): Admin duyệt yêu cầu role `admin` → 403; duyệt lần hai → 409.
   - **Race:** 2 Admin duyệt cùng lúc → đúng 1 thành công. Bỏ khoá → đỏ.
-- [ ] **B7 — Chuyển quyền sở hữu + rời tổ chức**
+- [x] **B7 — Chuyển quyền sở hữu + rời tổ chức**
   - Việc: khoá (owner, người nhận) theo `user_id`, kiểm tra lại, **hạ trước nâng sau**.
   - Test (e2e): Owner cũ thành Admin và mất quyền Owner ngay; người nhận không phải thành viên → 404; chuyển cho chính mình → 409; Owner rời → 409; Admin rời → 204 và mất quyền.
   - **Đột biến 1:** nâng trước hạ sau → 23505. Chứng minh partial unique index không deferrable.
@@ -179,3 +179,6 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
 17. **Khi nào UPDATE có điều kiện là đủ, khi nào phải `FOR UPDATE`.** Dùng link (B5) chỉ có một điều kiện và một lệnh ghi, nên một câu `UPDATE … WHERE … RETURNING` là đủ. Duyệt yêu cầu (B6) phải đọc trạng thái, kiểm tra quyền cấp vai trò của người duyệt, rồi ghi **ba** chỗ (thành viên, yêu cầu, audit), nên phải khoá dòng yêu cầu trước. Đột biến bỏ `FOR UPDATE` thì vòng 0 đã ra `['OK', 'OK']`.
 18. **Ở B6, constraint KHÔNG cứu được, khác với B5.** Bỏ khoá thì dữ liệu thành viên vẫn đúng, vì `ON CONFLICT DO NOTHING` nuốt lần thêm thứ hai. Nhưng hai Admin đều nhận "đã duyệt" và audit có **hai dòng** cho một sự kiện. Lỗi im lặng kiểu này chỉ test race mới bắt được.
 19. **Thứ tự khoá trong duyệt: dòng yêu cầu `FOR UPDATE` → vai trò người duyệt `FOR SHARE`.** Không chạm thứ tự khoá của đổi vai trò / chuyển sở hữu (chỉ khoá các dòng thành viên), nên không tạo vòng chờ.
+20. **Thứ tự ghi khi có partial unique index không deferrable.** Đột biến "nâng người nhận trước, hạ owner cũ sau" làm **mọi** lần chuyển sở hữu lỗi `23505` (→ 409). Giữa hai câu `UPDATE` trong cùng transaction cũng không được phép có hai owner, vì unique index được kiểm tra **ngay sau từng câu lệnh** chứ không đợi tới commit. Cách đúng: hạ trước, nâng sau. (Cách khác là `UNIQUE … DEFERRABLE INITIALLY DEFERRED`, nhưng partial unique _index_ không deferrable được, chỉ unique _constraint_ toàn bảng mới được.)
+21. **Constraint giữ dữ liệu, khoá giữ ngữ nghĩa (đã chứng minh hai lần: B5 và B7).** Bỏ `FOR UPDATE` khi Owner chuyển cho B ‖ cho C: vẫn đúng 1 owner nhờ unique index, nhưng request thua cuộc nhận `23505` thay vì 403 `FORBIDDEN` ("bạn không còn là Owner"). Có khoá + kiểm tra lại sau khi khoá thì request sau đọc được trạng thái mới và trả lỗi có nghĩa.
+22. **Owner không bao giờ rời được khi chưa chuyển quyền** (409 `ORG_OWNER_MUST_TRANSFER`), nên org không thể mất owner. e2e kiểm cả đường "chuyển quyền rồi mới rời". Ghi chú M4: `leave` cũng phải chuyển các kênh người đó làm chủ (đã để comment).

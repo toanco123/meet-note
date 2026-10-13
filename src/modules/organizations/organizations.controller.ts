@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthUser } from '../../common/auth/auth-user.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
@@ -13,12 +13,20 @@ import {
 import { CurrentOrgMembership } from './guards/org-membership.js';
 import { RequireOrgPermission } from './guards/require-org-permission.decorator.js';
 import type { OrgMembershipContext } from './organization.policy.js';
+import { OrganizationMembersService } from './organization-members.service.js';
 import { OrganizationsService } from './organizations.service.js';
+import {
+  OwnershipTransferResponseDto,
+  TransferOwnershipDto,
+} from './dto/ownership-transfer.dto.js';
 
 @ApiTags('Organizations')
 @Controller('orgs')
 export class OrganizationsController {
-  constructor(private readonly orgs: OrganizationsService) {}
+  constructor(
+    private readonly orgs: OrganizationsService,
+    private readonly members: OrganizationMembersService,
+  ) {}
 
   /** Tạo tổ chức. Người tạo trở thành Owner. */
   @Post()
@@ -73,5 +81,40 @@ export class OrganizationsController {
       ),
       membership.role,
     );
+  }
+
+  /**
+   * Chuyển quyền sở hữu cho một thành viên khác (chỉ Owner).
+   *
+   * @remarks Owner cũ trở thành Admin. Người nhận không phải thành viên → 404; chuyển cho chính
+   * mình → 409 `ORG_TRANSFER_INVALID_TARGET`.
+   */
+  @Post(':orgId/ownership-transfer')
+  @HttpCode(HttpStatus.OK)
+  @RequireOrgPermission('org.ownership.transfer')
+  @ApiErrorResponses(400, 409)
+  transferOwnership(
+    @Param('orgId') orgId: string,
+    @Body() dto: TransferOwnershipDto,
+    @UserAuditCtx() audit: UserAuditContext,
+  ): Promise<OwnershipTransferResponseDto> {
+    return this.members.transferOwnership(orgId, dto.newOwnerId, audit);
+  }
+
+  /**
+   * Rời tổ chức.
+   *
+   * @remarks Owner phải chuyển quyền sở hữu trước → 409 `ORG_OWNER_MUST_TRANSFER`.
+   */
+  @Post(':orgId/leave')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequireOrgPermission('org.leave')
+  @ApiNoContentResponse({ description: 'Đã rời tổ chức.' })
+  @ApiErrorResponses(409)
+  async leave(
+    @Param('orgId') orgId: string,
+    @UserAuditCtx() audit: UserAuditContext,
+  ): Promise<void> {
+    await this.members.leave(orgId, audit);
   }
 }

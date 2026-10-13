@@ -686,6 +686,167 @@
         ]
       }
     },
+    "/v1/orgs/{orgId}/ownership-transfer": {
+      "post": {
+        "description": "Owner cũ trở thành Admin. Người nhận không phải thành viên → 404; chuyển cho chính\nmình → 409 `ORG_TRANSFER_INVALID_TARGET`.",
+        "operationId": "Organizations_transferOwnership",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferOwnershipDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnershipTransferResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Chuyển quyền sở hữu cho một thành viên khác (chỉ Owner).",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/leave": {
+      "post": {
+        "description": "Owner phải chuyển quyền sở hữu trước → 409 `ORG_OWNER_MUST_TRANSFER`.",
+        "operationId": "Organizations_leave",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã rời tổ chức."
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Rời tổ chức.",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
     "/v1/orgs/{orgId}/members": {
       "get": {
         "description": "Phân trang cursor theo thời điểm tham gia. `q` tìm không dấu theo tên/email.",
@@ -2194,6 +2355,35 @@
             "description": "Bật: chấp nhận link mời chỉ tạo yêu cầu tham gia, Owner/Admin phải duyệt."
           }
         }
+      },
+      "TransferOwnershipDto": {
+        "type": "object",
+        "properties": {
+          "newOwnerId": {
+            "type": "string",
+            "description": "Người nhận quyền sở hữu — phải đang là thành viên của tổ chức.",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "newOwnerId"
+        ]
+      },
+      "OwnershipTransferResponseDto": {
+        "type": "object",
+        "properties": {
+          "orgId": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "Owner mới. Owner cũ trở thành Admin."
+          }
+        },
+        "required": [
+          "orgId",
+          "ownerId"
+        ]
       },
       "PaginatedResponseDto": {
         "type": "object",
