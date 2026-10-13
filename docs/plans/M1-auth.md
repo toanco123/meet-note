@@ -1,6 +1,6 @@
 # M1 — Auth
 
-- **Trạng thái:** Đang làm (plan đã duyệt 2026-10-13, chọn ★ cho Q1–Q4)
+- **Trạng thái:** Xong ở local (2026-10-13). Còn chờ CI chạy trên nhánh `m1-auth` (cần push)
 - **Nhánh:** `m1-auth`
 - **Tài liệu thiết kế liên quan:** [01-overview D1, D7](../design/01-overview.md), [03-database §1](../design/03-database.md), [04-authorization §4](../design/04-authorization.md), [05-api Auth](../design/05-api.md), [07-conventions §2, §6](../design/07-conventions.md)
 
@@ -149,7 +149,7 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
   - Test (e2e), luồng đầy đủ: login → refresh → access token mới gọi `/me` được → dùng lại refresh cũ (quá grace, giả lập bằng cách lùi `rotated_at` trong DB) → 401 `REUSED` → access token của phiên đó cũng bị 401 `SESSION_REVOKED`.
 - [x] **B9 — `/me` và `/me/sessions`** (`UsersModule`)
   - Test (e2e): `GET/PATCH /me`; liệt kê phiên có cờ `current`; xoá phiên của chính mình → phiên đó 401; xoá phiên của người khác → 404.
-- [ ] **B10 — Đóng mốc**
+- [x] **B10 — Đóng mốc**
   - Việc:
     - cập nhật `openapi.json`;
     - thử tay trên Swagger UI: Authorize, reload trang vẫn giữ token;
@@ -158,12 +158,14 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh (local + CI), có ít nhất 1 test concurrency đã được chứng minh "bỏ lock là đỏ"
-- [ ] `openapi.json` có đủ 9 route Auth/Me, security đúng
-- [ ] Luồng Swagger UI: đăng ký → Authorize → `/me` → refresh → logout chạy tay được
-- [ ] Docker image build được với argon2 (CI)
-- [ ] `docs/design/` khớp với code
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 45)
+- [x] `pnpm test:e2e` xanh ở local (integration + e2e 70). Test concurrency đã chứng minh "bỏ `FOR UPDATE` là đỏ" (bài học 10)
+- [ ] `pnpm test:e2e` xanh trên CI: **chờ push nhánh**
+- [x] `openapi.json` có đủ 9 route Auth/Me (10 path, tính cả health), mặc định Bearer, route public có `security: [{}]`
+- [x] Chạy tay trên stack Docker Compose: register → `/me` → refresh → refresh lại token cũ (ROTATED) → `/me/sessions` → logout → `/me` bị 401 `AUTH_SESSION_REVOKED` → login sai 401. Swagger UI: Authorize → reload trang vẫn giữ token → gọi `/v1/me` được 200 (kiểm bằng Playwright)
+- [x] Docker image build được với argon2 ở local, hash/verify chạy trong alpine (musl)
+- [ ] Docker image build trên CI: **chờ push nhánh**
+- [x] `docs/design/` khớp với code (03, 04, 05, 07, 09, 02 đã cập nhật trong các bước)
 
 ## Điều sẽ học
 
@@ -201,3 +203,5 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
 21. **Vòng phụ thuộc module: đặt `/me` trong `UsersModule` như plan ban đầu sẽ tạo vòng `UsersModule ↔ AuthModule`.** Auth cần `UsersRepository`, còn `/me/sessions` cần `SessionsService`. Có thể gỡ bằng `forwardRef()`, nhưng đó là triệu chứng của phân tầng sai. Cách đã chọn: tách `MeModule` để phụ thuộc đi một chiều `users ← auth ← me`.
 22. **Response DTO map tường minh từng field, không spread row** (`MeResponseDto.from`). Spread `{...row}` sẽ lộ `passwordHash`. Test e2e kiểm tra body không chứa chuỗi `argon2`.
 23. **Thu hồi phiên của người khác trả 404, không trả 403**, và cũng 404 với id không tồn tại hoặc đã thu hồi. Nhờ vậy kẻ tấn công không dò được session id nào tồn tại. Điều kiện `user_id` nằm ngay trong câu `UPDATE … WHERE`, không phải đọc trước rồi kiểm tra.
+24. **Playwright MCP ghi snapshot vào `.playwright-mcp/` ở thư mục gốc repo.** Đã thêm vào `.gitignore`.
+25. **IP trong Docker là địa chỉ NAT dạng IPv4-mapped** (`::ffff:192.168.97.1`), không phải IP thật của client. Khi deploy sau reverse proxy phải cấu hình `trust proxy` (xem `session-meta.ts`).
