@@ -1,6 +1,6 @@
 # M2 — Tổ chức (lõi)
 
-- **Trạng thái:** Xong ở local (2026-10-13). Còn chờ CI trên PR
+- **Trạng thái:** Xong (2026-10-13). CI xanh trên PR #2 (run 38380583152)
 - **Nhánh:** `m2-organizations`
 - **Tài liệu thiết kế liên quan:** [01-overview D1](../design/01-overview.md), [03-database §2](../design/03-database.md), [04-authorization §1, §4](../design/04-authorization.md), [05-api Organizations](../design/05-api.md), [07-conventions §2, §4](../design/07-conventions.md)
 
@@ -149,7 +149,7 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
 
 - [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 94)
 - [x] `pnpm test:e2e` xanh ở local (integration + e2e 141). Race test đã chứng minh "bỏ lock là đỏ" (bài học 16)
-- [ ] `pnpm test:e2e` xanh trên CI: **chờ push nhánh**
+- [x] `pnpm test:e2e` xanh trên CI (PR #2, run 38380583152), Docker image build xanh
 - [x] Unit test phủ toàn bộ ma trận quyền cấp tổ chức của M2, kèm test tự đỏ nếu thêm permission mà quên bảng (bài học 4)
 - [x] `openapi.json` có đủ route mới (14 path). Mọi route `:orgId` khai báo 401/403/404 qua `@RequireOrgPermission`
 - [x] `docs/design/` khớp với code (02, 03, 04, 05, 07). Chạy tay trên Docker Compose: tạo org → `/me` có org → tìm "nguyen" → người lạ 404 → `:orgId` rác 404 → owner tự gỡ 409
