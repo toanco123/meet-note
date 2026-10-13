@@ -1,6 +1,6 @@
 import argon2 from 'argon2';
 import { describe, expect, it } from 'vitest';
-import { ARGON2_OPTIONS, PasswordHasher } from './password-hasher.js';
+import { ARGON2_OPTIONS, PasswordHasher } from '../../../../src/modules/auth/password-hasher.js';
 
 describe('PasswordHasher', () => {
   const hasher = new PasswordHasher();

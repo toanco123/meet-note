@@ -2,14 +2,14 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { jwtModuleOptions } from './jwt-options.js';
+import { jwtModuleOptions } from '../../../../src/modules/auth/jwt-options.js';
 import {
   hashRefreshToken,
   JWT_AUDIENCE,
   JWT_ISSUER,
   REFRESH_TOKEN_PATTERN,
   TokenService,
-} from './token.service.js';
+} from '../../../../src/modules/auth/token.service.js';
 
 const SECRET = 'test-secret-'.padEnd(40, 'x');
 const CONFIG: Record<string, number> = { JWT_ACCESS_TTL_SECONDS: 900, REFRESH_TOKEN_TTL_DAYS: 30 };

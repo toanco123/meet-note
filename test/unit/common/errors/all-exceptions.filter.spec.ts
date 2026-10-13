@@ -1,9 +1,9 @@
 import { BadRequestException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
-import { mapException } from './all-exceptions.filter.js';
-import { AppException } from './app.exception.js';
-import { ErrorCode } from './error-code.js';
-import { validationExceptionFactory } from './validation-exception.factory.js';
+import { mapException } from '../../../../src/common/errors/all-exceptions.filter.js';
+import { AppException } from '../../../../src/common/errors/app.exception.js';
+import { ErrorCode } from '../../../../src/common/errors/error-code.js';
+import { validationExceptionFactory } from '../../../../src/common/errors/validation-exception.factory.js';
 
 describe('mapException', () => {
   it('giữ nguyên code/status/message của AppException', () => {

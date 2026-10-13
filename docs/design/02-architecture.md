@@ -91,9 +91,11 @@ meetnote/
 │     ├─ migrate.ts              # chạy migration
 │     └─ export-openapi.ts       # xuất openapi.json
 ├─ migrations/                   # SQL do drizzle-kit sinh + SQL viết tay (commit vào git)
-├─ test/
-│  ├─ e2e/                       # *.e2e-spec.ts
-│  └─ support/                   # testcontainers global setup, factory dữ liệu
+├─ test/                        # MỌI test nằm ở đây, src/ chỉ chứa code ứng dụng
+│  ├─ unit/                      # *.spec.ts — cây thư mục mô phỏng src/ (vd unit/modules/auth/…)
+│  ├─ integration/               # *.int-spec.ts — Postgres/Redis thật, cây mô phỏng src/
+│  ├─ e2e/                       # *.e2e-spec.ts — qua HTTP
+│  └─ support/                   # testcontainers global setup, factory dữ liệu, helper
 ├─ docker/Dockerfile             # multi-stage, 1 image cho api/worker/migrate
 ├─ compose.yaml
 ├─ docs/
@@ -111,8 +113,9 @@ channels/
 ├─ channel-members.service.ts
 ├─ channels.repository.ts            # query Drizzle. Nhận `tx` để chạy trong transaction của service
 ├─ channel.policy.ts                 # hàm thuần: (actor, target) → boolean. Dễ unit test
-├─ dto/                              # *.dto.ts (request + response), Swagger plugin đọc file này
-└─ *.spec.ts
+└─ dto/                              # *.dto.ts (request + response), Swagger plugin đọc file này
+
+# test tương ứng: test/unit/modules/channels/…, test/integration/modules/channels/…
 ```
 
 **Phân lớp:** controller → service → repository. Policy là các hàm thuần được service và guard gọi. Không tạo lớp "domain entity" riêng: dùng kiểu row của Drizzle bên trong, map sang response DTO ở rìa.

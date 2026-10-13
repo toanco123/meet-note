@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSwaggerEnabled, NodeEnv, validateEnv } from './env.validation.js';
+import { isSwaggerEnabled, NodeEnv, validateEnv } from '../../../src/config/env.validation.js';
 
 const REQUIRED = {
   DATABASE_URL: 'postgres://u:p@localhost:5432/db',

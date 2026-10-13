@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createTestDb, type TestDb } from '../../../../test/support/db.js';
-import { findPgError } from '../../../common/errors/pg-error.js';
-import { refreshTokens, sessions } from './sessions.js';
-import { users } from './users.js';
+import { createTestDb, type TestDb } from '../../../../support/db.js';
+import { findPgError } from '../../../../../src/common/errors/pg-error.js';
+import { refreshTokens, sessions } from '../../../../../src/infra/database/schema/sessions.js';
+import { users } from '../../../../../src/infra/database/schema/users.js';
 
 /** Bắt lỗi Postgres (Drizzle bọc trong `cause`) để kiểm tra mã SQLSTATE + tên constraint. */
 async function pgErrorOf(promise: Promise<unknown>) {

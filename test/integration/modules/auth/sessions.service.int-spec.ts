@@ -4,14 +4,14 @@ import { JwtModule } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createTestDb, type TestDb } from '../../../test/support/db.js';
-import type { AppException } from '../../common/errors/app.exception.js';
-import { DRIZZLE } from '../../infra/database/database.module.js';
-import { refreshTokens, sessions, users } from '../../infra/database/schema/index.js';
-import { jwtModuleOptions } from './jwt-options.js';
-import { SessionsRepository } from './sessions.repository.js';
-import { SessionsService } from './sessions.service.js';
-import { hashRefreshToken, TokenService } from './token.service.js';
+import { createTestDb, type TestDb } from '../../../support/db.js';
+import type { AppException } from '../../../../src/common/errors/app.exception.js';
+import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
+import { refreshTokens, sessions, users } from '../../../../src/infra/database/schema/index.js';
+import { jwtModuleOptions } from '../../../../src/modules/auth/jwt-options.js';
+import { SessionsRepository } from '../../../../src/modules/auth/sessions.repository.js';
+import { SessionsService } from '../../../../src/modules/auth/sessions.service.js';
+import { hashRefreshToken, TokenService } from '../../../../src/modules/auth/token.service.js';
 
 const CONFIG: Record<string, number> = {
   JWT_ACCESS_TTL_SECONDS: 900,

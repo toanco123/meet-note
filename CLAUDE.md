@@ -18,7 +18,7 @@ MeetNote là ứng dụng biên bản họp theo nhóm. Người dùng thuộc t
 | Mốc        | Trạng thái                                                              |
 | ---------- | ----------------------------------------------------------------------- |
 | M0 — Khung | **Xong**. CI xanh, e2e + Docker Compose đã chạy trên máy dev (OrbStack) |
-| M1 — Auth  | Chưa bắt đầu (mốc tiếp theo)                                            |
+| M1 — Auth  | Đang làm trên nhánh `m1-auth` (xem `docs/plans/M1-auth.md`)             |
 
 Lộ trình đầy đủ: `docs/design/10-roadmap.md`.
 
@@ -49,7 +49,7 @@ Không có pnpm global thì dùng `npx -y pnpm@12.11.2 <lệnh>`. Kiểm tra tr�
 - `src/infra/`: database (Drizzle + `pg`), redis, queue, logger. Sau này thêm storage, speech, llm.
 - `src/modules/<domain>/`: controller → service → repository, cùng policy thuần.
 - `migrations/`: SQL (drizzle-kit + viết tay). Chạy bằng service `migrate`, **không** chạy lúc app khởi động.
-- `test/support/`: Testcontainers global setup. Mỗi file test có một database riêng clone từ template.
+- `test/`: **mọi test nằm ở đây, không đặt trong `src/`**. `unit/` và `integration/` mô phỏng cây `src/`, `e2e/` test qua HTTP, `support/` là Testcontainers setup + factory. Mỗi file test có một database riêng clone từ template.
 
 ## Quy tắc bắt buộc (vi phạm là hỏng build hoặc gây bug khó thấy)
 

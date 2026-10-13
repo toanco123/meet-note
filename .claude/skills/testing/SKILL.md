@@ -9,16 +9,18 @@ Chiến lược tổng thể nằm ở `docs/design/08-testing.md`. Skill này l
 
 ## Ba tầng
 
-| Tầng        | File                           | Lệnh            | Cần Docker |
-| ----------- | ------------------------------ | --------------- | ---------- |
-| Unit        | `src/**/*.spec.ts` (cạnh code) | `pnpm test`     | Không      |
-| Integration | `src/**/*.int-spec.ts`         | `pnpm test:e2e` | Có         |
-| E2E         | `test/e2e/*.e2e-spec.ts`       | `pnpm test:e2e` | Có         |
+| Tầng        | File                                                      | Lệnh            | Cần Docker |
+| ----------- | --------------------------------------------------------- | --------------- | ---------- |
+| Unit        | `test/unit/**/*.spec.ts` (cây mô phỏng `src/`)            | `pnpm test`     | Không      |
+| Integration | `test/integration/**/*.int-spec.ts` (cây mô phỏng `src/`) | `pnpm test:e2e` | Có         |
+| E2E         | `test/e2e/*.e2e-spec.ts`                                  | `pnpm test:e2e` | Có         |
 
 Chạy một file / một test:
 
-- `pnpm vitest run src/common/pagination/cursor.spec.ts -t "round-trip"`
+- `pnpm vitest run test/unit/common/pagination/cursor.spec.ts -t "round-trip"`
 - `pnpm test:e2e test/e2e/health.e2e-spec.ts`
+
+**Không đặt test trong `src/`.** Test cho `src/modules/auth/token.service.ts` nằm ở `test/unit/modules/auth/token.service.spec.ts`.
 
 ## Hạ tầng có sẵn (đừng viết lại)
 
@@ -26,6 +28,8 @@ Chạy một file / một test:
 - `test/support/setup-e2e.ts`: **trước mỗi file test**, clone một database riêng từ template (`CREATE DATABASE … TEMPLATE`), rồi đặt `process.env.DATABASE_URL`/`REDIS_URL`/`NODE_ENV=test`/`LOG_LEVEL=silent`. File test xong thì `DROP … WITH (FORCE)`.
 - `test/support/app.ts`: `createTestApp()` tạo app giống `main.ts` (cùng `configureApp` + Swagger), dùng DB của file đó.
 - `test/support/database.ts`: `createTestDatabase`, `withDatabase`, và hằng image Postgres/Redis.
+- `test/support/db.ts`: `createTestDb()` — Drizzle trỏ vào DB của file test, dùng cho integration test không cần dựng app.
+- `test/support/factories.ts`: `registerUser(app)`, `uniqueEmail()`, `bearer(token)`.
 - Vitest config đã nạp `reflect-metadata` trong `setupFiles`.
 
 ## Mẫu e2e

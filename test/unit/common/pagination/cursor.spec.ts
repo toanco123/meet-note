@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AppException } from '../errors/app.exception.js';
-import { decodeCursor, encodeCursor, toPage } from './cursor.js';
+import { AppException } from '../../../../src/common/errors/app.exception.js';
+import { decodeCursor, encodeCursor, toPage } from '../../../../src/common/pagination/cursor.js';
 
 describe('cursor codec', () => {
   it('round-trip giữ nguyên khoá, kể cả timestamp micro giây dạng string', () => {
