@@ -42,7 +42,8 @@ ALTER TEXT SEARCH CONFIGURATION meetnote_vi
 | search_text            | text GENERATED ALWAYS AS (`f_unaccent(lower(display_name \|\| ' ' \|\| email))`) STORED | dùng để tìm không dấu           |
 | created_at, updated_at | timestamptz                                                                             |                                 |
 
-Index: `UNIQUE (lower(email))`, `GIN (search_text gin_trgm_ops)`.
+Index: `UNIQUE (lower(email))` tên `users_email_lower_uq` (service map lỗi 23505 của tên này sang 409 `AUTH_EMAIL_TAKEN`), `GIN (search_text gin_trgm_ops)` tên `users_search_text_trgm_idx`.
+CHECK: `users_email_length_ck` (3–254 ký tự), `users_display_name_length_ck` (1–80). DTO đã validate, CHECK là lớp chặn cuối.
 
 ### `sessions` (một lần đăng nhập trên một thiết bị)
 
@@ -50,13 +51,15 @@ Index: `UNIQUE (lower(email))`, `GIN (search_text gin_trgm_ops)`.
 | -------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | id             | uuid PK                                                                          | = `sid` trong access JWT, **không đổi** suốt phiên                       |
 | user_id        | uuid FK → users ON DELETE CASCADE                                                |                                                                          |
-| user_agent, ip | text NULL                                                                        | hiển thị trong `/me/sessions`                                            |
+| user_agent     | text NULL                                                                        | hiển thị trong `/me/sessions`                                            |
+| ip             | inet NULL                                                                        | kiểu `inet` để Postgres tự kiểm tra định dạng IPv4/IPv6                  |
 | created_at     | timestamptz                                                                      |                                                                          |
 | last_used_at   | timestamptz                                                                      | cập nhật mỗi lần refresh                                                 |
 | revoked_at     | timestamptz NULL                                                                 | có giá trị = phiên đã bị thu hồi, access token của phiên này bị 401 ngay |
 | revoked_reason | text NULL CHECK IN (`logout`, `logout_all`, `revoked_by_user`, `reuse_detected`) |                                                                          |
 
 Index: `(user_id) WHERE revoked_at IS NULL`, tên `sessions_user_active_idx`.
+CHECK: `sessions_revoked_reason_ck`; `sessions_revoked_consistency_ck` = `(revoked_at IS NULL) = (revoked_reason IS NULL)`.
 
 ### `refresh_tokens` (mỗi lần refresh một dòng)
 
@@ -71,6 +74,7 @@ Index: `(user_id) WHERE revoked_at IS NULL`, tên `sessions_user_active_idx`.
 | replaced_by_id | uuid NULL FK → refresh_tokens        | token mới thay thế                                                     |
 
 Index: `UNIQUE (token_hash)` tên `refresh_tokens_hash_uq`, `(session_id)`.
+CHECK: `refresh_tokens_hash_length_ck` (`octet_length = 32`); `refresh_tokens_rotation_consistency_ck` = `(rotated_at IS NULL) = (replaced_by_id IS NULL)`. FK `replaced_by_id` → `ON DELETE SET NULL`.
 
 Vì sao tách hai bảng: `sid` trong JWT phải ổn định để guard kiểm tra "phiên còn sống" bằng một query theo khoá chính, và để `/me/sessions` liệt kê thiết bị. Nếu gộp chung, mỗi lần refresh lại sinh `sid` mới.
 

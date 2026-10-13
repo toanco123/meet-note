@@ -103,7 +103,7 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
   - Test:
     - unit `validateEnv`: secret < 32 ký tự → lỗi, mặc định đúng;
     - CI build Docker xác nhận argon2 chạy trên alpine.
-- [ ] **B2 — Schema + migration** (skill `drizzle-schema`)
+- [x] **B2 — Schema + migration** (skill `drizzle-schema`)
   - Việc: `schema/users.ts`, `schema/sessions.ts` (sessions + refresh_tokens), `pnpm db:generate --name=auth`. Đọc SQL sinh ra.
   - Test (integration, Postgres thật):
     - email trùng khác hoa thường → 23505 với constraint `users_email_lower_uq`;
@@ -179,3 +179,7 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
 1. **`pnpm add` một native addon báo lỗi `ERR_PNPM_IGNORED_BUILDS` nhưng vẫn ghi vào `package.json`.** Phải chạy tiếp `pnpm approve-builds argon2`, lệnh này ghi `argon2: true` vào `allowBuilds` và chạy install script. Đừng tưởng lệnh `add` đã thất bại hoàn toàn.
 2. **argon2 0.45 có prebuild cho cả glibc lẫn musl** (`argon2.armv8.musl.node`, `argon2.musl.node`). `node-gyp-build` chọn bản phù hợp nên image alpine **không cần** `python3 make g++`. Đã kiểm chứng bằng cách hash/verify trong container `meetnote:local` (linux/arm64, musl).
 3. **Script ESM resolve package theo vị trí của file script, không theo `cwd`.** Chạy `node /tmp/x.mjs` với `-w /app` vẫn báo `ERR_MODULE_NOT_FOUND`, vì Node tìm `node_modules` từ `/tmp` đi lên. Script thử nghiệm phải nằm trong cây thư mục có `node_modules`.
+4. **Drizzle 0.45 chưa có kiểu `bytea`.** Tự định nghĩa bằng `customType<{ data: Buffer }>` (`schema/column-types.ts`). Driver `pg` trả bytea về `Buffer`, nên so sánh dùng `buf.equals()`, không dùng `===`.
+5. **Drizzle ghi tên cột có kèm tên bảng (`"users"."display_name"`) trong generated column và CHECK.** Postgres 18 chấp nhận, đã kiểm chứng bằng integration test. Generated column chỉ được gọi hàm IMMUTABLE, nên phải dùng `f_unaccent()` chứ không dùng `unaccent()`.
+6. **Lỗi unique trên _index_ (không phải constraint) vẫn trả `constraint` = tên index** trong lỗi `pg` (vd `users_email_lower_uq`). Nhờ vậy service map được sang mã lỗi cụ thể. Bất biến giữa hai cột viết thành CHECK dạng `(a IS NULL) = (b IS NULL)`, gọn hơn viết OR.
+7. **zsh không tách từ biến không có nháy.** `P="npx -y pnpm"; $P format` coi cả chuỗi là tên lệnh, nên lệnh lỗi mà không báo gì vì output đã đẩy vào `/dev/null`. Trong zsh phải viết lệnh trực tiếp, hoặc dùng mảng `P=(npx -y pnpm); $P format`.
