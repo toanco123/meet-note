@@ -105,6 +105,27 @@ export class OrganizationMembersRepository {
     return row?.role;
   }
 
+  /** `ON CONFLICT DO NOTHING` trên PK (org_id, user_id): đã là thành viên → trả `false`, không lỗi. */
+  async insertIfAbsent(
+    values: { orgId: string; userId: string; role: OrgRoleValue },
+    executor: DbExecutor,
+  ): Promise<boolean> {
+    const rows = await executor
+      .insert(organizationMembers)
+      .values(values)
+      .onConflictDoNothing()
+      .returning({ userId: organizationMembers.userId });
+    return rows.length > 0;
+  }
+
+  async isMember(orgId: string, userId: string, executor: DbExecutor): Promise<boolean> {
+    const [row] = await executor
+      .select({ userId: organizationMembers.userId })
+      .from(organizationMembers)
+      .where(and(eq(organizationMembers.orgId, orgId), eq(organizationMembers.userId, userId)));
+    return row !== undefined;
+  }
+
   async updateRole(
     orgId: string,
     userId: string,

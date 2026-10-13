@@ -1274,6 +1274,133 @@
           "Organizations"
         ]
       }
+    },
+    "/v1/invites/{token}": {
+      "get": {
+        "description": "Không có / đã thu hồi → 404 `INVITE_NOT_FOUND`; hết hạn / hết lượt → 410.",
+        "operationId": "InviteAcceptance_preview",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitePreviewResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Từng hợp lệ nhưng không còn dùng được, vd link mời hết hạn / hết lượt (`INVITE_EXPIRED`, `INVITE_EXHAUSTED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ],
+        "summary": "Xem trước link mời (không cần đăng nhập).",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/invites/{token}/accept": {
+      "post": {
+        "description": "Tổ chức không cần duyệt → vào thẳng (`joined`); cần duyệt → tạo yêu cầu (`pending`).\nĐã là thành viên → 409 `ORG_ALREADY_MEMBER` (không bị trừ lượt).",
+        "operationId": "InviteAcceptance_accept",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptInviteResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Từng hợp lệ nhưng không còn dùng được, vd link mời hết hạn / hết lượt (`INVITE_EXPIRED`, `INVITE_EXHAUSTED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Chấp nhận link mời.",
+        "tags": [
+          "Organizations"
+        ]
+      }
     }
   },
   "info": {
@@ -1974,6 +2101,68 @@
           "expiresAt",
           "useCount",
           "createdAt"
+        ]
+      },
+      "InvitePreviewResponseDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteRole"
+              }
+            ]
+          },
+          "orgName": {
+            "type": "string",
+            "example": "Công ty TNHH Bình Minh"
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z"
+          },
+          "requiresApproval": {
+            "type": "boolean",
+            "description": "`true` → chấp nhận link chỉ tạo yêu cầu, chờ Owner/Admin duyệt."
+          }
+        },
+        "required": [
+          "role",
+          "orgName",
+          "expiresAt",
+          "requiresApproval"
+        ]
+      },
+      "AcceptInviteStatus": {
+        "type": "string",
+        "enum": [
+          "joined",
+          "pending"
+        ],
+        "description": "`joined`: đã vào tổ chức; `pending`: đã gửi yêu cầu, chờ duyệt."
+      },
+      "AcceptInviteResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "`joined`: đã vào tổ chức; `pending`: đã gửi yêu cầu, chờ duyệt.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcceptInviteStatus"
+              }
+            ]
+          },
+          "orgId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Chỉ có khi `status = pending`."
+          }
+        },
+        "required": [
+          "status",
+          "orgId"
         ]
       }
     }

@@ -118,7 +118,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
     - danh sách không chứa token;
     - phân trang giảm dần không trùng/sót;
     - Member → 403.
-- [ ] **B5 — Xem trước + chấp nhận link** (UPDATE nguyên tử)
+- [x] **B5 — Xem trước + chấp nhận link** (UPDATE nguyên tử)
   - Việc: preview public, accept → vào thẳng hoặc tạo yêu cầu chờ duyệt (Q2), lượt dùng bị trừ trong cùng transaction với việc thêm thành viên.
   - Test (e2e): hết hạn/hết lượt → 410, thu hồi → 404, đã là thành viên → 409 và **không** bị trừ lượt.
   - **Race (integration):** 30 người chấp nhận link `maxUses = 10` song song → đúng 10 thành viên mới, `use_count = 10`. Đột biến "đọc rồi kiểm tra rồi ghi" → hơn 10 người vào.
@@ -172,3 +172,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
 10. **Lint bắt được một bug thật: module chỉ được `import` mà không có trong mảng `imports` của `@Module`.** Đoạn sửa `app.module.ts` bằng script không khớp vì Prettier đã gộp mảng lên một dòng, nên `InvitesModule` chỉ có dòng `import` ở đầu file. oxlint báo `no-unused-vars`. Nếu bỏ qua cảnh báo thì mọi route `/invites` trả 404. **Cảnh báo lint không phải chuyện thẩm mỹ.**
 11. **Token và hash của token đều không vào audit log.** Audit log được nhiều người đọc hơn bảng `organization_invites`. Test e2e kiểm tra chuỗi token không xuất hiện trong dòng audit.
 12. Helper `common/crypto/opaque-token.ts` (`generateOpaqueToken`, `hashOpaqueToken`) dùng chung cho refresh token (M1) và link mời. `TokenService` chuyển sang dùng nó mà không đổi hành vi (15 test auth vẫn xanh).
+13. **UPDATE có điều kiện đủ để chặn vượt lượt, không cần `FOR UPDATE`.** 30 request song song trên link 10 lượt cho đúng `{ OK: 10, INVITE_EXHAUSTED: 20 }`. Lý do: `UPDATE` khoá dòng, và request đến sau ở READ COMMITTED **đánh giá lại `WHERE`** trên giá trị mới sau khi request trước commit.
+14. **CHECK constraint là lưới an toàn, còn điều kiện trong `WHERE` cho ngữ nghĩa lỗi.** Đột biến bỏ `use_count < max_uses` khỏi `WHERE` thì **vẫn đúng 10 người vào** nhờ `CHECK use_count <= max_uses`, nhưng 20 người còn lại nhận `23514` (client thấy 500) thay vì 410 `INVITE_EXHAUSTED`. Dữ liệu không hỏng, chỉ có trải nghiệm hỏng.
+15. **Lượt dùng bị trừ trong cùng transaction với việc thêm thành viên**, nên "đã là thành viên → 409" tự hoàn lượt nhờ rollback (e2e kiểm `use_count` không đổi). `ON CONFLICT DO NOTHING … RETURNING` trả rỗng thay vì lỗi 23505, để service chọn mã lỗi nghiệp vụ mà không phải bắt exception.
+16. **Một hàm `findUsable` cho cả xem trước lẫn giải thích vì sao không dùng được link.** UPDATE có điều kiện chỉ biết "không được", nên khi nó trả rỗng mới đọc lại link để phân biệt 404 (không có / đã thu hồi) với 410 (hết hạn / hết lượt). Đường thành công không tốn thêm query.
