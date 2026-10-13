@@ -15,6 +15,7 @@ export interface TokenPair {
 }
 
 export interface TestUser {
+  id: string;
   email: string;
   password: string;
   displayName: string;
@@ -32,7 +33,12 @@ export async function registerUser(
     displayName: overrides.displayName ?? 'Người dùng thử',
   };
   const res = await request(app.getHttpServer()).post('/v1/auth/register').send(input).expect(201);
-  return { ...input, tokens: res.body as TokenPair };
+  const tokens = res.body as TokenPair;
+  const me = await request(app.getHttpServer())
+    .get('/v1/me')
+    .set(bearer(tokens.accessToken))
+    .expect(200);
+  return { ...input, id: (me.body as { id: string }).id, tokens };
 }
 
 export function bearer(token: string): { Authorization: string } {

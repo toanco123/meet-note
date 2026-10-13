@@ -76,11 +76,21 @@ Request
   │                                          chuỗi rác xuống Postgres thành lỗi 22P02 → 500)
   ├─ 3. ChannelAccessGuard (có :channelId) → tải channel + channel_members, gắn req.channelAccess
   │                                         { channel, role | null, orgRole }
-  ├─ 4. PermissionGuard + @Require('channel.member.add')
-  │                                       → tra bảng permission → hàm policy(ctx) → boolean
+  ├─ 4. Guard quyền theo domain           → hàm policy(ctx) → boolean, sai → 403
+  │      (OrgPermissionGuard / ChannelPermissionGuard)
   └─ 5. Service                            → kiểm tra theo đối tượng (target role, archived...)
                                             trong transaction, sau khi đã khoá dòng
 ```
+
+**Cách gắn (đã chốt ở M2):** mỗi domain có MỘT decorator gộp sẵn guard theo đúng thứ tự, kèm tài liệu Swagger:
+
+```ts
+@Patch(':orgId')
+@RequireOrgPermission('org.update')   // = SetMetadata + UseGuards(OrgMemberGuard, OrgPermissionGuard)
+                                      //   + ApiParam(orgId) + ApiErrorResponses(401, 403, 404)
+```
+
+M4 thêm `@RequireChannelPermission('channel.member.add')` theo cùng mẫu. Không làm một `@Require` + `PermissionGuard` chung trong `common/`: bản chung buộc `common/` import policy của từng module (phụ thuộc ngược), và để ngỏ khả năng quên gắn guard thành viên.
 
 - **Guard** trả lời câu hỏi "vai trò này có được làm _loại_ hành động này không". Guard chạy nhanh, không cần biết đối tượng.
 - **Service** trả lời câu hỏi "có được làm hành động này trên _đối tượng cụ thể_ này không", vd Admin không được gỡ Owner. Kiểm tra này phải chạy **sau khi khoá dòng**, vì dữ liệu đọc ở guard có thể đã cũ.

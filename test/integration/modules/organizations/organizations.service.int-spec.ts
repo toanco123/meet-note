@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
 import { organizationMembers, organizations } from '../../../../src/infra/database/schema/index.js';
 import { OrganizationsRepository } from '../../../../src/modules/organizations/organizations.repository.js';
@@ -43,14 +43,23 @@ describe('OrganizationsService (Postgres thật)', () => {
     expect(members).toEqual([expect.objectContaining({ userId: user.id, role: 'owner' })]);
   });
 
-  it('create: insert membership lỗi → org cũng không được tạo (cùng transaction)', async () => {
-    const before = await t.db.select().from(organizations);
-    // userId không tồn tại → FK của organization_members lỗi ở INSERT thứ hai
-    await expect(
-      service.create('00000000-0000-7000-8000-000000000000', 'Org mồ côi'),
-    ).rejects.toThrow();
-    const after = await t.db.select().from(organizations);
-    expect(after).toHaveLength(before.length);
+  it('create: INSERT membership lỗi SAU khi INSERT org thành công → org bị rollback', async () => {
+    const user = await insertUser(t.db);
+    const orgName = `Rollback ${user.id}`;
+    // Org được insert THẬT; chỉ bước thứ hai hỏng. (Bản cũ của test dùng userId không tồn tại →
+    // lỗi ngay ở INSERT đầu tiên do FK created_by, nên chưa từng kiểm tra được rollback.)
+    const spy = vi
+      .spyOn(repo, 'insertMember')
+      .mockRejectedValueOnce(new Error('giả lập lỗi ở INSERT thứ hai'));
+
+    await expect(service.create(user.id, orgName)).rejects.toThrow('giả lập lỗi ở INSERT thứ hai');
+
+    expect(spy).toHaveBeenCalledOnce();
+    const leftovers = await t.db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.name, orgName));
+    expect(leftovers).toHaveLength(0);
   });
 
   it('listMine: chỉ org mình là thành viên, bỏ org đã xoá mềm, kèm vai trò', async () => {

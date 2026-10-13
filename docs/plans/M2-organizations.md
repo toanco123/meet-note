@@ -107,7 +107,7 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
 - [x] **B3 — Repository + service: tạo org, org của tôi, chi tiết, đổi tên** (đã điều chỉnh: controller dời sang B4 cùng guard, để không commit nào có route `:orgId` chưa được bảo vệ)
   - Việc: `OrganizationsRepository`, `OrganizationsService` (tạo org + Owner trong 1 transaction), DTO, controller.
   - Test (integration): tạo org thì có đúng 1 membership owner.
-- [ ] **B4 — Controller + DTO + `OrgMemberGuard` + `@Require` + `PermissionGuard`** (route `/orgs` của B3 ra mắt cùng lúc với guard)
+- [x] **B4 — Controller + DTO + `OrgMemberGuard` + `@Require` + `PermissionGuard`** (route `/orgs` của B3 ra mắt cùng lúc với guard)
   - Việc: gắn guard vào các route `:orgId` của B3.
   - Test (e2e):
     - người ngoài `GET /orgs/:id` → 404;
@@ -169,3 +169,13 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
 3. **Bớt tham số `isSelf` khỏi `canRemoveMember`.** Viết bảng test ra mới thấy quy tắc "Owner không tự gỡ mình" đã bị quy tắc "Owner bất biến" bao, còn "Admin tự gỡ mình" rơi vào "Admin chỉ gỡ Member". Ít tham số hơn thì ít tổ hợp phải test hơn. Viết **bảng test trước** giúp phát hiện quy tắc thừa.
 4. **Test "bảng phủ đủ permission"** so `Object.keys(orgPolicy)` với cột đầu của bảng test. Thêm permission mới mà quên thêm dòng test thì test đỏ, nên ma trận và test không thể lệch nhau mà không ai biết.
 5. **Đổi thứ tự bước để không commit nào lộ dữ liệu.** Plan ban đầu cho B3 làm controller, B4 mới gắn guard, tức commit B3 sẽ có `GET /orgs/:orgId` mà ai cũng đọc được. Nhánh có thể bị deploy hoặc cherry-pick ở bất kỳ commit nào, nên mỗi commit đều phải an toàn chứ không chỉ commit cuối. Cách đã chọn: B3 chỉ làm repository/service, B4 làm controller cùng guard.
+6. **`@RequireOrgPermission` thay cho `@Require` + `PermissionGuard` chung (lệch plan, đã cập nhật `04-authorization.md` và skill `authorization`).**
+   - Bản chung đặt ở `common/` phải import policy của từng module, tức `common` phụ thuộc ngược vào domain. Bản theo domain gộp `SetMetadata` + `UseGuards(OrgMemberGuard, OrgPermissionGuard)` + `ApiParam` + `ApiErrorResponses(401, 403, 404)` trong một decorator.
+   - Nhờ gộp, không thể quên guard thành viên hay đặt sai thứ tự guard.
+   - Guard dùng qua `@UseGuards` phải là provider trong module của controller. Module cũng export guard để M4 dùng lại.
+7. **Đã kiểm chứng bẫy "guard chạy trước pipe".** Tạm bỏ kiểm tra uuid trong `OrgMemberGuard` thì `GET /v1/orgs/abc` và `GET /v1/orgs/1' or '1'='1` trả **500** (`22P02 invalid input syntax for type uuid`) thay vì 404. Không có SQL injection vì query được tham số hoá, nhưng thiếu kiểm tra thì vẫn lộ lỗi 500.
+8. **Người ngoài `PATCH /orgs/:id` nhận 404, không phải 403.** Guard thành viên chạy trước guard quyền, nên người ngoài không bao giờ tới được bước "không đủ quyền". Bảng e2e có cả 4 dòng owner/admin/member/người ngoài → 200/200/403/404.
+9. **Một test "xanh" của B3 chưa từng kiểm tra điều nó khẳng định.** Test "insert membership lỗi → org bị rollback" dùng `userId` không tồn tại. Nó pass, nhưng lỗi thật xảy ra ngay ở INSERT **đầu tiên** (`organizations_created_by_fk`), nên chưa có gì để rollback. Bị lộ khi sửa cảnh báo lint `require-to-throw-message`: buộc test chỉ rõ lỗi _nào_ thì lỗi thật hiện ra.
+   - Sửa: dùng user có thật, rồi `vi.spyOn(repo, 'insertMember').mockRejectedValueOnce(...)` để chỉ bước thứ hai hỏng.
+   - Kiểm chứng ngược: cho INSERT org chạy ngoài transaction thì test mới **đỏ** (sót 1 org).
+   - Bài học: `toThrow()` không kèm điều kiện là assertion yếu. Mỗi test về transaction/khoá phải được "đột biến" (bỏ khoá / bỏ transaction) ít nhất một lần để chắc nó đỏ được.
