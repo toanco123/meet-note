@@ -1,6 +1,6 @@
 # M0 — Dựng khung dự án
 
-- **Trạng thái:** Code xong. E2E chạy trên CI (GitHub Actions). Còn chờ chạy `docker compose up` trên máy có Docker
+- **Trạng thái:** Gần xong. CI xanh toàn bộ (lint, unit, e2e, build, OpenAPI, Docker image). Chỉ còn chạy `docker compose up` trên máy có Docker
 - **Tài liệu thiết kế liên quan:** [02-architecture](../design/02-architecture.md), [07-conventions](../design/07-conventions.md), [08-testing](../design/08-testing.md), [09-versions](../design/09-versions.md)
 
 ## Mục tiêu
@@ -65,7 +65,7 @@ Có một bộ khung chạy được, trên đó các mốc sau chỉ cần thê
 - [x] `pnpm test` xanh (28 test)
 - [x] `pnpm build` thành công, `pnpm openapi:export` sinh `openapi.json`
 - [x] Smoke test không cần Docker: api lên, `/health/live` 200, `/health/ready` 503 khi DB/Redis chết, 404 đúng định dạng lỗi, `/docs` 200 ở dev và 404 ở production, env sai thì dừng với thông báo rõ, worker sống và tắt ngay khi nhận SIGTERM
-- [ ] `pnpm test:e2e` xanh (**cần Docker**). Lần chạy CI đầu: harness Testcontainers hoạt động, 9/10 pass. 1 test sai kỳ vọng đã sửa (bài học 13)
+- [x] `pnpm test:e2e` xanh trên CI (GitHub Actions run 38368476184). Lần đầu 9/10, 1 test sai kỳ vọng đã sửa (bài học 13). Chưa chạy local vì máy chưa có Docker
 - [ ] `docker compose up` → `curl localhost:3000/health/ready` trả 200 (**cần Docker**)
 
 ## Điều học được / bẫy gặp phải
