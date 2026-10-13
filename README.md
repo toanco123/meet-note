@@ -63,6 +63,7 @@ Chi tiết: [docs/design/02-architecture.md](docs/design/02-architecture.md).
 - Node.js 24 (`.nvmrc`)
 - pnpm 12: `corepack enable` (Node 24) hoặc `npm i -g pnpm@12`
 - Docker (Docker Desktop / OrbStack / Colima): cần cho e2e test và Compose
+  - Testcontainers không đọc docker context. Nếu không có `/var/run/docker.sock` (vd OrbStack cài không có quyền admin), tạo `~/.testcontainers.properties` với dòng `docker.host=unix:///Users/<you>/.orbstack/run/docker.sock`
 
 ### Chạy local
 

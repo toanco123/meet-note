@@ -1,6 +1,6 @@
 # M0 — Dựng khung dự án
 
-- **Trạng thái:** Gần xong. CI xanh toàn bộ (lint, unit, e2e, build, OpenAPI, Docker image). Chỉ còn chạy `docker compose up` trên máy có Docker
+- **Trạng thái:** Xong (2026-10-13). CI xanh toàn bộ. E2E và Docker Compose đã chạy trên máy dev (OrbStack)
 - **Tài liệu thiết kế liên quan:** [02-architecture](../design/02-architecture.md), [07-conventions](../design/07-conventions.md), [08-testing](../design/08-testing.md), [09-versions](../design/09-versions.md)
 
 ## Mục tiêu
@@ -65,8 +65,8 @@ Có một bộ khung chạy được, trên đó các mốc sau chỉ cần thê
 - [x] `pnpm test` xanh (28 test)
 - [x] `pnpm build` thành công, `pnpm openapi:export` sinh `openapi.json`
 - [x] Smoke test không cần Docker: api lên, `/health/live` 200, `/health/ready` 503 khi DB/Redis chết, 404 đúng định dạng lỗi, `/docs` 200 ở dev và 404 ở production, env sai thì dừng với thông báo rõ, worker sống và tắt ngay khi nhận SIGTERM
-- [x] `pnpm test:e2e` xanh trên CI (GitHub Actions run 38368476184). Lần đầu 9/10, 1 test sai kỳ vọng đã sửa (bài học 13). Chưa chạy local vì máy chưa có Docker
-- [ ] `docker compose up` → `curl localhost:3000/health/ready` trả 200 (**cần Docker**)
+- [x] `pnpm test:e2e` xanh: trên CI (GitHub Actions run 38368476184; lần đầu 9/10, 1 test sai kỳ vọng đã sửa, xem bài học 13) và trên máy dev (11/11, 34s)
+- [x] `docker compose up --build`: migrate thoát 0, api healthy, `/health/ready` 200 (database + redis `up`), worker ghi heartbeat vào Redis, RustFS phản hồi ở :9000. `docker compose stop` thì api/worker thoát 0 và heartbeat tự xoá
 
 ## Điều học được / bẫy gặp phải
 
@@ -86,5 +86,7 @@ Ghi lại trong lúc dựng khung (2026-10-13):
 12. **`ConfigModule.forRoot()` validate env lúc import AppModule.** Vì vậy e2e phải đặt `process.env` trong `setupFiles`, còn script export OpenAPI phải đặt env giả trước khi `import()` động.
 13. **`unaccent` không chỉ bỏ dấu.** `unaccent.rules` còn map ký tự Unicode sang ASCII: `—` thành `-`, `…` thành `...`. Có lợi cho search, nhưng không dùng `f_unaccent` để hiển thị lại văn bản. Phát hiện nhờ e2e chạy trên Postgres thật ở CI, unit test không thể bắt được.
 14. **BullMQ cấm `:` trong custom jobId** (`Custom Id cannot contain :`). Ngoài ra jobId phải chứa tên bước và số lần chạy, nếu không job bị nuốt vì trùng ID. Đã sửa trong `03-database.md`, `06-flows.md`, `07-conventions.md`.
+15. **Testcontainers không đọc docker context.** Nó chỉ tìm `DOCKER_HOST`, `~/.testcontainers.properties` và `/var/run/docker.sock`. OrbStack cài không có quyền admin thì không tạo `/var/run/docker.sock`, nên phải thêm `docker.host=unix://$HOME/.orbstack/run/docker.sock` vào `~/.testcontainers.properties`. Đây là cấu hình theo máy, không commit.
+16. **OrbStack khởi động bằng `orbctl start` trước khi mở app thì bỏ qua bước cài CLI.** Không có `~/.orbstack/bin`, và `docker compose` báo `unknown command`. Phải link tool vào `~/.orbstack/bin`, thêm vào PATH (`~/.zprofile`), và link plugin vào `~/.docker/cli-plugins/`. Kiểm tra bằng `orbctl doctor`.
 
-Còn lại khi có Docker trên máy: chạy `pnpm test:e2e` local và `docker compose up --build`. CI đã chạy e2e (Testcontainers) và build Docker image. `compose.yaml` **chưa được chạy thật lần nào**.
+Mọi tiêu chí đã đạt. Mốc tiếp theo: M1 — Auth (viết plan trước khi code).

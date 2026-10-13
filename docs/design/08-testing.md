@@ -35,7 +35,7 @@ mỗi file test
 > **Bẫy:**
 >
 > - `CREATE DATABASE … TEMPLATE` lỗi nếu còn kết nối vào template. Sau khi migrate phải đóng hết pool trỏ vào template.
-> - Ryuk (container dọn dẹp của Testcontainers) cần quyền truy cập Docker socket. Trên CI GitHub Actions thì ổn. Nếu dùng Colima/OrbStack thì có thể phải set `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE`.
+> - Ryuk (container dọn dẹp của Testcontainers) cần quyền truy cập Docker socket. Trên CI GitHub Actions thì ổn. Testcontainers **không đọc docker context**. Với OrbStack/Colima không có `/var/run/docker.sock`, khai báo socket trong `~/.testcontainers.properties`, ví dụ `docker.host=unix:///Users/<you>/.orbstack/run/docker.sock`. Nếu Ryuk vẫn lỗi thì set thêm `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`.
 
 ## 3. Test concurrency (trọng tâm của project)
 
