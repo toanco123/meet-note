@@ -120,7 +120,7 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
     - ký/verify access JWT (claims `sub`, `sid`, `iss`, `aud`, `exp`);
     - sinh refresh token và hàm hash SHA-256.
   - Test (unit): verify token hợp lệ; sai secret → invalid; token hết hạn → expired; token đúng định dạng nhưng sai `aud` → invalid.
-- [ ] **B5 — `SessionsService`: tạo phiên, xoay vòng, thu hồi** (skill `db-transactions`)
+- [x] **B5 — `SessionsService`: tạo phiên, xoay vòng, thu hồi** (skill `db-transactions`)
   - Việc: `create(userId, meta)`, `rotate(refreshToken)` (luồng trên, `FOR UPDATE`), `revoke(sessionId, reason)`, `revokeAll(userId)`.
   - Test (integration):
     - xoay vòng bình thường;
@@ -184,3 +184,7 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
 6. **Lỗi unique trên _index_ (không phải constraint) vẫn trả `constraint` = tên index** trong lỗi `pg` (vd `users_email_lower_uq`). Nhờ vậy service map được sang mã lỗi cụ thể. Bất biến giữa hai cột viết thành CHECK dạng `(a IS NULL) = (b IS NULL)`, gọn hơn viết OR.
 7. **zsh không tách từ biến không có nháy.** `P="npx -y pnpm"; $P format` coi cả chuỗi là tên lệnh, nên lệnh lỗi mà không báo gì vì output đã đẩy vào `/dev/null`. Trong zsh phải viết lệnh trực tiếp, hoặc dùng mảng `P=(npx -y pnpm); $P format`.
 8. **Thứ tự tham số trong chuỗi PHC của argon2 0.45 là `m,p,t`** (`$argon2id$v=19$m=19456,p=1,t=2$…`), không phải `m,t,p` như nhiều ví dụ trên mạng. Test không nên khớp nguyên chuỗi, mà nên tách tham số ra rồi so như một tập hợp.
+9. **Ném lỗi bên trong `db.transaction` sẽ rollback mọi thứ đã ghi, kể cả lệnh thu hồi phiên.** Khi phát hiện refresh token bị dùng lại, ta muốn _vừa_ thu hồi phiên _vừa_ trả 401. Nếu `throw` trong callback thì việc thu hồi biến mất và kẻ trộm token vẫn dùng tiếp được. Cách làm: callback trả về kết quả dạng union (`ok | invalid | rotated | reused`), commit xong mới `throw`. Test "REUSED → phiên bị thu hồi" kiểm tra đúng điều này.
+10. **Kiểm chứng `FOR UPDATE`: bỏ khoá thì test concurrency đỏ** (`['FULFILLED', 'FULFILLED']`, tức một phiên có hai nhánh token). Hai quan sát thêm:
+    - Vòng 0 vẫn pass, vòng 1 mới lộ race. Race không xảy ra mọi lần, nên test phải lặp nhiều vòng.
+    - Chỉ khoá dòng `sessions` **không đủ**. Request thứ hai đã đọc refresh token (chưa khoá) trước khi phải chờ khoá phiên, nên nó dùng dữ liệu cũ để ghi. Khoá phải nằm ở **đúng dòng chứa điều kiện đang kiểm tra** (`rotated_at`).
