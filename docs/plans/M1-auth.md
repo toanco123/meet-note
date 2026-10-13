@@ -115,7 +115,7 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
     - `verify`, `needsRehash`;
     - `verifyDummy()` để email không tồn tại cũng tốn thời gian như sai mật khẩu.
   - Test (unit): hash ≠ mật khẩu; verify đúng/sai; `needsRehash` khi đổi tham số; giới hạn 128 ký tự export thành hằng `PASSWORD_MAX_LENGTH`, còn test chặn ở DTO chuyển sang B6 (lúc đó mới có DTO).
-- [ ] **B4 — `TokenService`**
+- [x] **B4 — `TokenService`**
   - Việc:
     - ký/verify access JWT (claims `sub`, `sid`, `iss`, `aud`, `exp`);
     - sinh refresh token và hàm hash SHA-256.
