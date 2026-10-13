@@ -42,29 +42,52 @@ ALTER TEXT SEARCH CONFIGURATION meetnote_vi
 | search_text            | text GENERATED ALWAYS AS (`f_unaccent(lower(display_name \|\| ' ' \|\| email))`) STORED | dùng để tìm không dấu           |
 | created_at, updated_at | timestamptz                                                                             |                                 |
 
-Index: `UNIQUE (lower(email))`, `GIN (search_text gin_trgm_ops)`.
+Index: `UNIQUE (lower(email))` tên `users_email_lower_uq` (service map lỗi 23505 của tên này sang 409 `AUTH_EMAIL_TAKEN`), `GIN (search_text gin_trgm_ops)` tên `users_search_text_trgm_idx`.
+CHECK: `users_email_length_ck` (3–254 ký tự), `users_display_name_length_ck` (1–80). DTO đã validate, CHECK là lớp chặn cuối.
 
-### `sessions` (refresh token)
+### `sessions` (một lần đăng nhập trên một thiết bị)
 
-| Cột                      | Kiểu                              | Ghi chú                                        |
-| ------------------------ | --------------------------------- | ---------------------------------------------- |
-| id                       | uuid PK                           | = `sid` trong access JWT                       |
-| user_id                  | uuid FK → users ON DELETE CASCADE |                                                |
-| family_id                | uuid NOT NULL                     | chuỗi xoay vòng từ một lần đăng nhập           |
-| token_hash               | bytea UNIQUE NOT NULL             | SHA-256 của refresh token. Không lưu token gốc |
-| replaced_by_id           | uuid NULL FK → sessions           | có giá trị = đã bị xoay                        |
-| expires_at               | timestamptz                       |                                                |
-| revoked_at               | timestamptz NULL                  |                                                |
-| user_agent, ip           | text                              |                                                |
-| created_at, last_used_at | timestamptz                       |                                                |
+| Cột            | Kiểu                                                                             | Ghi chú                                                                  |
+| -------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| id             | uuid PK                                                                          | = `sid` trong access JWT, **không đổi** suốt phiên                       |
+| user_id        | uuid FK → users ON DELETE CASCADE                                                |                                                                          |
+| user_agent     | text NULL                                                                        | hiển thị trong `/me/sessions`                                            |
+| ip             | inet NULL                                                                        | kiểu `inet` để Postgres tự kiểm tra định dạng IPv4/IPv6                  |
+| created_at     | timestamptz                                                                      |                                                                          |
+| last_used_at   | timestamptz                                                                      | cập nhật mỗi lần refresh                                                 |
+| revoked_at     | timestamptz NULL                                                                 | có giá trị = phiên đã bị thu hồi, access token của phiên này bị 401 ngay |
+| revoked_reason | text NULL CHECK IN (`logout`, `logout_all`, `revoked_by_user`, `reuse_detected`) |                                                                          |
 
-Index: `(user_id) WHERE revoked_at IS NULL`, `(family_id)`.
+Index: `(user_id) WHERE revoked_at IS NULL`, tên `sessions_user_active_idx`.
+CHECK: `sessions_revoked_reason_ck`; `sessions_revoked_consistency_ck` = `(revoked_at IS NULL) = (revoked_reason IS NULL)`.
 
-**Transaction/khoá:** refresh = `SELECT … WHERE token_hash = $1 FOR UPDATE`.
+### `refresh_tokens` (mỗi lần refresh một dòng)
 
-- Nếu `replaced_by_id IS NOT NULL` hoặc `revoked_at IS NOT NULL`, đây là **reuse**: revoke cả family.
-- Nếu không, tạo session mới và set `replaced_by_id` cho session cũ. Tất cả trong 1 transaction.
-- Không có `FOR UPDATE` thì 2 request refresh song song cùng thành công và tạo 2 nhánh.
+| Cột            | Kiểu                                 | Ghi chú                                                                |
+| -------------- | ------------------------------------ | ---------------------------------------------------------------------- |
+| id             | uuid PK                              |                                                                        |
+| session_id     | uuid FK → sessions ON DELETE CASCADE |                                                                        |
+| token_hash     | bytea NOT NULL                       | SHA-256 của token (32 byte ngẫu nhiên, base64url). Không lưu token gốc |
+| expires_at     | timestamptz NOT NULL                 | trượt: `REFRESH_TOKEN_TTL_DAYS` kể từ lúc cấp                          |
+| created_at     | timestamptz                          |                                                                        |
+| rotated_at     | timestamptz NULL                     | có giá trị = đã được đổi lấy token mới                                 |
+| replaced_by_id | uuid NULL FK → refresh_tokens        | token mới thay thế                                                     |
+
+Index: `UNIQUE (token_hash)` tên `refresh_tokens_hash_uq`, `(session_id)`.
+CHECK: `refresh_tokens_hash_length_ck` (`octet_length = 32`); `refresh_tokens_rotation_consistency_ck` = `(rotated_at IS NULL) = (replaced_by_id IS NULL)`. FK `replaced_by_id` → `ON DELETE SET NULL`.
+
+Vì sao tách hai bảng: `sid` trong JWT phải ổn định để guard kiểm tra "phiên còn sống" bằng một query theo khoá chính, và để `/me/sessions` liệt kê thiết bị. Nếu gộp chung, mỗi lần refresh lại sinh `sid` mới.
+
+**Refresh (1 transaction):**
+
+1. `SELECT … FROM refresh_tokens WHERE token_hash = $1 FOR UPDATE`, rồi `SELECT … FROM sessions WHERE id = … FOR UPDATE`.
+2. Không có, hết hạn, hoặc phiên đã thu hồi → 401 `AUTH_REFRESH_TOKEN_INVALID`.
+3. `rotated_at` đã có:
+   - trong `REFRESH_REUSE_GRACE_SECONDS` (mặc định 10s, cho trường hợp hai tab refresh cùng lúc) → 401 `AUTH_REFRESH_TOKEN_ROTATED`, **không** thu hồi;
+   - quá grace → coi là token bị đánh cắp: thu hồi phiên (`reuse_detected`), 401 `AUTH_REFRESH_TOKEN_REUSED`.
+4. Hợp lệ: insert token mới, set `rotated_at` + `replaced_by_id` cho token cũ, cập nhật `sessions.last_used_at`.
+
+Không có `FOR UPDATE` thì 2 request refresh song song cùng đọc thấy token "chưa xoay", và cả hai cùng nhận token mới. Kết quả là một phiên có 2 nhánh token.
 
 ## 2. Tổ chức
 
@@ -313,7 +336,7 @@ Dùng cho các POST không tự idempotent, theo header `Idempotency-Key`.
 
 | Thao tác                           | Kỹ thuật                                                               | Lý do                                         |
 | ---------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------- |
-| Refresh token                      | tx + `FOR UPDATE` session                                              | Chặn 2 refresh song song, phát hiện reuse     |
+| Refresh token                      | tx + `FOR UPDATE` refresh_token rồi session                            | Chặn 2 refresh song song, phát hiện reuse     |
 | Chuyển quyền sở hữu org            | tx + `FOR UPDATE` 2 dòng member (sắp theo user_id) + hạ trước nâng sau | Partial unique index, chống deadlock          |
 | Đổi vai trò / gỡ thành viên org    | tx + `FOR UPDATE` dòng member mục tiêu + kiểm tra không gỡ owner       | Owner không bị gỡ nhầm                        |
 | Rời / bị gỡ khỏi org               | tx: chuyển các kênh đang làm chủ → xoá member                          | Cascade không để lại kênh mồ côi              |

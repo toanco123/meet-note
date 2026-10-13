@@ -15,7 +15,7 @@
     "vitest/expect-expect": [
       "warn",
       {
-        "assertFunctionNames": ["expect", "request.**.expect"]
+        "assertFunctionNames": ["expect", "request.**.expect", "http.**.expect"]
       }
     ]
   },

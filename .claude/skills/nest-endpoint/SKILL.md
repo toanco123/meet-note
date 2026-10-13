@@ -25,6 +25,8 @@ src/modules/<domain>/
 └─ dto/*.dto.ts               # request + response DTO
 ```
 
+Test **không** nằm trong `src/`: unit ở `test/unit/modules/<domain>/`, integration ở `test/integration/modules/<domain>/`, e2e ở `test/e2e/`.
+
 Domain cần chạy ở cả worker thì tách `<Domain>CoreModule` (service + repository, không controller) và `<Domain>Module` (controller, import Core). `WorkerModule` chỉ import Core.
 
 ## Checklist khi thêm một endpoint

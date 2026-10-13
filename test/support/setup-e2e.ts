@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { afterAll, inject } from 'vitest';
 import { createTestDatabase } from './database.js';
 
@@ -13,6 +14,7 @@ process.env.NODE_ENV = 'test';
 process.env.LOG_LEVEL = 'silent';
 process.env.DATABASE_URL = database.url;
 process.env.REDIS_URL = inject('redisUrl');
+process.env.JWT_ACCESS_SECRET = randomBytes(32).toString('hex');
 
 afterAll(async () => {
   await database.drop();

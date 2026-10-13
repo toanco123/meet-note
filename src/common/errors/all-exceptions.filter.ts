@@ -10,38 +10,13 @@ import { HttpAdapterHost } from '@nestjs/core';
 import { AppException, type ErrorDetail } from './app.exception.js';
 import { defaultCodeForStatus, ErrorCode } from './error-code.js';
 import type { ErrorResponseDto } from './error-response.dto.js';
+import { findPgError, PG_FOREIGN_KEY_VIOLATION, PG_UNIQUE_VIOLATION } from './pg-error.js';
 
 export interface MappedError {
   status: number;
   code: string;
   message: string;
   details?: ErrorDetail[];
-}
-
-/** SQLSTATE của Postgres: https://www.postgresql.org/docs/current/errcodes-appendix.html */
-const PG_UNIQUE_VIOLATION = '23505';
-const PG_FOREIGN_KEY_VIOLATION = '23503';
-
-interface PgLikeError {
-  code: string;
-  constraint?: string;
-}
-
-/**
- * Drizzle (≥ 0.44) bọc lỗi driver trong DrizzleQueryError, lỗi gốc của `pg` nằm ở `.cause`.
- * Vì vậy phải đi dọc chuỗi `cause` thay vì kiểm tra trực tiếp.
- */
-export function findPgError(error: unknown, depth = 0): PgLikeError | undefined {
-  if (depth > 5 || typeof error !== 'object' || error === null) return undefined;
-  const candidate = error as { code?: unknown; severity?: unknown; cause?: unknown };
-  if (
-    typeof candidate.code === 'string' &&
-    /^[0-9A-Z]{5}$/.test(candidate.code) &&
-    candidate.severity !== undefined
-  ) {
-    return candidate as PgLikeError;
-  }
-  return findPgError(candidate.cause, depth + 1);
 }
 
 /** Lỗi 4xx từ middleware Express (body-parser: JSON hỏng, body quá lớn) có `status` + `expose`. */

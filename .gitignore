@@ -10,3 +10,6 @@ coverage/
 
 # Claude Code: cấu hình cá nhân, không commit
 .claude/settings.local.json
+
+# Ảnh chụp / snapshot của Playwright MCP
+.playwright-mcp/

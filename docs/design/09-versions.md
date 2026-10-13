@@ -73,5 +73,5 @@ Kiểm tra trên npm registry, nodejs.org và Docker Hub ngày **2026-10-13**. `
 
 ## pnpm 12: chính sách supply-chain (trong `pnpm-workspace.yaml`)
 
-- `allowBuilds`: pnpm 12 **không chạy** postinstall/install script của dependency nếu chưa được duyệt, và báo lỗi `ERR_PNPM_IGNORED_BUILDS`. Duyệt bằng `pnpm approve-builds <pkg>` hoặc từ chối bằng `pnpm approve-builds '!<pkg>'`. Kết quả ghi vào `allowBuilds`. Hiện cho phép `esbuild` (drizzle-kit cần binary), `msgpackr-extract` (BullMQ). Từ chối `@scarf/scarf` (telemetry), `ssh2`, `cpu-features`, `protobufjs`.
+- `allowBuilds`: pnpm 12 **không chạy** postinstall/install script của dependency nếu chưa được duyệt, và báo lỗi `ERR_PNPM_IGNORED_BUILDS`. Duyệt bằng `pnpm approve-builds <pkg>` hoặc từ chối bằng `pnpm approve-builds '!<pkg>'`. Kết quả ghi vào `allowBuilds`. Hiện cho phép `esbuild` (drizzle-kit cần binary), `msgpackr-extract` (BullMQ), `argon2` (M1; `node-gyp-build` chọn prebuild có sẵn, kể cả musl cho alpine, nên không cần trình biên dịch). Từ chối `@scarf/scarf` (telemetry), `ssh2`, `cpu-features`, `protobufjs`.
 - `minimumReleaseAge`: từ chối bản phát hành quá mới, để giảm rủi ro dính bản bị chiếm quyền rồi publish mã độc. Ngoại lệ được liệt kê trong `minimumReleaseAgeExclude`. Nên **xoá dần** các ngoại lệ khi các bản đó đã đủ tuổi.

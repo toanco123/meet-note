@@ -9,15 +9,15 @@ description: Hiện thực và kiểm thử phân quyền nhiều tầng của M
 
 ## Các tầng và vị trí code
 
-| Tầng                                           | Trả lời câu hỏi                                                                                                               | File (mốc tạo)                                   |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| `JwtAuthGuard` (`APP_GUARD`) + `@Public()`     | Có đăng nhập không? Gắn `req.user = { id, sessionId }`                                                                        | `src/common/auth/` (M1)                          |
-| `@CurrentUser()`                               | Lấy user trong controller                                                                                                     | `src/common/auth/current-user.decorator.ts` (M1) |
-| `OrgMemberGuard`                               | Có phải thành viên org `:orgId` không? Gắn `req.orgMembership`. Không phải thành viên → **404**                               | `src/modules/organizations/` (M2)                |
-| `ChannelAccessGuard`                           | Tải kênh + vai trò trong kênh, gắn `req.channelAccess = { channel, channelRole \| null, orgRole }`. Không thấy kênh → **404** | `src/modules/channels/` (M4)                     |
-| `@Require('<permission>')` + `PermissionGuard` | Vai trò này có được làm **loại** hành động này không?                                                                         | `src/common/auth/require.decorator.ts` (M2)      |
-| Policy `*.policy.ts`                           | Hàm thuần `(ctx) → boolean`. Guard và service cùng gọi                                                                        | trong từng module                                |
-| Service                                        | Có được làm hành động này trên **đối tượng cụ thể** không? (Admin không gỡ được Owner, kênh đã lưu trữ…)                      | trong từng module, **sau khi khoá dòng**         |
+| Tầng                                           | Trả lời câu hỏi                                                                                                               | File (mốc tạo)                                                                                    |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `JwtAuthGuard` (`APP_GUARD`) + `@Public()`     | Có đăng nhập không? Kiểm tra phiên còn sống. Gắn `req.user = { id, sessionId }`                                               | guard: `src/modules/auth/guards/`; `@Public`, `@CurrentUser`, `AuthUser`: `src/common/auth/` (M1) |
+| `@CurrentUser()`                               | Lấy user trong controller                                                                                                     | `src/common/auth/current-user.decorator.ts` (M1)                                                  |
+| `OrgMemberGuard`                               | Có phải thành viên org `:orgId` không? Gắn `req.orgMembership`. Không phải thành viên → **404**                               | `src/modules/organizations/` (M2)                                                                 |
+| `ChannelAccessGuard`                           | Tải kênh + vai trò trong kênh, gắn `req.channelAccess = { channel, channelRole \| null, orgRole }`. Không thấy kênh → **404** | `src/modules/channels/` (M4)                                                                      |
+| `@Require('<permission>')` + `PermissionGuard` | Vai trò này có được làm **loại** hành động này không?                                                                         | `src/common/auth/require.decorator.ts` (M2)                                                       |
+| Policy `*.policy.ts`                           | Hàm thuần `(ctx) → boolean`. Guard và service cùng gọi                                                                        | trong từng module                                                                                 |
+| Service                                        | Có được làm hành động này trên **đối tượng cụ thể** không? (Admin không gỡ được Owner, kênh đã lưu trữ…)                      | trong từng module, **sau khi khoá dòng**                                                          |
 
 Thứ tự chạy: guard global → guard của controller → guard của method → pipe (validate) → handler.
 

@@ -67,7 +67,8 @@ Viết thành một hàm SQL dùng lại được (`visible_meetings(user_id, or
 ```
 Request
   │
-  ├─ 1. JwtAuthGuard (global)            → xác thực access token, gắn req.user = { id, sessionId }
+  ├─ 1. JwtAuthGuard (global)            → verify access token + kiểm tra session chưa bị thu hồi (1 query theo PK),
+  │                                         gắn req.user = { id, sessionId }
   │                                         @Public() để bỏ qua
   ├─ 2. OrgMemberGuard (route có :orgId) → tải organization_members, gắn req.orgMembership
   │                                         không phải thành viên → 404

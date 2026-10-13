@@ -18,6 +18,9 @@
             }
           }
         },
+        "security": [
+          {}
+        ],
         "summary": "Liveness — tiến trình còn sống.",
         "tags": [
           "Health"
@@ -51,9 +54,404 @@
             }
           }
         },
+        "security": [
+          {}
+        ],
         "summary": "Readiness — sẵn sàng nhận traffic.",
         "tags": [
           "Health"
+        ]
+      }
+    },
+    "/v1/auth/register": {
+      "post": {
+        "description": "Email trùng (không phân biệt hoa thường) trả 409 `AUTH_EMAIL_TAKEN`.",
+        "operationId": "Auth_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ],
+        "summary": "Đăng ký tài khoản mới và đăng nhập luôn.",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "description": "Sai email hoặc sai mật khẩu đều trả CÙNG 401 `AUTH_INVALID_CREDENTIALS`.",
+        "operationId": "Auth_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ],
+        "summary": "Đăng nhập bằng email + mật khẩu.",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/v1/auth/refresh": {
+      "post": {
+        "description": "Mỗi refresh token chỉ dùng được một lần. Dùng lại token cũ trong 10 giây (hai tab\nrefresh cùng lúc) → 401 `AUTH_REFRESH_TOKEN_ROTATED`; quá 10 giây → coi là bị đánh cắp,\nthu hồi cả phiên và trả 401 `AUTH_REFRESH_TOKEN_REUSED`.",
+        "operationId": "Auth_refresh",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ],
+        "summary": "Đổi refresh token lấy cặp token mới (xoay vòng).",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "description": "Access token của phiên này bị từ chối ngay ở request tiếp theo; refresh token hết dùng được.",
+        "operationId": "Auth_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Đã thu hồi phiên."
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Đăng xuất phiên hiện tại.",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/v1/auth/logout-all": {
+      "post": {
+        "operationId": "Auth_logoutAll",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Đã thu hồi mọi phiên."
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Đăng xuất khỏi MỌI thiết bị (thu hồi mọi phiên của tài khoản, kể cả phiên hiện tại).",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "operationId": "Me_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Hồ sơ của tôi.",
+        "tags": [
+          "Auth"
+        ]
+      },
+      "patch": {
+        "operationId": "Me_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Đổi tên hiển thị.",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/v1/me/sessions": {
+      "get": {
+        "description": "Phiên đang gửi request có `current: true`. Ít phần tử nên không phân trang.",
+        "operationId": "Me_listSessions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SessionResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Các phiên đăng nhập còn hiệu lực (thiết bị).",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/v1/me/sessions/{sessionId}": {
+      "delete": {
+        "description": "Phiên không tồn tại, của người khác hoặc đã thu hồi → 404.",
+        "operationId": "Me_revokeSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã thu hồi phiên."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Thu hồi một phiên (đăng xuất một thiết bị).",
+        "tags": [
+          "Auth"
         ]
       }
     }
@@ -164,7 +562,252 @@
           "status",
           "checks"
         ]
+      },
+      "RegisterDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email đăng nhập. Không phân biệt hoa thường khi so trùng.",
+            "example": "an.nguyen@example.com",
+            "maxLength": 254,
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Mật khẩu 8–128 ký tự. Không ép quy tắc \"phải có số/ký tự đặc biệt\" (theo NIST SP 800-63B):\nđộ dài quan trọng hơn độ phức tạp. Không trim — khoảng trắng là một phần của mật khẩu.",
+            "example": "mot-cau-mat-khau-dai",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Tên hiển thị.",
+            "example": "Nguyễn Văn An",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "displayName"
+        ]
+      },
+      "AuthTokensResponseDto": {
+        "type": "object",
+        "properties": {
+          "tokenType": {
+            "description": "Luôn là `Bearer`: gửi `Authorization: Bearer <accessToken>`.",
+            "enum": [
+              "Bearer"
+            ],
+            "type": "string"
+          },
+          "accessToken": {
+            "type": "string",
+            "description": "JWT sống ngắn (mặc định 15 phút)."
+          },
+          "accessTokenExpiresAt": {
+            "type": "string",
+            "description": "Thời điểm access token hết hạn (ISO 8601, UTC).",
+            "example": "2026-10-13T08:15:00.000Z"
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Dùng một lần cho `POST /v1/auth/refresh`; mỗi lần refresh nhận token mới.",
+            "example": "q3Jt0b6Q2l3Zc0p9QpXb5m1q8D0yJ4dA7m2N5r1sT6w"
+          },
+          "refreshTokenExpiresAt": {
+            "type": "string",
+            "description": "Thời điểm refresh token hết hạn (ISO 8601, UTC).",
+            "example": "2026-11-12T08:00:00.000Z"
+          }
+        },
+        "required": [
+          "tokenType",
+          "accessToken",
+          "accessTokenExpiresAt",
+          "refreshToken",
+          "refreshTokenExpiresAt"
+        ]
+      },
+      "ErrorDetailDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Đường dẫn tới field lỗi (dạng chấm cho field lồng nhau).",
+            "example": "members.0.role"
+          },
+          "message": {
+            "type": "string",
+            "example": "role must be one of the following values: admin, member"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "ErrorBodyDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Mã lỗi máy đọc được — client rẽ nhánh theo mã này, không theo `message`.",
+            "example": "VALIDATION_FAILED"
+          },
+          "message": {
+            "type": "string",
+            "description": "Mô tả cho người đọc. Có thể thay đổi bất kỳ lúc nào."
+          },
+          "details": {
+            "description": "Chi tiết từng field (chỉ có với lỗi validate).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetailDto"
+            }
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Trùng với header `x-request-id`, dùng để tra log.",
+            "example": "4f7d1c3e-2a9b-4c1d-8e6f-0a1b2c3d4e5f"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "ErrorResponseDto": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBodyDto"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "an.nguyen@example.com",
+            "maxLength": 254,
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Không kiểm tra độ dài tối thiểu ở đây (tài khoản cũ có thể có quy tắc khác),\nnhưng vẫn chặn chuỗi quá dài trước khi tới argon2.",
+            "example": "mot-cau-mat-khau-dai",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "RefreshTokenDto": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "Refresh token nhận từ lần đăng nhập / refresh gần nhất. Mỗi token chỉ dùng được MỘT lần.",
+            "example": "q3Jt0b6Q2l3Zc0p9QpXb5m1q8D0yJ4dA7m2N5r1sT6w"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
+      "MeResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "example": "an.nguyen@example.com"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Nguyễn Văn An"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-13T08:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "displayName",
+          "createdAt"
+        ]
+      },
+      "UpdateMeDto": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "example": "Nguyễn Văn An",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        },
+        "required": [
+          "displayName"
+        ]
+      },
+      "SessionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userAgent": {
+            "type": "string",
+            "nullable": true,
+            "example": "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_6) …"
+          },
+          "ip": {
+            "type": "string",
+            "nullable": true,
+            "example": "203.0.113.7"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Thời điểm đăng nhập."
+          },
+          "lastUsedAt": {
+            "type": "string",
+            "description": "Lần refresh gần nhất."
+          },
+          "current": {
+            "type": "boolean",
+            "description": "`true` nếu đây là phiên đang gửi request này."
+          }
+        },
+        "required": [
+          "id",
+          "userAgent",
+          "ip",
+          "createdAt",
+          "lastUsedAt",
+          "current"
+        ]
       }
     }
-  }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ]
 }

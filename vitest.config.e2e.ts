@@ -7,7 +7,7 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
-    include: ['test/**/*.e2e-spec.ts', 'src/**/*.int-spec.ts'],
+    include: ['test/e2e/**/*.e2e-spec.ts', 'test/integration/**/*.int-spec.ts'],
     environment: 'node',
     globalSetup: ['test/support/global-setup.ts'],
     setupFiles: ['reflect-metadata', 'test/support/setup-e2e.ts'],

@@ -1,9 +1,9 @@
 import { Test } from '@nestjs/testing';
 import type { Response } from 'express';
 import { describe, expect, it, vi } from 'vitest';
-import type { HealthReadyResponseDto } from './dto/health-response.dto.js';
-import { HealthController } from './health.controller.js';
-import { HealthService } from './health.service.js';
+import type { HealthReadyResponseDto } from '../../../../src/modules/health/dto/health-response.dto.js';
+import { HealthController } from '../../../../src/modules/health/health.controller.js';
+import { HealthService } from '../../../../src/modules/health/health.service.js';
 
 /**
  * Test này còn có mục đích thứ hai: chứng minh Vitest (Oxc transform) phát

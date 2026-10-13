@@ -172,7 +172,7 @@ export class ChannelMembersController {
 
 ## Test
 
-- `channel.policy.spec.ts`: `it.each` theo ma trận quyền.
+- `test/unit/modules/channels/channel.policy.spec.ts`: `it.each` theo ma trận quyền.
 - `test/e2e/channel-members.e2e-spec.ts`:
   - phân trang qua 2 trang không trùng/mất dòng;
   - `?q=nguyen` khớp "Nguyễn";

@@ -7,7 +7,7 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
-    include: ['src/**/*.spec.ts'],
+    include: ['test/unit/**/*.spec.ts'],
     environment: 'node',
     env: { NODE_ENV: 'test' },
     // main.ts import 'reflect-metadata' đầu tiên; test không đi qua main.ts nên nạp ở đây.

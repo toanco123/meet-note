@@ -36,16 +36,16 @@ Mọi lỗi trả về cùng một dạng:
 }
 ```
 
-| HTTP | `code` mặc định                                            | Khi nào                                                 |
-| ---- | ---------------------------------------------------------- | ------------------------------------------------------- |
-| 400  | `VALIDATION_FAILED`, `INVALID_CURSOR`                      | DTO sai, cursor hỏng                                    |
-| 401  | `UNAUTHENTICATED`, `TOKEN_EXPIRED`, `REFRESH_TOKEN_REUSED` | Thiếu/sai token                                         |
-| 403  | `FORBIDDEN`                                                | Thấy được tài nguyên nhưng không đủ quyền với hành động |
-| 404  | `NOT_FOUND`                                                | Không tồn tại **hoặc không được thấy** (kênh riêng tư)  |
-| 409  | `CONFLICT` và mã cụ thể                                    | Trùng unique, sai trạng thái, hết quota                 |
-| 413  | `PAYLOAD_TOO_LARGE`                                        | Part quá lớn                                            |
-| 429  | `RATE_LIMITED`                                             | (mốc hardening)                                         |
-| 500  | `INTERNAL_ERROR`                                           | Không lộ stack. Chỉ log phía server                     |
+| HTTP | `code` mặc định                                                                                                                                                                                                                             | Khi nào                                                 |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| 400  | `VALIDATION_FAILED`, `INVALID_CURSOR`                                                                                                                                                                                                       | DTO sai, cursor hỏng                                    |
+| 401  | `UNAUTHENTICATED` (mặc định), `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED`, `AUTH_INVALID_CREDENTIALS`, `AUTH_REFRESH_TOKEN_INVALID`, `AUTH_REFRESH_TOKEN_ROTATED`, `AUTH_REFRESH_TOKEN_REUSED` | Chưa xác thực được                                      |
+| 403  | `FORBIDDEN`                                                                                                                                                                                                                                 | Thấy được tài nguyên nhưng không đủ quyền với hành động |
+| 404  | `NOT_FOUND`                                                                                                                                                                                                                                 | Không tồn tại **hoặc không được thấy** (kênh riêng tư)  |
+| 409  | `CONFLICT` và mã cụ thể                                                                                                                                                                                                                     | Trùng unique, sai trạng thái, hết quota                 |
+| 413  | `PAYLOAD_TOO_LARGE`                                                                                                                                                                                                                         | Part quá lớn                                            |
+| 429  | `RATE_LIMITED`                                                                                                                                                                                                                              | (mốc hardening)                                         |
+| 500  | `INTERNAL_ERROR`                                                                                                                                                                                                                            | Không lộ stack. Chỉ log phía server                     |
 
 Hiện thực:
 
@@ -91,24 +91,25 @@ Hiện thực:
 
 Validate khi khởi động bằng class `EnvironmentVariables` (class-validator). Thiếu hoặc sai thì **dừng tiến trình** với thông báo rõ ràng. File `.env.example` liệt kê đủ biến.
 
-| Biến                                                                                                       | Mốc | Mặc định                        | Ghi chú                                        |
-| ---------------------------------------------------------------------------------------------------------- | --- | ------------------------------- | ---------------------------------------------- |
-| `NODE_ENV`                                                                                                 | M0  | `development`                   | `development \| test \| staging \| production` |
-| `PORT`                                                                                                     | M0  | `3000`                          |                                                |
-| `LOG_LEVEL`                                                                                                | M0  | `info`                          |                                                |
-| `LOG_PRETTY`                                                                                               | M0  | `false`                         | `true` khi dev local                           |
-| `DATABASE_URL`                                                                                             | M0  | –                               | `postgres://user:pass@host:5432/db`            |
-| `DATABASE_POOL_MAX`                                                                                        | M0  | `10`                            |                                                |
-| `REDIS_URL`                                                                                                | M0  | –                               | `redis://host:6379`                            |
-| `JWT_ACCESS_SECRET`                                                                                        | M1  | –                               | ≥ 32 ký tự                                     |
-| `JWT_ACCESS_TTL_SECONDS`                                                                                   | M1  | `900`                           |                                                |
-| `REFRESH_TOKEN_TTL_DAYS`                                                                                   | M1  | `30`                            |                                                |
-| `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_FORCE_PATH_STYLE` | M5  |                                 |                                                |
-| `UPLOAD_MAX_BYTES`                                                                                         | M5  | `2147483648`                    |                                                |
-| `WORKER_QUEUES`                                                                                            | M6  | `default,transcription`         | Queue mà worker này tiêu thụ                   |
-| `WHISPER_BIN`, `WHISPER_MODEL_PATH`, `WHISPER_THREADS`                                                     | M6  |                                 |                                                |
-| `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`                                                                 | M6  | `fake`                          |                                                |
-| `REPORT_CRON`, `REPORT_TZ`                                                                                 | M9  | `0 8 * * 1`, `Asia/Ho_Chi_Minh` |                                                |
+| Biến                                                                                                       | Mốc | Mặc định                        | Ghi chú                                                                  |
+| ---------------------------------------------------------------------------------------------------------- | --- | ------------------------------- | ------------------------------------------------------------------------ |
+| `NODE_ENV`                                                                                                 | M0  | `development`                   | `development \| test \| staging \| production`                           |
+| `PORT`                                                                                                     | M0  | `3000`                          |                                                                          |
+| `LOG_LEVEL`                                                                                                | M0  | `info`                          |                                                                          |
+| `LOG_PRETTY`                                                                                               | M0  | `false`                         | `true` khi dev local                                                     |
+| `DATABASE_URL`                                                                                             | M0  | –                               | `postgres://user:pass@host:5432/db`                                      |
+| `DATABASE_POOL_MAX`                                                                                        | M0  | `10`                            |                                                                          |
+| `REDIS_URL`                                                                                                | M0  | –                               | `redis://host:6379`                                                      |
+| `JWT_ACCESS_SECRET`                                                                                        | M1  | –                               | ≥ 32 ký tự                                                               |
+| `JWT_ACCESS_TTL_SECONDS`                                                                                   | M1  | `900`                           |                                                                          |
+| `REFRESH_TOKEN_TTL_DAYS`                                                                                   | M1  | `30`                            | Trượt: tính từ lần refresh gần nhất                                      |
+| `REFRESH_REUSE_GRACE_SECONDS`                                                                              | M1  | `10`                            | Token vừa xoay bị dùng lại trong khoảng này thì không coi là bị đánh cắp |
+| `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_FORCE_PATH_STYLE` | M5  |                                 |                                                                          |
+| `UPLOAD_MAX_BYTES`                                                                                         | M5  | `2147483648`                    |                                                                          |
+| `WORKER_QUEUES`                                                                                            | M6  | `default,transcription`         | Queue mà worker này tiêu thụ                                             |
+| `WHISPER_BIN`, `WHISPER_MODEL_PATH`, `WHISPER_THREADS`                                                     | M6  |                                 |                                                                          |
+| `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`                                                                 | M6  | `fake`                          |                                                                          |
+| `REPORT_CRON`, `REPORT_TZ`                                                                                 | M9  | `0 8 * * 1`, `Asia/Ho_Chi_Minh` |                                                                          |
 
 Swagger **không có biến bật/tắt riêng**. Swagger bật khi `NODE_ENV ∈ {development, test, staging}` và luôn tắt ở `production`, để không thể vô tình bật trên production.
 

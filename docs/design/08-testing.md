@@ -10,9 +10,11 @@
 
 File test:
 
-- Unit đặt cạnh code: `*.spec.ts`.
-- Integration: `*.int-spec.ts`.
-- E2E nằm trong `test/e2e/*.e2e-spec.ts`.
+Mọi test nằm trong `test/`, **không** đặt trong `src/` (quyết định 2026-10-13, M1). `test/unit` và `test/integration` mô phỏng cây `src/` để dễ tìm test của một file:
+
+- Unit: `test/unit/**/*.spec.ts`, vd `test/unit/modules/auth/token.service.spec.ts`
+- Integration: `test/integration/**/*.int-spec.ts`
+- E2E: `test/e2e/*.e2e-spec.ts`
 
 ## 2. Database thật với Testcontainers
 

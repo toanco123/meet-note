@@ -12,19 +12,21 @@
 | GET    | `/health/live`  | Public: tiến trình còn sống |
 | GET    | `/health/ready` | Public: DB + Redis sẵn sàng |
 
-## Auth (tag `Auth`)
+## Auth (tag `Auth`) và Me
 
-| Method | Path                         | Ai gọi                     | Ghi chú                                    |
-| ------ | ---------------------------- | -------------------------- | ------------------------------------------ |
-| POST   | `/v1/auth/register`          | Public                     | 201, trả token pair                        |
-| POST   | `/v1/auth/login`             | Public                     | 401 nếu sai                                |
-| POST   | `/v1/auth/refresh`           | Public (gửi refresh token) | Xoay vòng. Reuse thì 401 và thu hồi family |
-| POST   | `/v1/auth/logout`            | User                       | Thu hồi session hiện tại                   |
-| POST   | `/v1/auth/logout-all`        | User                       | Thu hồi mọi session                        |
-| GET    | `/v1/me`                     | User                       | Hồ sơ + danh sách org (id, name, role)     |
-| PATCH  | `/v1/me`                     | User                       | Đổi display name                           |
-| GET    | `/v1/me/sessions`            | User                       | Các phiên đang hoạt động                   |
-| DELETE | `/v1/me/sessions/:sessionId` | User                       |                                            |
+| Method | Path                         | Ai gọi                     | Response / ghi chú                                                                             |
+| ------ | ---------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------- |
+| POST   | `/v1/auth/register`          | Public                     | 201 `AuthTokensResponseDto`. Email trùng (không phân biệt hoa thường) → 409 `AUTH_EMAIL_TAKEN` |
+| POST   | `/v1/auth/login`             | Public                     | 200 `AuthTokensResponseDto`. Sai email hoặc mật khẩu → **cùng** 401 `AUTH_INVALID_CREDENTIALS` |
+| POST   | `/v1/auth/refresh`           | Public (gửi refresh token) | 200 `AuthTokensResponseDto`. Xoay vòng, xem `03-database.md` §1                                |
+| POST   | `/v1/auth/logout`            | User                       | 204. Thu hồi phiên hiện tại                                                                    |
+| POST   | `/v1/auth/logout-all`        | User                       | 204. Thu hồi mọi phiên của user                                                                |
+| GET    | `/v1/me`                     | User                       | `MeResponseDto` (M2 thêm danh sách org: id, name, role)                                        |
+| PATCH  | `/v1/me`                     | User                       | Đổi display name                                                                               |
+| GET    | `/v1/me/sessions`            | User                       | `SessionResponseDto[]`, phiên đang dùng có `current: true`. Ít phần tử nên không phân trang    |
+| DELETE | `/v1/me/sessions/:sessionId` | User                       | 204. Phiên của người khác → 404                                                                |
+
+`AuthTokensResponseDto = { tokenType: 'Bearer', accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt }`.
 
 ## Organizations (tag `Organizations`)
 

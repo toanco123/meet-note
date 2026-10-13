@@ -1,5 +1,5 @@
-// Schema Drizzle của toàn bộ ứng dụng. Mỗi domain một file, re-export tại đây:
-//   export * from './users.js';          (M1)
-//   export * from './organizations.js';  (M2)
+// Schema Drizzle của toàn bộ ứng dụng. Mỗi domain một file, re-export tại đây.
 // drizzle-kit đọc file này để sinh migration (`pnpm db:generate`).
-export {};
+// Lưu ý: chỉ export bảng + kiểu; helper (column-types.ts) import trực tiếp khi cần.
+export * from './users.js';
+export * from './sessions.js';

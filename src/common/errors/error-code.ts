@@ -13,6 +13,17 @@ export const ErrorCode = {
   RateLimited: 'RATE_LIMITED',
   ServiceUnavailable: 'SERVICE_UNAVAILABLE',
   InternalError: 'INTERNAL_ERROR',
+
+  // M1 — Auth
+  AuthEmailTaken: 'AUTH_EMAIL_TAKEN',
+  AuthInvalidCredentials: 'AUTH_INVALID_CREDENTIALS',
+  AuthTokenMissing: 'AUTH_TOKEN_MISSING',
+  AuthTokenInvalid: 'AUTH_TOKEN_INVALID',
+  AuthTokenExpired: 'AUTH_TOKEN_EXPIRED',
+  AuthSessionRevoked: 'AUTH_SESSION_REVOKED',
+  AuthRefreshTokenInvalid: 'AUTH_REFRESH_TOKEN_INVALID',
+  AuthRefreshTokenRotated: 'AUTH_REFRESH_TOKEN_ROTATED',
+  AuthRefreshTokenReused: 'AUTH_REFRESH_TOKEN_REUSED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
