@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canChangeRole,
+  canGrantRole,
   canRemoveMember,
   isOrgRoleAtLeast,
   type OrgPermission,
@@ -22,6 +23,11 @@ describe('orgPolicy — loại hành động theo vai trò', () => {
     ['org.member.list', true, true, true],
     ['org.member.role.change', true, false, false],
     ['org.member.remove', true, true, false],
+    ['org.invite.manage', true, true, false],
+    ['org.join_request.manage', true, true, false],
+    ['org.ownership.transfer', true, false, false],
+    ['org.leave', true, true, true],
+    ['org.audit.read', true, true, false],
   ];
 
   it.each(
@@ -83,5 +89,18 @@ describe('canRemoveMember(actor, target)', () => {
     ['member', 'owner', 'owner_immutable'],
   ])('%s gỡ %s → %s', (actor, target, expected) => {
     expect(canRemoveMember(actor, target)).toBe(expected);
+  });
+});
+
+describe('canGrantRole(actor, role) — tạo link mời / duyệt yêu cầu', () => {
+  it.each<[OrgRole, 'admin' | 'member', boolean]>([
+    ['owner', 'admin', true],
+    ['owner', 'member', true],
+    ['admin', 'admin', false], // không cấp vai trò ngang mình
+    ['admin', 'member', true],
+    ['member', 'member', false],
+    ['member', 'admin', false],
+  ])('%s cấp %s → %s', (actor, role, expected) => {
+    expect(canGrantRole(actor, role)).toBe(expected);
   });
 });

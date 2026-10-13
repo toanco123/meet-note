@@ -108,7 +108,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
     - `AuditService.record(tx, entry)`, `@AuditCtx()` (Q3);
     - tạo org / đổi tên / đổi vai trò / gỡ thành viên ghi audit trong cùng transaction (đổi tên chuyển vào transaction).
   - Test (integration): có dòng audit đúng `{ before, after }`; thao tác lỗi thì **không** có audit (đột biến: ghi audit ngoài transaction → đỏ).
-- [ ] **B3 — Policy bổ sung**
+- [x] **B3 — Policy bổ sung**
   - Việc: 5 permission mới + `canGrantRole`.
   - Test (unit): bảng ma trận đầy đủ, test "bảng phủ đủ permission" tự đỏ nếu thiếu dòng.
 - [ ] **B4 — Quản lý link mời**
