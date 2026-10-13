@@ -12,6 +12,7 @@ x-app: &app
     LOG_LEVEL: info
     DATABASE_URL: postgres://meetnote:meetnote@postgres:5432/meetnote
     REDIS_URL: redis://redis:6379
+    JWT_ACCESS_SECRET: dev-only-secret-change-me-0123456789abcdef # chỉ cho local
   restart: unless-stopped
 
 services:

@@ -14,6 +14,7 @@ import { resolve } from 'node:path';
  */
 process.env.DATABASE_URL ??= 'postgres://openapi:openapi@127.0.0.1:5432/openapi';
 process.env.REDIS_URL ??= 'redis://127.0.0.1:6379';
+process.env.JWT_ACCESS_SECRET ??= 'openapi-export-dummy-secret-not-used-0000';
 process.env.LOG_LEVEL = 'silent';
 
 const { NestFactory } = await import('@nestjs/core');

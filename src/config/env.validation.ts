@@ -1,5 +1,16 @@
 import { plainToInstance, Transform, Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsIn, IsInt, Matches, Max, Min, validateSync } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsString,
+  Matches,
+  Max,
+  Min,
+  MinLength,
+  validateSync,
+} from 'class-validator';
 
 export enum NodeEnv {
   Development = 'development',
@@ -46,6 +57,31 @@ export class EnvironmentVariables {
 
   @Matches(/^rediss?:\/\//, { message: 'REDIS_URL phải bắt đầu bằng redis:// hoặc rediss://' })
   REDIS_URL: string;
+
+  /** Khoá ký access JWT (HS256). HS256 với khoá ngắn bị dò được bằng brute-force offline. */
+  @IsString()
+  @MinLength(32, { message: 'JWT_ACCESS_SECRET phải dài ít nhất 32 ký tự' })
+  JWT_ACCESS_SECRET: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(60)
+  @Max(24 * 3600)
+  JWT_ACCESS_TTL_SECONDS = 900;
+
+  /** Trượt: mỗi lần refresh, token mới có hạn N ngày kể từ lúc đó. */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  REFRESH_TOKEN_TTL_DAYS = 30;
+
+  /** Token vừa bị xoay mà được dùng lại trong khoảng này → không coi là bị đánh cắp (2 tab cùng refresh). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(300)
+  REFRESH_REUSE_GRACE_SECONDS = 10;
 }
 
 /** Dùng cho `ConfigModule.forRoot({ validate })`. Ném lỗi → tiến trình dừng ngay khi khởi động. */
