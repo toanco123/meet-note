@@ -1,33 +1,17 @@
-import { Controller, Get, type INestApplication } from '@nestjs/common';
+import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AuthUser } from '../../src/common/auth/auth-user.js';
-import { CurrentUser } from '../../src/common/auth/current-user.decorator.js';
-import { Public } from '../../src/common/auth/public.decorator.js';
 import { DRIZZLE } from '../../src/infra/database/database.module.js';
 import type { Database } from '../../src/infra/database/database.types.js';
 import { sessions } from '../../src/infra/database/schema/index.js';
 import { JWT_AUDIENCE, JWT_ISSUER } from '../../src/modules/auth/token.service.js';
 import { createTestApp } from '../support/app.js';
 import { bearer, registerUser } from '../support/factories.js';
-
-/** Controller chỉ có trong test: một route cần đăng nhập, một route @Public(). */
-@Controller('__probe')
-class ProbeController {
-  @Get('private')
-  whoami(@CurrentUser() user: AuthUser): AuthUser {
-    return user;
-  }
-
-  @Public()
-  @Get('public')
-  open(): { ok: true } {
-    return { ok: true };
-  }
-}
+import { ProbeController } from '../support/probe.controller.js';
 
 describe('JwtAuthGuard toàn cục (e2e)', () => {
   let app: INestApplication<App>;

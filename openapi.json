@@ -174,6 +174,113 @@
           "Auth"
         ]
       }
+    },
+    "/v1/auth/refresh": {
+      "post": {
+        "description": "Mỗi refresh token chỉ dùng được một lần. Dùng lại token cũ trong 10 giây (hai tab\nrefresh cùng lúc) → 401 `AUTH_REFRESH_TOKEN_ROTATED`; quá 10 giây → coi là bị đánh cắp,\nthu hồi cả phiên và trả 401 `AUTH_REFRESH_TOKEN_REUSED`.",
+        "operationId": "Auth_refresh",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ],
+        "summary": "Đổi refresh token lấy cặp token mới (xoay vòng).",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "description": "Access token của phiên này bị từ chối ngay ở request tiếp theo; refresh token hết dùng được.",
+        "operationId": "Auth_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Đã thu hồi phiên."
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Đăng xuất phiên hiện tại.",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/v1/auth/logout-all": {
+      "post": {
+        "operationId": "Auth_logoutAll",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Đã thu hồi mọi phiên."
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Đăng xuất khỏi MỌI thiết bị (thu hồi mọi phiên của tài khoản, kể cả phiên hiện tại).",
+        "tags": [
+          "Auth"
+        ]
+      }
     }
   },
   "info": {
@@ -430,6 +537,19 @@
         "required": [
           "email",
           "password"
+        ]
+      },
+      "RefreshTokenDto": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "Refresh token nhận từ lần đăng nhập / refresh gần nhất. Mỗi token chỉ dùng được MỘT lần.",
+            "example": "q3Jt0b6Q2l3Zc0p9QpXb5m1q8D0yJ4dA7m2N5r1sT6w"
+          }
+        },
+        "required": [
+          "refreshToken"
         ]
       }
     }
