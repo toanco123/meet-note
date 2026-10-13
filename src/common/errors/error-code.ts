@@ -1,0 +1,42 @@
+/**
+ * Mã lỗi máy đọc được. Client dựa vào `code`, không dựa vào `message`.
+ * Mỗi mốc thêm mã của domain mình vào đây (tiền tố theo domain: AUTH_, ORG_, CHANNEL_…).
+ */
+export const ErrorCode = {
+  ValidationFailed: 'VALIDATION_FAILED',
+  InvalidCursor: 'INVALID_CURSOR',
+  Unauthenticated: 'UNAUTHENTICATED',
+  Forbidden: 'FORBIDDEN',
+  NotFound: 'NOT_FOUND',
+  Conflict: 'CONFLICT',
+  PayloadTooLarge: 'PAYLOAD_TOO_LARGE',
+  RateLimited: 'RATE_LIMITED',
+  ServiceUnavailable: 'SERVICE_UNAVAILABLE',
+  InternalError: 'INTERNAL_ERROR',
+} as const;
+
+export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+/** Mã mặc định khi lỗi không mang mã riêng (vd NotFoundException của Nest khi sai route). */
+export function defaultCodeForStatus(status: number): ErrorCode {
+  switch (status) {
+    case 400:
+      return ErrorCode.ValidationFailed;
+    case 401:
+      return ErrorCode.Unauthenticated;
+    case 403:
+      return ErrorCode.Forbidden;
+    case 404:
+      return ErrorCode.NotFound;
+    case 409:
+      return ErrorCode.Conflict;
+    case 413:
+      return ErrorCode.PayloadTooLarge;
+    case 429:
+      return ErrorCode.RateLimited;
+    case 503:
+      return ErrorCode.ServiceUnavailable;
+    default:
+      return status >= 500 ? ErrorCode.InternalError : ErrorCode.ValidationFailed;
+  }
+}

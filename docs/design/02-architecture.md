@@ -1,0 +1,142 @@
+# 02 — Kiến trúc tổng thể
+
+## 1. Các tiến trình
+
+| Tiến trình  | Entry                    | Vai trò                                                                                                                               | Scale                                                                                   |
+| ----------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| **api**     | `src/main.ts`            | HTTP REST `/v1`, Swagger `/docs`, Socket.IO gateway `/realtime`. Nhận upload chunk, ghi DB, đẩy job vào queue                         | Ngang (N instance, stateless)                                                           |
+| **worker**  | `src/worker.ts`          | Tiêu thụ job BullMQ: chuẩn hoá audio (ffmpeg), transcribe (whisper.cpp), tóm tắt (LLM), tạo báo cáo tuần, dọn dẹp. Không mở cổng HTTP | Theo queue: `WORKER_QUEUES=transcription` (CPU nặng, concurrency 1) tách khỏi `default` |
+| **migrate** | `src/scripts/migrate.ts` | Chạy migration Drizzle **một lần** rồi thoát. api/worker chỉ khởi động sau khi migrate xong                                           | 1 lần mỗi deploy                                                                        |
+| postgres    | image                    | Dữ liệu chính, full-text search                                                                                                       | 1                                                                                       |
+| redis       | image                    | BullMQ, Socket.IO adapter/emitter (pub/sub), cache ngắn hạn                                                                           | 1                                                                                       |
+| rustfs      | image                    | Object storage S3 (file ghi âm, audio đã chuẩn hoá)                                                                                   | 1                                                                                       |
+
+> **Bẫy:** Không chạy migration lúc api khởi động. Khi có 2 instance, cả hai cùng migrate và đua nhau. Migration là một bước riêng trong pipeline deploy.
+
+## 2. Sơ đồ giao tiếp
+
+```mermaid
+flowchart LR
+  client["Client<br/>(Swagger UI, FE sau này)"]
+
+  subgraph app["Ứng dụng (cùng 1 codebase, 1 Docker image)"]
+    api["api ×N<br/>NestJS HTTP + Socket.IO"]
+    worker["worker ×M<br/>NestJS application context<br/>BullMQ processors"]
+    migrate["migrate<br/>(one-shot)"]
+  end
+
+  pg[("PostgreSQL 18")]
+  redis[("Redis 8")]
+  s3[("RustFS / S3")]
+  whisper["whisper.cpp + ffmpeg<br/>(child process)"]
+  llm["LLM API<br/>(qua interface Summarizer)"]
+
+  client -- "REST /v1 + JWT" --> api
+  client <-- "WebSocket (Socket.IO)" --> api
+  api -- "SQL (pool)" --> pg
+  api -- "enqueue job" --> redis
+  api -- "UploadPart / Complete multipart" --> s3
+  redis -- "job" --> worker
+  worker -- "SQL" --> pg
+  worker -- "GetObject / PutObject" --> s3
+  worker -- "spawn" --> whisper
+  worker -- "HTTPS" --> llm
+  worker -- "emit event (redis-emitter)" --> redis
+  redis -- "pub/sub (redis-adapter)" --> api
+  migrate -- "DDL" --> pg
+```
+
+### Nguyên tắc giao tiếp
+
+1. **api → worker chỉ đi qua queue.** api không gọi HTTP sang worker. Job mang **ID** (vd `meetingId`), không mang dữ liệu lớn. Worker tự đọc trạng thái mới nhất từ DB, vì job có thể chạy lại.
+2. **worker → client đi qua Redis.** Worker dùng `@socket.io/redis-emitter` publish event vào room (`user:{id}`, `meeting:{id}`). Mọi api instance nhận qua `@socket.io/redis-adapter` rồi đẩy xuống socket tương ứng. Worker không cần biết client đang nối vào api nào.
+3. **DB là nguồn sự thật, event realtime chỉ là gợi ý.** Client mất kết nối thì gọi REST để lấy lại trạng thái. Không lưu tiến độ chi tiết (từng %) vào DB, chỉ lưu các mốc `status`.
+4. **Ghi DB trước, publish sau.** Event/job chỉ được phát **sau khi transaction commit**. Phát trong transaction mà transaction rollback thì client nhận event "ma". Sau này có thể nâng lên transactional outbox.
+
+## 3. Cấu trúc thư mục
+
+```
+meetnote/
+├─ src/
+│  ├─ main.ts                    # entry api: HTTP + WS
+│  ├─ worker.ts                  # entry worker: createApplicationContext, không HTTP
+│  ├─ app.module.ts              # root module của api
+│  ├─ core.module.ts             # hạ tầng dùng chung api + worker (config, log, db, redis, queue)
+│  ├─ worker.module.ts           # root module của worker
+│  ├─ worker/                    # thành phần riêng của worker (heartbeat…)
+│  ├─ bootstrap/                 # cấu hình app dùng chung giữa main.ts và e2e test
+│  │  ├─ configure-app.ts        #   versioning, pipes, filters, shutdown hooks
+│  │  └─ swagger.ts              #   DocumentBuilder, /docs, /docs-json
+│  ├─ config/                    # schema env (class-validator) + typed config
+│  ├─ common/                    # cross-cutting, không phụ thuộc domain
+│  │  ├─ errors/                 #   AppException, ErrorCode, exception filter
+│  │  ├─ pagination/             #   cursor codec, CursorQueryDto, PaginatedDto
+│  │  ├─ swagger/                #   ApiErrorResponses, ApiPaginatedResponse
+│  │  ├─ auth/                   #   (M1) @Public, @CurrentUser, guards
+│  │  └─ clock/                  #   Clock interface (giả lập thời gian khi test)
+│  ├─ infra/                     # adapter ra thế giới ngoài
+│  │  ├─ database/               #   DrizzleModule, schema/*, transaction helper
+│  │  ├─ redis/                  #   kết nối ioredis dùng chung
+│  │  ├─ queue/                  #   tên queue, BullMQ config, job payload types
+│  │  ├─ storage/                #   (M5) S3 client, ObjectStorage interface
+│  │  ├─ realtime/               #   (M7) emitter interface (api: server, worker: redis-emitter)
+│  │  ├─ speech/                 #   (M6) SpeechToText: whisper.cpp + Fake
+│  │  └─ llm/                    #   (M6) Summarizer: provider + Fake
+│  ├─ modules/                   # domain modules (mỗi module 1 thư mục)
+│  │  ├─ health/
+│  │  ├─ auth/  users/  organizations/  channels/
+│  │  ├─ uploads/  meetings/  transcripts/  reports/
+│  │  ├─ notifications/  realtime/  audit/
+│  └─ scripts/
+│     ├─ migrate.ts              # chạy migration
+│     └─ export-openapi.ts       # xuất openapi.json
+├─ migrations/                   # SQL do drizzle-kit sinh + SQL viết tay (commit vào git)
+├─ test/
+│  ├─ e2e/                       # *.e2e-spec.ts
+│  └─ support/                   # testcontainers global setup, factory dữ liệu
+├─ docker/Dockerfile             # multi-stage, 1 image cho api/worker/migrate
+├─ compose.yaml
+├─ docs/
+└─ .github/workflows/ci.yml
+```
+
+### Bên trong một domain module (ví dụ `channels/`)
+
+```
+channels/
+├─ channels.module.ts
+├─ channels.controller.ts            # HTTP: route, DTO, swagger. Không chứa logic
+├─ channel-members.controller.ts
+├─ channels.service.ts               # use-case: ranh giới transaction, gọi policy, ghi audit
+├─ channel-members.service.ts
+├─ channels.repository.ts            # query Drizzle. Nhận `tx` để chạy trong transaction của service
+├─ channel.policy.ts                 # hàm thuần: (actor, target) → boolean. Dễ unit test
+├─ dto/                              # *.dto.ts (request + response), Swagger plugin đọc file này
+└─ *.spec.ts
+```
+
+**Phân lớp:** controller → service → repository. Policy là các hàm thuần được service và guard gọi. Không tạo lớp "domain entity" riêng: dùng kiểu row của Drizzle bên trong, map sang response DTO ở rìa.
+
+## 4. Danh sách module
+
+| Module                       | Tiến trình                        | Trách nhiệm                                                                                |
+| ---------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------ |
+| `ConfigModule` (global)      | api, worker                       | Đọc + validate env khi khởi động, sai thì dừng ngay                                        |
+| `LoggerModule` (nestjs-pino) | api, worker                       | Log JSON, `requestId` mỗi request (`x-request-id`), redact header nhạy cảm                 |
+| `DatabaseModule` (global)    | api, worker                       | Pool `pg`, instance Drizzle, helper `withTransaction`                                      |
+| `RedisModule`                | api, worker                       | Kết nối ioredis cho cache/pub-sub                                                          |
+| `QueueModule`                | api (producer), worker (consumer) | Kết nối BullMQ, khai báo queue, kiểu payload                                               |
+| `HealthModule`               | api                               | `/health/live`, `/health/ready` (DB + Redis)                                               |
+| `AuthModule`                 | api                               | Đăng ký, đăng nhập, refresh rotation, logout, guard JWT global                             |
+| `UsersModule`                | api                               | Hồ sơ, `/me`, phiên đăng nhập                                                              |
+| `OrganizationsModule`        | api                               | Org CRUD, thành viên, vai trò, link mời, yêu cầu tham gia, chuyển sở hữu, `OrgMemberGuard` |
+| `ChannelsModule`             | api, worker (purge)               | Kênh, thành viên kênh, vai trò, chuyển chủ kênh, lưu trữ/xoá, `ChannelAccessGuard`         |
+| `UploadsModule`              | api, worker (dọn upload hết hạn)  | Chunked upload, resume, S3 multipart                                                       |
+| `MeetingsModule`             | api, worker                       | Meeting CRUD, share vào kênh, state machine xử lý, pipeline processor                      |
+| `TranscriptsModule`          | api, worker                       | Lưu segment, search full-text, xuất SRT/VTT                                                |
+| `ReportsModule`              | api, worker                       | Job scheduler cron, tạo báo cáo, tạo lại có quota, phiên bản                               |
+| `NotificationsModule`        | api, worker                       | Tạo thông báo (có dedupe key), danh sách, đã đọc, xoá mềm                                  |
+| `RealtimeModule`             | api                               | Socket.IO gateway, xác thực handshake, join room theo quyền                                |
+| `AuditModule` (global)       | api, worker                       | `AuditService.record(tx, …)` ghi trong cùng transaction với thao tác quản trị              |
+
+> **Bẫy:** Khi một module cần dùng cho cả api và worker, đừng import cả controller vào worker. Tách `XxxCoreModule` (service + repository) và `XxxHttpModule` (controller) khi cần. Worker chỉ import Core.

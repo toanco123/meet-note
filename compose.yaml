@@ -1,0 +1,101 @@
+# Chạy toàn bộ:            docker compose up --build
+# Chỉ hạ tầng (dev local): docker compose up -d postgres redis rustfs   rồi   pnpm start:dev
+name: meetnote
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+  image: meetnote:local
+  environment:
+    NODE_ENV: development # bật Swagger; production thì tắt
+    LOG_LEVEL: info
+    DATABASE_URL: postgres://meetnote:meetnote@postgres:5432/meetnote
+    REDIS_URL: redis://redis:6379
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: meetnote
+      POSTGRES_PASSWORD: meetnote
+      POSTGRES_DB: meetnote
+    ports:
+      - '5432:5432'
+    volumes:
+      # BẪY PG18: image postgres:18 đổi PGDATA thành /var/lib/postgresql/18/docker.
+      # Mount thư mục cha /var/lib/postgresql (không phải .../data như các bản cũ).
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U meetnote -d meetnote']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:8.8.3-alpine
+    # noeviction: BẮT BUỘC cho BullMQ — Redis đầy bộ nhớ không được tự xoá key của job.
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Object storage tương thích S3 (thay MinIO). Dùng từ M5.
+  rustfs:
+    image: rustfs/rustfs:1.0.1
+    environment:
+      RUSTFS_ACCESS_KEY: meetnote
+      RUSTFS_SECRET_KEY: meetnote-secret
+      RUSTFS_CONSOLE_ENABLE: 'true'
+    ports:
+      - '9000:9000' # S3 API
+      - '9001:9001' # console
+    volumes:
+      - s3data:/data
+
+  migrate:
+    <<: *app
+    command: ['node', 'dist/scripts/migrate.js']
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    command: ['node', '--enable-source-maps', 'dist/main.js']
+    ports:
+      - '3000:3000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/health/live']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  worker:
+    <<: *app
+    command: ['node', '--enable-source-maps', 'dist/worker.js']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    # Thời gian chờ job đang chạy kết thúc khi `docker compose stop`.
+    stop_grace_period: 60s
+
+volumes:
+  pgdata:
+  redisdata:
+  s3data:

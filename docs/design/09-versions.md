@@ -1,0 +1,77 @@
+# 09 — Phiên bản thư viện
+
+Kiểm tra trên npm registry, nodejs.org và Docker Hub ngày **2026-10-13**. `package.json` dùng `^` với các bản này. `pnpm-lock.yaml` khoá bản chính xác.
+
+## Runtime & hạ tầng
+
+| Thành phần           | Phiên bản                            | Ghi chú                                                                                    |
+| -------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------ |
+| Node.js              | **24.x LTS** (24.21.0 "Krypton")     | Node 26.11.1 vẫn là _Current_, dự kiến lên LTS cuối 10/2026. Lúc đó nâng `engines` + image |
+| pnpm                 | 12.11.2                              | Khai báo `packageManager`. Cài bằng `corepack enable` hoặc `npm i -g pnpm@12`              |
+| TypeScript           | **6.0.3**                            | Không dùng 7.0.2 (xem dưới)                                                                |
+| PostgreSQL           | 18.6 (`postgres:18.6-alpine`)        | `uuidv7()` có sẵn. `unaccent`, `pg_trgm` là contrib có sẵn trong image                     |
+| Redis                | 8.8.3 (`redis:8.8.3-alpine`)         |                                                                                            |
+| Object storage local | RustFS 1.0.1 (`rustfs/rustfs:1.0.1`) | Thay MinIO. Repo `minio/minio` không còn trên Docker Hub                                   |
+
+## NestJS
+
+| Package                                                                         | Phiên bản |
+| ------------------------------------------------------------------------------- | --------- |
+| @nestjs/core, common, platform-express, testing, websockets, platform-socket.io | 12.1.3    |
+| @nestjs/cli                                                                     | 12.0.8    |
+| @nestjs/schematics                                                              | 12.0.7    |
+| @nestjs/swagger                                                                 | 12.0.2    |
+| @nestjs/config                                                                  | 12.0.1    |
+| @nestjs/schedule                                                                | 12.0.2    |
+| @nestjs/bullmq                                                                  | 12.0.0    |
+| @nestjs/jwt                                                                     | 12.0.3    |
+
+## Thư viện khác
+
+| Nhóm         | Package                                                           | Phiên bản         | Dùng từ mốc      |
+| ------------ | ----------------------------------------------------------------- | ----------------- | ---------------- |
+| ORM          | drizzle-orm                                                       | 0.45.4            | M0               |
+|              | drizzle-kit                                                       | 0.31.11           | M0               |
+| Driver       | pg                                                                | 8.23.1            | M0               |
+| Queue        | bullmq                                                            | 6.3.13            | M0 (kết nối), M6 |
+| Redis client | ioredis                                                           | 6.0.0             | M0               |
+| Log          | nestjs-pino                                                       | 5.3.1             | M0               |
+|              | pino                                                              | 10.4.0            | M0               |
+|              | pino-http                                                         | 11.0.0            | M0               |
+|              | pino-pretty                                                       | 13.2.0 (dev)      | M0               |
+| Validate     | class-validator                                                   | 0.15.1            | M0               |
+|              | class-transformer                                                 | 0.5.1             | M0               |
+| Test         | vitest                                                            | 5.0.4             | M0               |
+|              | vite                                                              | 8.3.4             | M0               |
+|              | @vitest/coverage-v8                                               | 5.0.4             | M0               |
+|              | testcontainers, @testcontainers/postgresql, @testcontainers/redis | 12.2.0            | M0               |
+|              | supertest                                                         | 7.3.1             | M0               |
+| Lint/format  | oxlint                                                            | 1.87.0            | M0               |
+|              | oxlint-tsgolint                                                   | 7.0.2004          | M0               |
+|              | prettier                                                          | 3.9.10            | M0               |
+| Auth         | argon2                                                            | 0.45.1            | M1               |
+| Storage      | @aws-sdk/client-s3                                                | 3.1150.0          | M5               |
+| Realtime     | socket.io                                                         | 4.8.4             | M7               |
+|              | @socket.io/redis-adapter                                          | 8.3.0             | M7               |
+|              | @socket.io/redis-emitter                                          | 5.1.0             | M7               |
+| Speech       | whisper.cpp, ffmpeg                                               | kiểm tra lại ở M6 | M6               |
+
+## Lưu ý tương thích (NestJS 12 / ESM)
+
+| Vấn đề                          | Chi tiết                                                                                                                                                                  | Cách xử lý                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **TypeScript 7**                | `@nestjs/swagger@12.0.2` khai báo peer `typescript ^5.5 \|\| ^6.0`. `@nestjs/cli` đóng gói sẵn TS `~6.0.2`. CLI plugin của Swagger dùng compiler API (transformer) của TS | Pin `typescript@~6.0.3`. Nâng lên 7 khi Nest chính thức hỗ trợ                                               |
+| **Drizzle 1.0**                 | Mới tới `1.0.0-rc.5`. Bản `latest` là 0.45.4                                                                                                                              | Dùng 0.45.x. Khi 1.0 ổn định, đọc migration guide (thay đổi relational query v2, cấu trúc thư mục migration) |
+| **Vitest + decorator metadata** | Template Nest 12 dùng Vitest + Vite 8 (Oxc transform), không còn cần `unplugin-swc`. Oxc đọc `experimentalDecorators` + `emitDecoratorMetadata` trong tsconfig            | Không cài `unplugin-swc`. Nếu DI trong test báo `undefined` dependency thì đây là chỗ đầu tiên cần kiểm tra  |
+| **Vitest 5**                    | Template Nest 12 sinh `vitest ^4.1.2`. Vitest 5.0.4 khai báo peer `vite ^6 \|\| ^7 \|\| ^8`                                                                               | Dùng 5.0.4. Đã chạy thử ở M0                                                                                 |
+| **Swagger plugin trong test**   | Plugin chỉ chạy khi `nest build`. Vitest không chạy plugin                                                                                                                | Test schema OpenAPI chạy trên `dist/` (script `openapi:export`)                                              |
+| **ESM + import `.js`**          | `module: nodenext` bắt buộc đuôi `.js`                                                                                                                                    | Quy ước bắt buộc. oxlint/tsc báo lỗi nếu thiếu                                                               |
+| **ioredis 6 + BullMQ 6**        | BullMQ 6 coi `ioredis` là peer dependency tuỳ chọn (hỗ trợ cả `redis` và `pg` làm backend)                                                                                | Cài `ioredis` trực tiếp                                                                                      |
+| **nestjs-pino 5.3**             | peer `@nestjs/* ^11.0.8 \|\| ^12.0.2`, `pino ^10`, `pino-http ^11`                                                                                                        | OK                                                                                                           |
+| **argon2**                      | Native addon. Có prebuild cho linux-musl (alpine) và darwin-arm64                                                                                                         | Image build cần `python3 make g++` nếu không có prebuild phù hợp                                             |
+| **MinIO**                       | Ngừng phát hành image community                                                                                                                                           | RustFS (hoặc SeaweedFS). Code chỉ phụ thuộc S3 API                                                           |
+
+## pnpm 12: chính sách supply-chain (trong `pnpm-workspace.yaml`)
+
+- `allowBuilds`: pnpm 12 **không chạy** postinstall/install script của dependency nếu chưa được duyệt, và báo lỗi `ERR_PNPM_IGNORED_BUILDS`. Duyệt bằng `pnpm approve-builds <pkg>` hoặc từ chối bằng `pnpm approve-builds '!<pkg>'`. Kết quả ghi vào `allowBuilds`. Hiện cho phép `esbuild` (drizzle-kit cần binary), `msgpackr-extract` (BullMQ). Từ chối `@scarf/scarf` (telemetry), `ssh2`, `cpu-features`, `protobufjs`.
+- `minimumReleaseAge`: từ chối bản phát hành quá mới, để giảm rủi ro dính bản bị chiếm quyền rồi publish mã độc. Ngoại lệ được liệt kê trong `minimumReleaseAgeExclude`. Nên **xoá dần** các ngoại lệ khi các bản đó đã đủ tuổi.

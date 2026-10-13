@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint · Test · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      # Đọc phiên bản pnpm từ field "packageManager" trong package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit test
+        run: pnpm test
+
+      # Runner ubuntu có sẵn Docker → Testcontainers chạy Postgres/Redis thật.
+      - name: E2E test
+        run: pnpm test:e2e
+
+      - name: Build
+        run: pnpm build
+
+      - name: OpenAPI không bị lệch so với code
+        run: |
+          pnpm openapi:export
+          git diff --exit-code -- openapi.json || {
+            echo "::error::openapi.json chưa cập nhật. Chạy 'pnpm build && pnpm openapi:export' rồi commit."
+            exit 1
+          }
+
+  docker:
+    name: Docker image
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: false
+          tags: meetnote:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

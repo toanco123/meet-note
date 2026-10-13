@@ -1,0 +1,170 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health/live": {
+      "get": {
+        "description": "Không kiểm tra phụ thuộc: DB chết không phải lý do để orchestrator restart api.",
+        "operationId": "Health_live",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthLiveResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Liveness — tiến trình còn sống.",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "description": "Kiểm tra Postgres (`SELECT 1`) và Redis (`PING`), mỗi kiểm tra timeout 1 giây.",
+        "operationId": "Health_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReadyResponseDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Ít nhất một phụ thuộc không phản hồi.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReadyResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Readiness — sẵn sàng nhận traffic.",
+        "tags": [
+          "Health"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "MeetNote API",
+    "description": "API biên bản họp theo nhóm.\n\n- Lỗi luôn có dạng `{ error: { code, message, details?, requestId } }`.\n- Danh sách phân trang cursor: `{ data, nextCursor }`, query `cursor` + `limit`.\n- Mọi response có header `x-request-id`.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Kiểm tra tình trạng tiến trình"
+    },
+    {
+      "name": "Auth",
+      "description": "Đăng ký, đăng nhập, phiên đăng nhập"
+    },
+    {
+      "name": "Organizations",
+      "description": "Tổ chức, thành viên, lời mời, audit log"
+    },
+    {
+      "name": "Channels",
+      "description": "Kênh và thành viên kênh"
+    },
+    {
+      "name": "Meetings",
+      "description": "Upload, cuộc họp, transcript, tóm tắt, tìm kiếm"
+    },
+    {
+      "name": "Reports",
+      "description": "Báo cáo tuần của kênh"
+    },
+    {
+      "name": "Notifications",
+      "description": "Thông báo trong ứng dụng"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "description": "Access token lấy từ `POST /v1/auth/login`."
+      }
+    },
+    "schemas": {
+      "HealthLiveResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Luôn là `ok` nếu tiến trình trả lời được.",
+            "enum": [
+              "ok"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "DependencyChecksDto": {
+        "type": "object",
+        "properties": {
+          "database": {
+            "type": "string",
+            "description": "Kết quả `SELECT 1` tới Postgres.",
+            "enum": [
+              "up",
+              "down"
+            ]
+          },
+          "redis": {
+            "type": "string",
+            "description": "Kết quả `PING` tới Redis.",
+            "enum": [
+              "up",
+              "down"
+            ]
+          }
+        },
+        "required": [
+          "database",
+          "redis"
+        ]
+      },
+      "HealthReadyResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "`ok` khi mọi phụ thuộc đều `up`; ngược lại `error` và HTTP 503.",
+            "enum": [
+              "error",
+              "ok"
+            ],
+            "type": "string"
+          },
+          "checks": {
+            "$ref": "#/components/schemas/DependencyChecksDto"
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ]
+      }
+    }
+  }
+}

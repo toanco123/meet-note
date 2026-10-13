@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "import", "unicorn", "oxc", "vitest"],
+  "env": {
+    "node": true
+  },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/await-thenable": "error",
+    "import/no-cycle": "error",
+    "eqeqeq": "error",
+    "no-console": "error",
+    "vitest/expect-expect": [
+      "warn",
+      {
+        "assertFunctionNames": ["expect", "request.**.expect"]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/scripts/**/*.ts", "test/**/*.ts"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
+}
