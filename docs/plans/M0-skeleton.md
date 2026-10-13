@@ -1,6 +1,6 @@
 # M0 — Dựng khung dự án
 
-- **Trạng thái:** Code xong. Còn chờ chạy e2e + compose trên máy có Docker
+- **Trạng thái:** Code xong. E2E chạy trên CI (GitHub Actions). Còn chờ chạy `docker compose up` trên máy có Docker
 - **Tài liệu thiết kế liên quan:** [02-architecture](../design/02-architecture.md), [07-conventions](../design/07-conventions.md), [08-testing](../design/08-testing.md), [09-versions](../design/09-versions.md)
 
 ## Mục tiêu
@@ -65,7 +65,7 @@ Có một bộ khung chạy được, trên đó các mốc sau chỉ cần thê
 - [x] `pnpm test` xanh (28 test)
 - [x] `pnpm build` thành công, `pnpm openapi:export` sinh `openapi.json`
 - [x] Smoke test không cần Docker: api lên, `/health/live` 200, `/health/ready` 503 khi DB/Redis chết, 404 đúng định dạng lỗi, `/docs` 200 ở dev và 404 ở production, env sai thì dừng với thông báo rõ, worker sống và tắt ngay khi nhận SIGTERM
-- [ ] `pnpm test:e2e` xanh (**cần Docker**)
+- [ ] `pnpm test:e2e` xanh (**cần Docker**). Lần chạy CI đầu: harness Testcontainers hoạt động, 9/10 pass. 1 test sai kỳ vọng đã sửa (bài học 13)
 - [ ] `docker compose up` → `curl localhost:3000/health/ready` trả 200 (**cần Docker**)
 
 ## Điều học được / bẫy gặp phải
@@ -84,5 +84,7 @@ Ghi lại trong lúc dựng khung (2026-10-13):
 10. **Drizzle ≥ 0.44 bọc lỗi `pg` trong `cause`.** Filter phải đi dọc chuỗi `cause` mới nhận ra mã `23505`.
 11. **Postgres 18 image đổi PGDATA** thành `/var/lib/postgresql/18/docker`. Volume phải mount `/var/lib/postgresql`.
 12. **`ConfigModule.forRoot()` validate env lúc import AppModule.** Vì vậy e2e phải đặt `process.env` trong `setupFiles`, còn script export OpenAPI phải đặt env giả trước khi `import()` động.
+13. **`unaccent` không chỉ bỏ dấu.** `unaccent.rules` còn map ký tự Unicode sang ASCII: `—` thành `-`, `…` thành `...`. Có lợi cho search, nhưng không dùng `f_unaccent` để hiển thị lại văn bản. Phát hiện nhờ e2e chạy trên Postgres thật ở CI, unit test không thể bắt được.
+14. **BullMQ cấm `:` trong custom jobId** (`Custom Id cannot contain :`). Ngoài ra jobId phải chứa tên bước và số lần chạy, nếu không job bị nuốt vì trùng ID. Đã sửa trong `03-database.md`, `06-flows.md`, `07-conventions.md`.
 
-Còn lại khi có Docker: chạy `pnpm test:e2e` và `docker compose up --build`. Phần Testcontainers, Dockerfile và compose **chưa được chạy thật lần nào**.
+Còn lại khi có Docker trên máy: chạy `pnpm test:e2e` local và `docker compose up --build`. CI đã chạy e2e (Testcontainers) và build Docker image. `compose.yaml` **chưa được chạy thật lần nào**.

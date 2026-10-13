@@ -53,11 +53,20 @@ describe('Nền tảng (e2e)', () => {
       await client.end();
     });
 
-    it('f_unaccent bỏ dấu tiếng Việt', async () => {
+    it('f_unaccent bỏ dấu tiếng Việt, kể cả Đ/đ', async () => {
       const { rows } = await client.query<{ v: string }>(
-        `select f_unaccent('Kế hoạch Quý IV — Đà Nẵng') as v`,
+        `select f_unaccent('Kế hoạch Quý IV ở Đà Nẵng, đầu tư') as v`,
       );
-      expect(rows[0]?.v).toBe('Ke hoach Quy IV — Da Nang');
+      expect(rows[0]?.v).toBe('Ke hoach Quy IV o Da Nang, dau tu');
+    });
+
+    it('f_unaccent còn chuẩn hoá một số dấu câu (gạch dài — thành -)', async () => {
+      // unaccent.rules không chỉ bỏ dấu: nó map cả ký tự Unicode như "—", "…", "“" về ASCII.
+      // Lợi cho search, nhưng đừng dùng f_unaccent để hiển thị lại văn bản cho người dùng.
+      const { rows } = await client.query<{ v: string }>(
+        `select f_unaccent('Quý IV — Đà Nẵng') as v`,
+      );
+      expect(rows[0]?.v).toBe('Quy IV - Da Nang');
     });
 
     it('text search config meetnote_vi: tìm không dấu ra kết quả có dấu', async () => {
