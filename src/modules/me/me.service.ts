@@ -3,7 +3,9 @@ import type { AuthUser } from '../../common/auth/auth-user.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { UserRow } from '../../infra/database/schema/index.js';
 import { SessionsService } from '../auth/sessions.service.js';
+import { OrganizationsService } from '../organizations/organizations.service.js';
 import { UsersRepository } from '../users/users.repository.js';
+import { MeResponseDto } from './dto/me-response.dto.js';
 import { SessionResponseDto } from './dto/session-response.dto.js';
 
 @Injectable()
@@ -11,7 +13,19 @@ export class MeService {
   constructor(
     private readonly users: UsersRepository,
     private readonly sessions: SessionsService,
+    private readonly organizations: OrganizationsService,
   ) {}
+
+  /** Hồ sơ + danh sách org (2 query song song: không phụ thuộc nhau). */
+  async profile(user: AuthUser): Promise<MeResponseDto> {
+    const [row, orgs] = await Promise.all([this.get(user), this.organizations.listMine(user.id)]);
+    return MeResponseDto.from(row, orgs);
+  }
+
+  async rename(user: AuthUser, displayName: string): Promise<MeResponseDto> {
+    await this.updateDisplayName(user, displayName);
+    return this.profile(user);
+  }
 
   async get(user: AuthUser): Promise<UserRow> {
     const row = await this.users.findById(user.id);

@@ -46,7 +46,7 @@ function isCursorPayload(value: unknown): value is CursorPayload {
   );
 }
 
-function invalidCursor(): AppException {
+export function invalidCursor(): AppException {
   return new AppException(ErrorCode.InvalidCursor, HttpStatus.BAD_REQUEST, 'Cursor không hợp lệ.');
 }
 

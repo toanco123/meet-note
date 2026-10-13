@@ -24,6 +24,9 @@ export const ErrorCode = {
   AuthRefreshTokenInvalid: 'AUTH_REFRESH_TOKEN_INVALID',
   AuthRefreshTokenRotated: 'AUTH_REFRESH_TOKEN_ROTATED',
   AuthRefreshTokenReused: 'AUTH_REFRESH_TOKEN_REUSED',
+
+  // M2 — Tổ chức
+  OrgOwnerImmutable: 'ORG_OWNER_IMMUTABLE',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

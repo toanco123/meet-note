@@ -36,16 +36,16 @@ Mọi lỗi trả về cùng một dạng:
 }
 ```
 
-| HTTP | `code` mặc định                                                                                                                                                                                                                             | Khi nào                                                 |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| 400  | `VALIDATION_FAILED`, `INVALID_CURSOR`                                                                                                                                                                                                       | DTO sai, cursor hỏng                                    |
-| 401  | `UNAUTHENTICATED` (mặc định), `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED`, `AUTH_INVALID_CREDENTIALS`, `AUTH_REFRESH_TOKEN_INVALID`, `AUTH_REFRESH_TOKEN_ROTATED`, `AUTH_REFRESH_TOKEN_REUSED` | Chưa xác thực được                                      |
-| 403  | `FORBIDDEN`                                                                                                                                                                                                                                 | Thấy được tài nguyên nhưng không đủ quyền với hành động |
-| 404  | `NOT_FOUND`                                                                                                                                                                                                                                 | Không tồn tại **hoặc không được thấy** (kênh riêng tư)  |
-| 409  | `CONFLICT` và mã cụ thể                                                                                                                                                                                                                     | Trùng unique, sai trạng thái, hết quota                 |
-| 413  | `PAYLOAD_TOO_LARGE`                                                                                                                                                                                                                         | Part quá lớn                                            |
-| 429  | `RATE_LIMITED`                                                                                                                                                                                                                              | (mốc hardening)                                         |
-| 500  | `INTERNAL_ERROR`                                                                                                                                                                                                                            | Không lộ stack. Chỉ log phía server                     |
+| HTTP | `code` mặc định                                                                                                                                                                                                                             | Khi nào                                                                               |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 400  | `VALIDATION_FAILED`, `INVALID_CURSOR`                                                                                                                                                                                                       | DTO sai, cursor hỏng                                                                  |
+| 401  | `UNAUTHENTICATED` (mặc định), `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED`, `AUTH_INVALID_CREDENTIALS`, `AUTH_REFRESH_TOKEN_INVALID`, `AUTH_REFRESH_TOKEN_ROTATED`, `AUTH_REFRESH_TOKEN_REUSED` | Chưa xác thực được                                                                    |
+| 403  | `FORBIDDEN`                                                                                                                                                                                                                                 | Thấy được tài nguyên nhưng không đủ quyền với hành động                               |
+| 404  | `NOT_FOUND`                                                                                                                                                                                                                                 | Không tồn tại **hoặc không được thấy** (kênh riêng tư)                                |
+| 409  | `CONFLICT` và mã cụ thể                                                                                                                                                                                                                     | Trùng unique, `ORG_OWNER_IMMUTABLE` (đổi vai trò/gỡ Owner), sai trạng thái, hết quota |
+| 413  | `PAYLOAD_TOO_LARGE`                                                                                                                                                                                                                         | Part quá lớn                                                                          |
+| 429  | `RATE_LIMITED`                                                                                                                                                                                                                              | (mốc hardening)                                                                       |
+| 500  | `INTERNAL_ERROR`                                                                                                                                                                                                                            | Không lộ stack. Chỉ log phía server                                                   |
 
 Hiện thực:
 
@@ -73,13 +73,14 @@ Hiện thực:
 - Cursor = `base64url(JSON.stringify({ v: 1, k: [<giá trị cột sort>…, <id>] }))`. Client không được tự parse.
 - Mỗi danh sách cố định **một** thứ tự sort có **tie-breaker duy nhất** (thường là `id`), và có index khớp đúng thứ tự đó.
 - Query dùng so sánh tuple `(a, b) > ($1, $2)`, lấy `limit + 1` dòng. Có dòng thừa thì có `nextCursor`.
-- Cursor không decode được hoặc sai số phần tử thì `400 INVALID_CURSOR`.
+- Cursor không decode được, sai số phần tử, hoặc **từng khoá sai định dạng** (cursor bị sửa tay) thì `400 INVALID_CURSOR`. Kiểm tra khoá bằng `expectTimestampKey` / `expectUuidKey` (`common/pagination/keys.ts`) **trước** khi đưa vào SQL. Nếu không, Postgres ném lỗi ép kiểu và trả 500.
 
 > **Bẫy:**
 >
 > 1. Sort theo cột không duy nhất (vd `joined_at`) mà không có tie-breaker thì trang sau bị lặp hoặc mất dòng.
 > 2. Sort `DESC` thì so sánh tuple phải đổi thành `<`. Trộn ASC/DESC giữa các cột thì không dùng được so sánh tuple, phải viết điều kiện OR.
-> 3. `timestamptz` có độ chính xác micro giây, còn JS `Date` chỉ có milli giây. Encode cursor bằng string lấy từ DB (`to_char` hoặc cast `::text`), **không** đi qua `Date`, nếu không trang sau bị mất dòng.
+> 3. `timestamptz` có độ chính xác micro giây, còn JS `Date` chỉ có milli giây. Khoá thời gian lấy bằng `timestampKey(column)`: Postgres sinh ISO 8601 UTC đủ micro giây (`to_char … US`). **Không** đi qua `Date`, nếu không trang sau bị mất dòng.
+> 4. Tìm bằng `LIKE` thì phải `escapeLike()` chuỗi người dùng nhập và viết `ESCAPE '\'`. Nếu không, `%` khớp mọi dòng và `_` khớp mọi ký tự.
 
 ## 5. Versioning
 

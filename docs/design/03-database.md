@@ -93,8 +93,12 @@ Không có `FOR UPDATE` thì 2 request refresh song song cùng đọc thấy tok
 
 ### `organizations`
 
-id, name, slug (`UNIQUE`), `require_join_approval boolean DEFAULT false`, created_at, updated_at, deleted_at.
-Thêm `UNIQUE (id)` là đủ cho composite FK: PK đã unique, và bảng con trỏ `(org_id)`.
+id (uuidv7), name, created_by (FK → users, `ON DELETE SET NULL`), created_at, updated_at, deleted_at.
+CHECK `organizations_name_length_ck` (1–100 ký tự). Tên **không** unique toàn hệ thống.
+
+- Chưa có `slug` (M2 Q1): API dùng `:orgId`.
+- `require_join_approval` thêm ở migration của M3, khi có tính năng dùng nó.
+- PK đã unique nên đủ làm đích cho composite FK của bảng con.
 
 ### `organization_members`
 
@@ -108,9 +112,12 @@ Thêm `UNIQUE (id)` là đủ cho composite FK: PK đã unique, và bảng con t
 
 Index:
 
-- `UNIQUE (org_id) WHERE role = 'owner'`: **mỗi org tối đa 1 owner**, ép ở tầng DB.
-- `(user_id)`: "các org của tôi".
-- `(org_id, joined_at, user_id)`: phân trang cursor.
+- `organization_members_one_owner_uq`: `UNIQUE (org_id) WHERE role = 'owner'`: **mỗi org tối đa 1 owner**, ép ở tầng DB.
+- `organization_members_user_idx (user_id)`: "các org của tôi".
+- `organization_members_org_joined_idx (org_id, joined_at, user_id)`: phân trang cursor.
+- CHECK `organization_members_role_ck`.
+
+**Đổi vai trò / gỡ thành viên (M2):** transaction, `SELECT … WHERE org_id = $1 AND user_id IN (actor, target) ORDER BY user_id FOR UPDATE`, kiểm tra lại vai trò của cả hai sau khi khoá, rồi mới `UPDATE`/`DELETE`.
 
 > **Bẫy:** Partial unique index **không thể** `DEFERRABLE`. Khi chuyển quyền sở hữu phải **hạ owner cũ trước, rồi mới nâng owner mới**. Làm ngược thứ tự thì dính lỗi 23505.
 

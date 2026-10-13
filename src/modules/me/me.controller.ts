@@ -28,14 +28,14 @@ export class MeController {
   @Get()
   @ApiErrorResponses(401)
   async get(@CurrentUser() user: AuthUser): Promise<MeResponseDto> {
-    return MeResponseDto.from(await this.me.get(user));
+    return this.me.profile(user);
   }
 
   /** Đổi tên hiển thị. */
   @Patch()
   @ApiErrorResponses(400, 401)
   async update(@CurrentUser() user: AuthUser, @Body() dto: UpdateMeDto): Promise<MeResponseDto> {
-    return MeResponseDto.from(await this.me.updateDisplayName(user, dto.displayName));
+    return this.me.rename(user, dto.displayName);
   }
 
   /**
