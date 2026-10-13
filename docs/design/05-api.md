@@ -30,27 +30,29 @@
 
 ## Organizations (tag `Organizations`)
 
-| Method | Path                                                  | Ai gọi                                 |
-| ------ | ----------------------------------------------------- | -------------------------------------- |
-| POST   | `/v1/orgs`                                            | User (trở thành Owner)                 |
-| GET    | `/v1/orgs`                                            | User: org của tôi                      |
-| GET    | `/v1/orgs/:orgId`                                     | Member+                                |
-| PATCH  | `/v1/orgs/:orgId`                                     | Admin+                                 |
-| DELETE | `/v1/orgs/:orgId`                                     | Owner                                  |
-| GET    | `/v1/orgs/:orgId/members?q=&cursor=&limit=`           | Member+                                |
-| PATCH  | `/v1/orgs/:orgId/members/:userId`                     | Owner (đổi role)                       |
-| DELETE | `/v1/orgs/:orgId/members/:userId`                     | Owner; Admin (chỉ gỡ Member)           |
-| POST   | `/v1/orgs/:orgId/leave`                               | Admin, Member                          |
-| POST   | `/v1/orgs/:orgId/ownership-transfer`                  | Owner                                  |
-| POST   | `/v1/orgs/:orgId/invites`                             | Admin+                                 |
-| GET    | `/v1/orgs/:orgId/invites`                             | Admin+                                 |
-| DELETE | `/v1/orgs/:orgId/invites/:inviteId`                   | Admin+                                 |
-| GET    | `/v1/invites/:token`                                  | User: xem trước tên org                |
-| POST   | `/v1/invites/:token/accept`                           | User: vào thẳng, hoặc tạo join request |
-| GET    | `/v1/orgs/:orgId/join-requests?status=`               | Admin+                                 |
-| POST   | `/v1/orgs/:orgId/join-requests/:requestId/approve`    | Admin+                                 |
-| POST   | `/v1/orgs/:orgId/join-requests/:requestId/reject`     | Admin+                                 |
-| GET    | `/v1/orgs/:orgId/audit-logs?action=&actorId=&cursor=` | Admin+                                 |
+Mọi route có `:orgId` đi qua `OrgMemberGuard`: không phải thành viên, org đã xoá, hoặc `:orgId` không phải uuid → **404**.
+
+| Method | Path                                                  | Ai gọi                                                                                     |
+| ------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| POST   | `/v1/orgs`                                            | User (trở thành Owner). 201                                                                |
+| GET    | `/v1/orgs`                                            | User: mảng org của tôi `{ id, name, role, joinedAt }`, **không phân trang**                |
+| GET    | `/v1/orgs/:orgId`                                     | Member+: `{ id, name, createdAt, myRole, memberCount }`                                    |
+| PATCH  | `/v1/orgs/:orgId`                                     | Admin+ (đổi tên)                                                                           |
+| DELETE | `/v1/orgs/:orgId`                                     | Owner. **Hoãn tới M4** (M2 Q2)                                                             |
+| GET    | `/v1/orgs/:orgId/members?q=&role=&cursor=&limit=`     | Member+: `{ userId, displayName, email, role, joinedAt }`, sắp theo `(joined_at, user_id)` |
+| PATCH  | `/v1/orgs/:orgId/members/:userId`                     | Owner (`role: admin \| member`). Đổi Owner → 409 `ORG_OWNER_IMMUTABLE`                     |
+| DELETE | `/v1/orgs/:orgId/members/:userId`                     | Owner; Admin (chỉ gỡ Member). 204. Gỡ Owner → 409                                          |
+| POST   | `/v1/orgs/:orgId/leave`                               | Admin, Member                                                                              |
+| POST   | `/v1/orgs/:orgId/ownership-transfer`                  | Owner                                                                                      |
+| POST   | `/v1/orgs/:orgId/invites`                             | Admin+                                                                                     |
+| GET    | `/v1/orgs/:orgId/invites`                             | Admin+                                                                                     |
+| DELETE | `/v1/orgs/:orgId/invites/:inviteId`                   | Admin+                                                                                     |
+| GET    | `/v1/invites/:token`                                  | User: xem trước tên org                                                                    |
+| POST   | `/v1/invites/:token/accept`                           | User: vào thẳng, hoặc tạo join request                                                     |
+| GET    | `/v1/orgs/:orgId/join-requests?status=`               | Admin+                                                                                     |
+| POST   | `/v1/orgs/:orgId/join-requests/:requestId/approve`    | Admin+                                                                                     |
+| POST   | `/v1/orgs/:orgId/join-requests/:requestId/reject`     | Admin+                                                                                     |
+| GET    | `/v1/orgs/:orgId/audit-logs?action=&actorId=&cursor=` | Admin+                                                                                     |
 
 ## Channels (tag `Channels`)
 

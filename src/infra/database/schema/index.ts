@@ -3,3 +3,4 @@
 // Lưu ý: chỉ export bảng + kiểu; helper (column-types.ts) import trực tiếp khi cần.
 export * from './users.js';
 export * from './sessions.js';
+export * from './organizations.js';
