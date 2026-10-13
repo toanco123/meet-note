@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { escapeLike, timestampKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
-import type { Database } from '../../infra/database/database.types.js';
+import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import {
   organizationMembers,
   type OrgRoleValue,
@@ -65,5 +65,53 @@ export class OrganizationMembersRepository {
       )
       .orderBy(asc(organizationMembers.joinedAt), asc(organizationMembers.userId))
       .limit(limit + 1);
+  }
+
+  /**
+   * Khoá các dòng membership liên quan, LUÔN theo thứ tự `user_id` tăng dần.
+   * Hai thao tác cùng chạm một người (vd Owner nâng B / Admin gỡ B) khoá cùng thứ tự → không deadlock;
+   * thao tác đến sau phải đợi thao tác trước commit, rồi đọc giá trị MỚI để kiểm tra lại.
+   */
+  lockMembers(
+    orgId: string,
+    userIds: string[],
+    executor: DbExecutor,
+  ): Promise<Array<{ userId: string; role: OrgRoleValue }>> {
+    return executor
+      .select({ userId: organizationMembers.userId, role: organizationMembers.role })
+      .from(organizationMembers)
+      .where(
+        and(eq(organizationMembers.orgId, orgId), inArray(organizationMembers.userId, userIds)),
+      )
+      .orderBy(asc(organizationMembers.userId))
+      .for('update');
+  }
+
+  async updateRole(
+    orgId: string,
+    userId: string,
+    role: OrgRoleValue,
+    executor: DbExecutor,
+  ): Promise<void> {
+    await executor
+      .update(organizationMembers)
+      .set({ role })
+      .where(and(eq(organizationMembers.orgId, orgId), eq(organizationMembers.userId, userId)));
+  }
+
+  async findMember(orgId: string, userId: string): Promise<MemberRow | undefined> {
+    const [row] = await this.db
+      .select({
+        userId: organizationMembers.userId,
+        displayName: users.displayName,
+        email: users.email,
+        role: organizationMembers.role,
+        joinedAt: organizationMembers.joinedAt,
+        joinedAtKey: timestampKey(organizationMembers.joinedAt),
+      })
+      .from(organizationMembers)
+      .innerJoin(users, eq(users.id, organizationMembers.userId))
+      .where(and(eq(organizationMembers.orgId, orgId), eq(organizationMembers.userId, userId)));
+    return row;
   }
 }

@@ -121,7 +121,7 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
     - `q=nguyen` khớp "Nguyễn";
     - `q=%` không khớp tất cả;
     - cursor hỏng → 400 `INVALID_CURSOR`.
-- [ ] **B6 — Đổi vai trò** (skill `db-transactions`)
+- [x] **B6 — Đổi vai trò** (skill `db-transactions`)
   - Việc: transaction + khoá 2 dòng theo `user_id` + kiểm tra lại.
   - Test (e2e, bảng):
     - Owner: member ↔ admin → 200;
@@ -184,3 +184,6 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
     - Bỏ `escapeLike` thì 2 test `%`/`_` đỏ.
     - Bỏ tie-breaker `user_id` khỏi điều kiện cursor thì chỉ test `limit=4` đỏ (**23/25**). Test `limit=10` vẫn xanh vì trang đầu tình cờ chứa trọn nhóm 6 người cùng thời điểm. Phải có test **cố tình cắt ngang** nhóm trùng khoá sort.
 12. **`search_text` được chuẩn hoá ở DB (`f_unaccent(lower(...))`) thì `q` cũng phải chuẩn hoá bằng đúng hàm đó trong SQL**, đừng tự bỏ dấu ở JS. Hai bên dùng cùng `unaccent.rules` nên `Đức` ↔ `duc`, `NGUYỄN` ↔ `nguyen` khớp nhau.
+13. **Đổi vai trò có hiệu lực ngay, không cần đăng nhập lại** (quyết định D1: không nhét role vào JWT, guard đọc membership mỗi request). Đã kiểm chứng bằng e2e: cùng một access token, `PATCH /orgs/:id` trả 403 → Owner nâng lên admin → lần gọi tiếp theo trả 200.
+14. **Khi nào được `throw` trong transaction?** Ở `changeRole`, mọi kiểm tra đều diễn ra _trước_ lệnh ghi, nên `throw` ngay trong callback chỉ rollback những thứ chưa xảy ra, tức là an toàn. Ở `SessionsService.rotate` (M1) có một lệnh ghi (thu hồi phiên) _trước khi_ báo lỗi, nên ở đó phải trả kết quả ra rồi mới `throw` sau commit. Quy tắc: **có ghi rồi mới báo lỗi thì không được throw trong transaction.**
+15. **Bảng test có `if (status === 200) expect(...)` là dấu hiệu nên tách bảng** (oxlint `no-conditional-expect`). Tách thành bảng "thành công" (kiểm tra vai trò mới) và bảng "thất bại" (kiểm tra mã lỗi), để mỗi dòng đều có assertion về nội dung chứ không chỉ status.
