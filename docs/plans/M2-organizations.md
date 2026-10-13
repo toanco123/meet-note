@@ -104,10 +104,10 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
 - [x] **B2 — Policy thuần** (skill `authorization`)
   - Việc: `organization.policy.ts`: `OrgRole`, thứ hạng vai trò, `orgPolicy` (`org.read`, `org.update`, `org.member.list`, `org.member.role.change`, `org.member.remove`), `canChangeRole`, `canRemoveMember`.
   - Test (unit): `it.each` trên **toàn bộ** ma trận vai trò × hành động × vai trò đích.
-- [ ] **B3 — Tạo org, org của tôi, xem, đổi tên** (skill `nest-endpoint`)
+- [x] **B3 — Repository + service: tạo org, org của tôi, chi tiết, đổi tên** (đã điều chỉnh: controller dời sang B4 cùng guard, để không commit nào có route `:orgId` chưa được bảo vệ)
   - Việc: `OrganizationsRepository`, `OrganizationsService` (tạo org + Owner trong 1 transaction), DTO, controller.
   - Test (integration): tạo org thì có đúng 1 membership owner.
-- [ ] **B4 — `OrgMemberGuard` + `@Require` + `PermissionGuard`**
+- [ ] **B4 — Controller + DTO + `OrgMemberGuard` + `@Require` + `PermissionGuard`** (route `/orgs` của B3 ra mắt cùng lúc với guard)
   - Việc: gắn guard vào các route `:orgId` của B3.
   - Test (e2e):
     - người ngoài `GET /orgs/:id` → 404;
@@ -168,3 +168,4 @@ Mỗi bước = 1 commit trên nhánh `m2-organizations`, chạy được và c�
 2. **Index riêng cho `user_id` dù đã có PK `(org_id, user_id)`.** B-tree chỉ dùng được khi điều kiện chạm cột đầu tiên, nên "các org của tôi" (`WHERE user_id = ?`) không dùng được PK. `test/support/db-factories.ts` (`insertUser`, `insertOrg`, `addMember`) chèn thẳng DB vì M2 chưa có API thêm thành viên.
 3. **Bớt tham số `isSelf` khỏi `canRemoveMember`.** Viết bảng test ra mới thấy quy tắc "Owner không tự gỡ mình" đã bị quy tắc "Owner bất biến" bao, còn "Admin tự gỡ mình" rơi vào "Admin chỉ gỡ Member". Ít tham số hơn thì ít tổ hợp phải test hơn. Viết **bảng test trước** giúp phát hiện quy tắc thừa.
 4. **Test "bảng phủ đủ permission"** so `Object.keys(orgPolicy)` với cột đầu của bảng test. Thêm permission mới mà quên thêm dòng test thì test đỏ, nên ma trận và test không thể lệch nhau mà không ai biết.
+5. **Đổi thứ tự bước để không commit nào lộ dữ liệu.** Plan ban đầu cho B3 làm controller, B4 mới gắn guard, tức commit B3 sẽ có `GET /orgs/:orgId` mà ai cũng đọc được. Nhánh có thể bị deploy hoặc cherry-pick ở bất kỳ commit nào, nên mỗi commit đều phải an toàn chứ không chỉ commit cuối. Cách đã chọn: B3 chỉ làm repository/service, B4 làm controller cùng guard.
