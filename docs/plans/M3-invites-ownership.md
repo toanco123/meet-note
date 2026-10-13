@@ -111,7 +111,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
 - [x] **B3 — Policy bổ sung**
   - Việc: 5 permission mới + `canGrantRole`.
   - Test (unit): bảng ma trận đầy đủ, test "bảng phủ đủ permission" tự đỏ nếu thiếu dòng.
-- [ ] **B4 — Quản lý link mời**
+- [x] **B4 — Quản lý link mời**
   - Việc: tạo (token hiện một lần), liệt kê (cursor **giảm dần**: so sánh tuple dùng `<`), thu hồi.
   - Test (e2e):
     - Admin tạo link role `admin` → 403;
@@ -167,3 +167,8 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
    - production nên đặt `lock_timeout` / `idle_in_transaction_session_timeout` để lỗi thay vì treo (ghi vào M11 hardening).
 6. **Không ghi audit cho thao tác không đổi gì** (đổi vai trò member → member, sửa org với tên y nguyên). Log chỉ chứa field thực sự đổi (`{ before, after }`), để audit đọc được chứ không thành nhiễu.
 7. **Quy trình: nối bước commit bằng `;` sau `format:check` là sai.** Commit B1 lọt một file chưa format vì `;` không dừng khi lệnh trước lỗi. Đã sửa bằng `--amend` (commit chưa push). Bước commit chỉ được chạy khi kiểm tra trước đó qua.
+8. **`FOR SHARE` cho "vai trò của tôi phải giữ nguyên trong lúc tôi làm".** Tạo link mời là cấp quyền, nên vai trò người tạo được khoá `FOR SHARE` rồi kiểm tra lại bằng `canGrantRole`. Nhiều request đọc cùng lúc vẫn được, nhưng lệnh đổi vai trò (`FOR UPDATE`) phải đợi. Không cần khoá độc quyền như ở đổi vai trò.
+9. **Cursor giảm dần: so sánh tuple dùng `<`.** Đột biến copy nhầm `>` từ bản ASC thì chỉ thu được 9/12 link: trang 2 lặp lại các link mới hơn rồi dừng. Index `(org_id, created_at DESC, id DESC)` + `ORDER BY … DESC` khớp thứ tự NULL (bài học 1).
+10. **Lint bắt được một bug thật: module chỉ được `import` mà không có trong mảng `imports` của `@Module`.** Đoạn sửa `app.module.ts` bằng script không khớp vì Prettier đã gộp mảng lên một dòng, nên `InvitesModule` chỉ có dòng `import` ở đầu file. oxlint báo `no-unused-vars`. Nếu bỏ qua cảnh báo thì mọi route `/invites` trả 404. **Cảnh báo lint không phải chuyện thẩm mỹ.**
+11. **Token và hash của token đều không vào audit log.** Audit log được nhiều người đọc hơn bảng `organization_invites`. Test e2e kiểm tra chuỗi token không xuất hiện trong dòng audit.
+12. Helper `common/crypto/opaque-token.ts` (`generateOpaqueToken`, `hashOpaqueToken`) dùng chung cho refresh token (M1) và link mời. `TokenService` chuyển sang dùng nó mà không đổi hành vi (15 test auth vẫn xanh).

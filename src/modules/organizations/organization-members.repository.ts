@@ -87,6 +87,24 @@ export class OrganizationMembersRepository {
       .for('update');
   }
 
+  /**
+   * `FOR SHARE`: nhiều giao dịch cùng ĐỌC được dòng, nhưng chặn ai `FOR UPDATE`/sửa nó (vd đổi vai trò
+   * của chính người này) cho tới khi giao dịch hiện tại xong. Dùng khi cần "vai trò này phải còn
+   * nguyên trong lúc tôi làm" mà không cần khoá độc quyền.
+   */
+  async lockRoleForShare(
+    orgId: string,
+    userId: string,
+    executor: DbExecutor,
+  ): Promise<OrgRoleValue | undefined> {
+    const [row] = await executor
+      .select({ role: organizationMembers.role })
+      .from(organizationMembers)
+      .where(and(eq(organizationMembers.orgId, orgId), eq(organizationMembers.userId, userId)))
+      .for('share');
+    return row?.role;
+  }
+
   async updateRole(
     orgId: string,
     userId: string,

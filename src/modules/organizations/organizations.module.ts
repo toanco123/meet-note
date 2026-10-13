@@ -20,6 +20,12 @@ import { OrganizationsService } from './organizations.service.js';
     OrgPermissionGuard,
   ],
   // Export guard để module khác (M4: kênh) dùng @RequireOrgPermission trên controller của mình.
-  exports: [OrganizationsRepository, OrganizationsService, OrgMemberGuard, OrgPermissionGuard],
+  exports: [
+    OrganizationsRepository,
+    OrganizationsService,
+    OrganizationMembersRepository,
+    OrgMemberGuard,
+    OrgPermissionGuard,
+  ],
 })
 export class OrganizationsModule {}

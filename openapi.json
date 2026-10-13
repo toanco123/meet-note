@@ -1005,6 +1005,275 @@
           "Organizations"
         ]
       }
+    },
+    "/v1/orgs/{orgId}/invites": {
+      "post": {
+        "description": "`token` CHỈ trả về một lần trong response này — hãy lưu lại link ngay.",
+        "operationId": "Invites_create",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInviteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedInviteResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tạo link mời (Admin trở lên; link vai trò `admin` chỉ Owner tạo được).",
+        "tags": [
+          "Organizations"
+        ]
+      },
+      "get": {
+        "operationId": "Invites_list",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponseDto"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "data"
+                      ],
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/InviteResponseDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Danh sách link mời, mới nhất trước. Không chứa token.",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/invites/{inviteId}": {
+      "delete": {
+        "operationId": "Invites_revoke",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "inviteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã thu hồi."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Thu hồi link mời (idempotent).",
+        "tags": [
+          "Organizations"
+        ]
+      }
     }
   },
   "info": {
@@ -1558,6 +1827,153 @@
         },
         "required": [
           "role"
+        ]
+      },
+      "InviteRole": {
+        "type": "string",
+        "enum": [
+          "admin",
+          "member"
+        ],
+        "description": "Vai trò người vào sẽ nhận. Link `admin` chỉ Owner tạo được."
+      },
+      "CreateInviteDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "description": "Vai trò người vào sẽ nhận. Link `admin` chỉ Owner tạo được.",
+            "default": "member",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteRole"
+              }
+            ]
+          },
+          "expiresInHours": {
+            "type": "number",
+            "description": "Link hết hạn sau bao nhiêu giờ (1–720, tức tối đa 30 ngày).\n@default 168",
+            "default": 168,
+            "minimum": 1,
+            "maximum": 720
+          },
+          "maxUses": {
+            "type": "number",
+            "description": "Số lượt dùng tối đa (1–1000). Bỏ trống = không giới hạn.",
+            "minimum": 1,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "expiresInHours"
+        ]
+      },
+      "InviteStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "expired",
+          "exhausted",
+          "revoked"
+        ]
+      },
+      "CreatedInviteResponseDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteRole"
+              }
+            ]
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteStatus"
+              }
+            ]
+          },
+          "maxUses": {
+            "type": "number",
+            "nullable": true,
+            "description": "`null` = không giới hạn."
+          },
+          "token": {
+            "type": "string",
+            "description": "Token của link mời — CHỈ trả một lần ở đây, không xem lại được. Link: `/invites/{token}`.",
+            "example": "q3Jt0b6Q2l3Zc0p9QpXb5m1q8D0yJ4dA7m2N5r1sT6w"
+          },
+          "id": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z"
+          },
+          "useCount": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-13T08:00:00.000Z"
+          }
+        },
+        "required": [
+          "role",
+          "status",
+          "maxUses",
+          "token",
+          "id",
+          "expiresAt",
+          "useCount",
+          "createdAt"
+        ]
+      },
+      "InviteResponseDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteRole"
+              }
+            ]
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteStatus"
+              }
+            ]
+          },
+          "maxUses": {
+            "type": "number",
+            "nullable": true,
+            "description": "`null` = không giới hạn."
+          },
+          "id": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z"
+          },
+          "useCount": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-13T08:00:00.000Z"
+          }
+        },
+        "required": [
+          "role",
+          "status",
+          "maxUses",
+          "id",
+          "expiresAt",
+          "useCount",
+          "createdAt"
         ]
       }
     }
