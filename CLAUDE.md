@@ -15,10 +15,10 @@ MeetNote là ứng dụng biên bản họp theo nhóm. Người dùng thuộc t
 
 ## Trạng thái
 
-| Mốc        | Trạng thái                                                                  |
-| ---------- | --------------------------------------------------------------------------- |
-| M0 — Khung | **Xong**. CI xanh, e2e + Docker Compose đã chạy trên máy dev (OrbStack)     |
-| M1 — Auth  | **Xong ở local** trên nhánh `m1-auth` (chờ CI). Mốc tiếp theo: M2 — Tổ chức |
+| Mốc        | Trạng thái                                                                     |
+| ---------- | ------------------------------------------------------------------------------ |
+| M0 — Khung | **Xong**. CI xanh, e2e + Docker Compose đã chạy trên máy dev (OrbStack)        |
+| M1 — Auth  | **Xong**. CI xanh trên PR #1 (`m1-auth` → `main`). Mốc tiếp theo: M2 — Tổ chức |
 
 Lộ trình đầy đủ: `docs/design/10-roadmap.md`.
 

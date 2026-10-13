@@ -1,6 +1,6 @@
 # M1 — Auth
 
-- **Trạng thái:** Xong ở local (2026-10-13). Còn chờ CI chạy trên nhánh `m1-auth` (cần push)
+- **Trạng thái:** Xong (2026-10-13). CI xanh trên PR #1 (run 38376280053)
 - **Nhánh:** `m1-auth`
 - **Tài liệu thiết kế liên quan:** [01-overview D1, D7](../design/01-overview.md), [03-database §1](../design/03-database.md), [04-authorization §4](../design/04-authorization.md), [05-api Auth](../design/05-api.md), [07-conventions §2, §6](../design/07-conventions.md)
 
@@ -160,11 +160,11 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
 
 - [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 45)
 - [x] `pnpm test:e2e` xanh ở local (integration + e2e 70). Test concurrency đã chứng minh "bỏ `FOR UPDATE` là đỏ" (bài học 10)
-- [ ] `pnpm test:e2e` xanh trên CI: **chờ push nhánh**
+- [x] `pnpm test:e2e` xanh trên CI (PR #1, run 38376280053)
 - [x] `openapi.json` có đủ 9 route Auth/Me (10 path, tính cả health), mặc định Bearer, route public có `security: [{}]`
 - [x] Chạy tay trên stack Docker Compose: register → `/me` → refresh → refresh lại token cũ (ROTATED) → `/me/sessions` → logout → `/me` bị 401 `AUTH_SESSION_REVOKED` → login sai 401. Swagger UI: Authorize → reload trang vẫn giữ token → gọi `/v1/me` được 200 (kiểm bằng Playwright)
 - [x] Docker image build được với argon2 ở local, hash/verify chạy trong alpine (musl)
-- [ ] Docker image build trên CI: **chờ push nhánh**
+- [x] Docker image build trên CI (PR #1)
 - [x] `docs/design/` khớp với code (03, 04, 05, 07, 09, 02 đã cập nhật trong các bước)
 
 ## Điều sẽ học
