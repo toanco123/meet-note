@@ -128,7 +128,7 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
     - dùng lại trong grace → `ROTATED`, phiên còn sống;
     - dùng lại quá grace → `REUSED` và phiên bị thu hồi.
   - **Test concurrency:** 2 lần `rotate` song song cùng một token → đúng 1 thành công, và chỉ có 1 token mới. **Bỏ `FOR UPDATE` thì test phải đỏ** (ghi kết quả vào "Điều học được").
-- [ ] **B6 — Register + Login** (skill `nest-endpoint`)
+- [x] **B6 — Register + Login** (skill `nest-endpoint`)
   - Việc:
     - `AuthController`, `AuthService`;
     - DTO: email ≤ 254 ký tự, mật khẩu 8–128, displayName 1–80;
@@ -188,3 +188,7 @@ Mỗi bước = 1 commit trên nhánh `m1-auth`, chạy được và có test.
 10. **Kiểm chứng `FOR UPDATE`: bỏ khoá thì test concurrency đỏ** (`['FULFILLED', 'FULFILLED']`, tức một phiên có hai nhánh token). Hai quan sát thêm:
     - Vòng 0 vẫn pass, vòng 1 mới lộ race. Race không xảy ra mọi lần, nên test phải lặp nhiều vòng.
     - Chỉ khoá dòng `sessions` **không đủ**. Request thứ hai đã đọc refresh token (chưa khoá) trước khi phải chờ khoá phiên, nên nó dùng dữ liệu cũ để ghi. Khoá phải nằm ở **đúng dòng chứa điều kiện đang kiểm tra** (`rotated_at`).
+11. **Chống email trùng: INSERT rồi bắt lỗi unique, không "SELECT trước rồi INSERT".** Hai request đăng ký cùng email chạy song song sẽ cùng thấy "chưa có". Để unique index `users_email_lower_uq` quyết định, rồi dịch `23505` + đúng tên constraint thành 409 `AUTH_EMAIL_TAKEN` (helper `isUniqueViolation` trong `common/errors/pg-error.ts`).
+12. **Query phải viết đúng biểu thức của index.** Index là `lower(email)` thì điều kiện phải là `lower(email) = lower($1)`. Viết `email ILIKE $1` cho kết quả đúng nhưng không dùng được index, nên sẽ quét cả bảng.
+13. **Swagger plugin + `classValidatorShim` sinh ràng buộc từ class-validator:** `@MaxLength(254)` thành `maxLength`, `@IsEmail()` thành `format: email`, JSDoc `@example` thành `example`. DTO không cần một decorator `@ApiProperty` nào.
+14. **`needsRehash` chỉ dùng được lúc đăng nhập thành công**, vì đó là lúc duy nhất server có mật khẩu gốc. Đã test bằng cách chèn hash tham số yếu vào DB rồi đăng nhập.

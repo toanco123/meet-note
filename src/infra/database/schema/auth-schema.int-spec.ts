@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDb, type TestDb } from '../../../../test/support/db.js';
-import { findPgError } from '../../../common/errors/all-exceptions.filter.js';
+import { findPgError } from '../../../common/errors/pg-error.js';
 import { refreshTokens, sessions } from './sessions.js';
 import { users } from './users.js';
 
