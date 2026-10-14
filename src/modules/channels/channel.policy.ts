@@ -1,9 +1,11 @@
-import type { ChannelRoleValue, ChannelVisibility } from '../../infra/database/schema/index.js';
-import {
-  isOrgRoleAtLeast,
-  OrgRole,
-  type TargetDecision,
-} from '../organizations/organization.policy.js';
+import type { ChannelRoleValue } from '../../infra/database/schema/index.js';
+import { isOrgRoleAtLeast, OrgRole } from '../organizations/organization.policy.js';
+import type { TargetDecision } from '../organizations/organizations.types.js';
+import type {
+  ChannelAccessContext,
+  ChannelDecision,
+  GrantableChannelRole,
+} from './channels.types.js';
 
 /**
  * Quyền cấp kênh — HÀM THUẦN. Nguồn sự thật: docs/design/04-authorization.md §2.
@@ -21,14 +23,6 @@ const RANK: Record<ChannelRole, number> = { owner: 4, admin: 3, member: 2, guest
 
 export function isChannelRoleAtLeast(role: ChannelRole | null, min: ChannelRole): boolean {
   return role !== null && RANK[role] >= RANK[min];
-}
-
-/** Do `ChannelAccessGuard` gắn vào `req.channelAccess`. */
-export interface ChannelAccessContext {
-  /** null = KHÔNG phải thành viên kênh (thành viên org xem kênh công khai, hoặc OrgAdm). */
-  channelRole: ChannelRole | null;
-  orgRole: OrgRole;
-  channel: { visibility: ChannelVisibility };
 }
 
 const isChannelMember = (c: ChannelAccessContext) => c.channelRole !== null;
@@ -71,8 +65,6 @@ export const BLOCKED_WHEN_ARCHIVED: ReadonlySet<ChannelPermission> = new Set<Cha
   'channel.ownership.transfer',
 ]);
 
-export type ChannelDecision = 'ok' | 'forbidden' | 'archived';
-
 /**
  * Một nơi quyết định 403 hay 409: guard gọi TRƯỚC khi khoá (từ chối nhanh), service gọi LẠI trên
  * dữ liệu vừa khoá (kênh có thể vừa bị lưu trữ, người gọi có thể vừa bị hạ quyền).
@@ -86,9 +78,6 @@ export function decideChannelPermission(
   if (ctx.channel.archivedAt !== null && BLOCKED_WHEN_ARCHIVED.has(permission)) return 'archived';
   return 'ok';
 }
-
-/** Vai trò cấp được khi THÊM người vào kênh. Chủ kênh không bao giờ cấp qua đây. */
-export type GrantableChannelRole = Exclude<ChannelRole, 'owner'>;
 
 /** CO cấp admin/member/guest; CA chỉ cấp member/guest ("không cấp vai trò ngang mình"). */
 export function canGrantChannelRole(

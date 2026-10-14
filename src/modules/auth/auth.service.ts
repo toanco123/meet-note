@@ -4,9 +4,9 @@ import { USERS_EMAIL_UNIQUE, UsersRepository } from '../users/users.repository.j
 import type { LoginDto } from './dto/login.dto.js';
 import type { RegisterDto } from './dto/register.dto.js';
 import { PasswordHasher } from './password-hasher.js';
-import type { SessionMeta } from './sessions.repository.js';
-import { type AuthTokens, SessionsService } from './sessions.service.js';
+import { SessionsService } from './sessions.service.js';
 import { Errors } from '../../common/errors/errors.js';
+import type { AuthTokens, SessionMeta } from './auth.types.js';
 
 @Injectable()
 export class AuthService {

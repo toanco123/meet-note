@@ -6,18 +6,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-import { AppException, type ErrorDetail } from './app.exception.js';
+import { AppException } from './app.exception.js';
 import { defaultCodeForStatus } from './error-code.js';
 import { Errors } from './errors.js';
 import type { ErrorResponseDto } from './error-response.dto.js';
 import { findPgError, PG_FOREIGN_KEY_VIOLATION, PG_UNIQUE_VIOLATION } from './pg-error.js';
-
-export interface MappedError {
-  status: number;
-  code: string;
-  message: string;
-  details?: ErrorDetail[];
-}
+import type { MappedError } from './errors.types.js';
 
 /** Lỗi 4xx từ middleware Express (body-parser: JSON hỏng, body quá lớn) có `status` + `expose`. */
 function asExposedClientError(error: unknown): { status: number; message: string } | undefined {

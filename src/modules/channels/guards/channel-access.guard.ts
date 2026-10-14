@@ -4,7 +4,7 @@ import { isUuid } from '../../../common/validation/uuid.js';
 import { Errors } from '../../../common/errors/errors.js';
 import { channelPolicy } from '../channel.policy.js';
 import { ChannelsRepository } from '../channels.repository.js';
-import type { ChannelAccess } from './channel-access.js';
+import type { ChannelAccess } from '../channels.types.js';
 
 /**
  * Tầng 3: người gọi có được THẤY kênh `:channelId` không? Gắn `req.channelAccess`.

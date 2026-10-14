@@ -57,6 +57,7 @@ Không có pnpm global thì dùng `npx -y pnpm@12.11.2 <lệnh>`. Kiểm tra tr�
 
 - **ESM:** import tương đối phải có đuôi `.js`. Dùng `import.meta.dirname`, không dùng `__dirname`.
 - **DI:** class được inject theo kiểu constructor phải import **giá trị**, không được `import type`. Token Symbol (`DRIZZLE`, `REDIS`) đi kèm `@Inject()`.
+- **Type:** interface / type viết tay được export nằm trong `<module>.types.ts`. Kiểu suy ra từ giá trị (`typeof`, `$inferSelect`, cặp const/type cùng tên) để cạnh giá trị. File types không chứa giá trị runtime (test kiến trúc chặn).
 - **DTO:** là `class` trong file `*.dto.ts`, mô tả bằng JSDoc (Swagger CLI plugin đọc). Không trả row DB ra API, luôn map sang `*ResponseDto`. Method controller khai báo kiểu trả về tường minh.
 - **Lỗi:** ném lỗi lấy từ catalog `src/common/errors/errors.ts` (`throw Errors.channel.archived()`). Lỗi mới thì thêm mục vào catalog. **Không** tự `new AppException(...)` ở module (test kiến trúc chặn). Tài nguyên ẩn trả **404**, không trả 403.
 - **Danh sách:** phân trang cursor `{ data, nextCursor }`, dùng `CursorQueryDto` + `toPage`. Timestamp trong cursor lấy dạng text từ DB.

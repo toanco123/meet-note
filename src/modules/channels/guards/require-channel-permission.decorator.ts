@@ -1,13 +1,11 @@
 import { applyDecorators, SetMetadata, UseGuards } from '@nestjs/common';
 import { ApiParam } from '@nestjs/swagger';
-import {
-  ApiErrorResponses,
-  type DocumentedErrorStatus,
-} from '../../../common/swagger/api-error-responses.decorator.js';
+import { ApiErrorResponses } from '../../../common/swagger/api-error-responses.decorator.js';
 import { OrgMemberGuard } from '../../organizations/guards/org-member.guard.js';
 import { BLOCKED_WHEN_ARCHIVED, type ChannelPermission } from '../channel.policy.js';
 import { ChannelAccessGuard } from './channel-access.guard.js';
 import { CHANNEL_PERMISSION_KEY, ChannelPermissionGuard } from './channel-permission.guard.js';
+import type { DocumentedErrorStatus } from '../../../common/swagger/swagger.types.js';
 
 /**
  * Một decorator cho mọi route có `:channelId`: `@RequireChannelPermission('channel.update')`.

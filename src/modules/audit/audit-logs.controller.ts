@@ -1,12 +1,13 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { decodeCursor, type Page, toPage } from '../../common/pagination/cursor.js';
+import { decodeCursor, toPage } from '../../common/pagination/cursor.js';
 import { expectPositiveIntKey, expectTimestampKey } from '../../common/pagination/keys.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { ApiPaginatedResponse } from '../../common/swagger/api-paginated-response.decorator.js';
 import { RequireOrgPermission } from '../organizations/guards/require-org-permission.decorator.js';
 import { AuditLogsRepository } from './audit-logs.repository.js';
 import { AuditLogResponseDto, ListAuditLogsQueryDto } from './dto/audit-log.dto.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
 
 @ApiTags('Organizations')
 @Controller('orgs/:orgId/audit-logs')

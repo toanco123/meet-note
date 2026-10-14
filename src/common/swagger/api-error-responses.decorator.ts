@@ -1,8 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../errors/error-response.dto.js';
-
-export type DocumentedErrorStatus = 400 | 401 | 403 | 404 | 409 | 410 | 413 | 429;
+import type { DocumentedErrorStatus } from './swagger.types.js';
 
 const DESCRIPTIONS: Record<DocumentedErrorStatus, string> = {
   400: 'Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).',

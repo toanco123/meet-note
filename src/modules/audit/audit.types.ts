@@ -1,7 +1,10 @@
-/** Ai / từ đâu — controller lấy bằng `@AuditCtx()` rồi truyền tường minh xuống service (M3 Q3). */
-/** Thao tác do một người dùng đã đăng nhập thực hiện. */
-export type UserAuditContext = AuditContext & { actorId: string };
+/** Kiểu viết tay của module audit. */
 
+import type { AuditAction } from './audit-actions.js';
+
+// ── Ghi audit ─────────────────────────────────────────────────────────────────
+
+/** Ai / từ đâu — controller lấy bằng `@AuditCtx()` rồi truyền tường minh xuống service (M3 Q3). */
 export interface AuditContext {
   /** NULL = hệ thống (job, script). */
   actorId: string | null;
@@ -9,27 +12,8 @@ export interface AuditContext {
   ip?: string | null;
 }
 
-/** Danh sách đóng các hành động được ghi — gõ sai là lỗi compile. Quy ước `domain.object.verb_past`. */
-export const AUDIT_ACTIONS = [
-  'org.created',
-  'org.updated',
-  'org.member.role_changed',
-  'org.member.removed',
-  'org.member.joined',
-  'org.member.left',
-  'org.invite.created',
-  'org.invite.revoked',
-  'org.join_request.created',
-  'org.join_request.approved',
-  'org.join_request.rejected',
-  'org.ownership.transferred',
-  'channel.created',
-  'channel.updated',
-  'channel.member.added',
-  'channel.member.role_changed',
-  'channel.member.removed',
-] as const;
-export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+/** Thao tác do một người dùng đã đăng nhập thực hiện. */
+export type UserAuditContext = AuditContext & { actorId: string };
 
 export interface AuditEntry {
   orgId: string;
@@ -38,4 +22,20 @@ export interface AuditEntry {
   targetId: string;
   /** Thường là `{ before, after }` — chỉ những field thay đổi, KHÔNG ghi dữ liệu nhạy cảm. */
   metadata?: Record<string, unknown>;
+}
+
+// ── Đọc audit (repository → DTO) ──────────────────────────────────────────────
+
+export interface AuditLogListRow {
+  id: number;
+  action: string;
+  actorId: string | null;
+  actorDisplayName: string | null;
+  targetType: string;
+  targetId: string;
+  metadata: Record<string, unknown>;
+  requestId: string | null;
+  ip: string | null;
+  createdAt: Date;
+  createdAtKey: string;
 }

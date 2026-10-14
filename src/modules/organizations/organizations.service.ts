@@ -6,12 +6,12 @@ import { AuditService } from '../audit/audit.service.js';
 import type { UserAuditContext } from '../audit/audit.types.js';
 import type { Database } from '../../infra/database/database.types.js';
 import { OrgRole } from './organization.policy.js';
-import {
-  type MyOrganizationRow,
-  type OrganizationDetailRow,
-  type OrganizationPatch,
-  OrganizationsRepository,
-} from './organizations.repository.js';
+import { OrganizationsRepository } from './organizations.repository.js';
+import type {
+  MyOrganizationRow,
+  OrganizationDetailRow,
+  OrganizationPatch,
+} from './organizations.types.js';
 
 @Injectable()
 export class OrganizationsService {

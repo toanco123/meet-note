@@ -113,6 +113,7 @@ channels/
 ├─ channel-members.service.ts
 ├─ channels.repository.ts            # query Drizzle. Nhận `tx` để chạy trong transaction của service
 ├─ channel.policy.ts                 # hàm thuần: (actor, target) → boolean. Dễ unit test
+├─ channels.types.ts                 # interface / type viết tay của module (07 §1)
 └─ dto/                              # *.dto.ts (request + response), Swagger plugin đọc file này
 
 # test tương ứng: test/unit/modules/channels/…, test/integration/modules/channels/…

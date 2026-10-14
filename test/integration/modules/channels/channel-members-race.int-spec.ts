@@ -14,7 +14,6 @@ import { ChannelMembersRepository } from '../../../../src/modules/channels/chann
 import { ChannelMembersService } from '../../../../src/modules/channels/channel-members.service.js';
 import { ChannelsRepository } from '../../../../src/modules/channels/channels.repository.js';
 import { ChannelsService } from '../../../../src/modules/channels/channels.service.js';
-import type { ChannelAccess } from '../../../../src/modules/channels/guards/channel-access.js';
 import { OrganizationMembersRepository } from '../../../../src/modules/organizations/organization-members.repository.js';
 import {
   addChannelMember,
@@ -25,6 +24,7 @@ import {
 } from '../../../support/db-factories.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 import { lockChannelThen, outcomeOf, runWhileLocked } from '../../../support/locks.js';
+import type { ChannelAccess } from '../../../../src/modules/channels/channels.types.js';
 
 /**
  * Các race của B4. Hai cái đầu ép thứ tự bằng `runWhileLocked` (T1 giữ khoá, T2 đợi rồi đọc lại);

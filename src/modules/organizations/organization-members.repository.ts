@@ -8,25 +8,7 @@ import {
   type OrgRoleValue,
   users,
 } from '../../infra/database/schema/index.js';
-
-export interface MemberRow {
-  userId: string;
-  displayName: string;
-  email: string;
-  role: OrgRoleValue;
-  joinedAt: Date;
-  /** Khoá cursor (ISO micro giây do DB sinh) — không dùng `joinedAt` (Date, chỉ mili giây). */
-  joinedAtKey: string;
-}
-
-export interface ListMembersParams {
-  orgId: string;
-  q?: string;
-  role?: OrgRoleValue;
-  /** [joinedAtKey, userId] của dòng cuối trang trước. */
-  after?: [string, string];
-  limit: number;
-}
+import type { ListMembersParams, MemberRow } from './organizations.types.js';
 
 @Injectable()
 export class OrganizationMembersRepository {

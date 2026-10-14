@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import type { AuthUser } from '../../src/common/auth/auth-user.js';
+import type { AuthUser } from '../../src/common/auth/auth.types.js';
 import { CurrentUser } from '../../src/common/auth/current-user.decorator.js';
 import { Public } from '../../src/common/auth/public.decorator.js';
 

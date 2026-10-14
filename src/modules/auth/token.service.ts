@@ -7,27 +7,13 @@ import {
   OPAQUE_TOKEN_PATTERN,
 } from '../../common/crypto/opaque-token.js';
 import type { EnvironmentVariables } from '../../config/env.validation.js';
+import type { AccessTokenClaims, AccessTokenVerification, IssuedToken } from './auth.types.js';
 
 export const JWT_ISSUER = 'meetnote-api';
 export const JWT_AUDIENCE = 'meetnote';
 
 /** 32 byte ngẫu nhiên → 43 ký tự base64url. DTO dùng regex này để từ chối rác trước khi tra DB. */
 export const REFRESH_TOKEN_PATTERN = OPAQUE_TOKEN_PATTERN;
-
-export interface AccessTokenClaims {
-  /** user id */
-  sub: string;
-  /** session id — không đổi suốt phiên, guard dùng để kiểm tra phiên còn sống. */
-  sid: string;
-}
-
-export interface IssuedToken {
-  token: string;
-  expiresAt: Date;
-}
-
-export type AccessTokenVerification =
-  { ok: true; claims: AccessTokenClaims } | { ok: false; reason: 'expired' | 'invalid' };
 
 /** SHA-256 đủ cho refresh token (entropy 256 bit) — không cần hash chậm như mật khẩu. */
 export const hashRefreshToken = hashOpaqueToken;

@@ -1,11 +1,6 @@
 import { HttpException, type HttpStatus } from '@nestjs/common';
 import type { ErrorCode } from './error-code.js';
-
-export interface ErrorDetail {
-  /** Đường dẫn tới field lỗi, vd `members.0.role`. */
-  field?: string;
-  message: string;
-}
+import type { ErrorDetail } from './errors.types.js';
 
 /**
  * Lỗi nghiệp vụ; `AllExceptionsFilter` chuyển thành response chuẩn. Kế thừa HttpException để Nest

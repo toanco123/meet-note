@@ -11,7 +11,6 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
-import type { Page } from '../../common/pagination/cursor.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { ApiPaginatedResponse } from '../../common/swagger/api-paginated-response.decorator.js';
 import { UserAuditCtx } from '../audit/audit-context.decorator.js';
@@ -21,6 +20,7 @@ import { ListMembersQueryDto } from './dto/list-members-query.dto.js';
 import { MemberResponseDto } from './dto/member-response.dto.js';
 import { RequireOrgPermission } from './guards/require-org-permission.decorator.js';
 import { OrganizationMembersService } from './organization-members.service.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
 
 @ApiTags('Organizations')
 @Controller('orgs/:orgId/members')

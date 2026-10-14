@@ -11,7 +11,6 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
-import type { Page } from '../../common/pagination/cursor.js';
 import { CursorQueryDto } from '../../common/pagination/cursor-query.dto.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { ApiPaginatedResponse } from '../../common/swagger/api-paginated-response.decorator.js';
@@ -21,6 +20,7 @@ import { RequireOrgPermission } from '../organizations/guards/require-org-permis
 import { CreateInviteDto } from './dto/create-invite.dto.js';
 import { CreatedInviteResponseDto, InviteResponseDto } from './dto/invite-response.dto.js';
 import { InvitesService } from './invites.service.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
 
 @ApiTags('Organizations')
 @Controller('orgs/:orgId/invites')

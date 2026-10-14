@@ -5,7 +5,7 @@ import {
   type ChannelRoleValue,
   type ChannelVisibility,
 } from '../../../infra/database/schema/index.js';
-import type { ChannelDetailRow } from '../channels.repository.js';
+import type { ChannelDetailRow } from '../channels.types.js';
 
 export class ChannelResponseDto {
   id: string;

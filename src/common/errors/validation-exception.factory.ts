@@ -1,6 +1,7 @@
 import type { ValidationError } from '@nestjs/common';
-import type { AppException, ErrorDetail } from './app.exception.js';
+import type { AppException } from './app.exception.js';
 import { Errors } from './errors.js';
+import type { ErrorDetail } from './errors.types.js';
 
 /** Biến cây ValidationError (có lồng `children`) thành danh sách phẳng `{ field, message }`. */
 export function flattenValidationErrors(errors: ValidationError[], parent?: string): ErrorDetail[] {

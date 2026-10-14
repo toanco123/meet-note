@@ -7,8 +7,8 @@ import {
   type OrgPermission,
   orgPolicy,
   type OrgRole,
-  type TargetDecision,
 } from '../../../../src/modules/organizations/organization.policy.js';
+import type { TargetDecision } from '../../../../src/modules/organizations/organizations.types.js';
 
 /**
  * Các bảng dưới đây là bản "chạy được" của ma trận trong docs/design/04-authorization.md §1.

@@ -1,21 +1,22 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import type { AuthUser } from '../../common/auth/auth-user.js';
+import type { AuthUser } from '../../common/auth/auth.types.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
-import type { Page } from '../../common/pagination/cursor.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { ApiPaginatedResponse } from '../../common/swagger/api-paginated-response.decorator.js';
 import { UserAuditCtx } from '../audit/audit-context.decorator.js';
 import type { UserAuditContext } from '../audit/audit.types.js';
 import { CurrentOrgMembership } from '../organizations/guards/org-membership.js';
 import { RequireOrgPermission } from '../organizations/guards/require-org-permission.decorator.js';
-import type { OrgMembershipContext } from '../organizations/organization.policy.js';
 import { ChannelsService } from './channels.service.js';
 import { CreateChannelDto, UpdateChannelDto } from './dto/channel-input.dto.js';
 import { ChannelResponseDto } from './dto/channel-response.dto.js';
 import { ListChannelsQueryDto } from './dto/list-channels-query.dto.js';
-import { type ChannelAccess, CurrentChannelAccess } from './guards/channel-access.js';
+import { CurrentChannelAccess } from './guards/channel-access.js';
 import { RequireChannelPermission } from './guards/require-channel-permission.decorator.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
+import type { OrgMembershipContext } from '../organizations/organizations.types.js';
+import type { ChannelAccess } from './channels.types.js';
 
 @ApiTags('Channels')
 @Controller('orgs/:orgId/channels')

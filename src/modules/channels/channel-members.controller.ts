@@ -12,7 +12,6 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
-import type { Page } from '../../common/pagination/cursor.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { ApiPaginatedResponse } from '../../common/swagger/api-paginated-response.decorator.js';
 import { UserAuditCtx } from '../audit/audit-context.decorator.js';
@@ -24,8 +23,10 @@ import {
   ListChannelMembersQueryDto,
   UpdateChannelMemberRoleDto,
 } from './dto/channel-member.dto.js';
-import { type ChannelAccess, CurrentChannelAccess } from './guards/channel-access.js';
+import { CurrentChannelAccess } from './guards/channel-access.js';
 import { RequireChannelPermission } from './guards/require-channel-permission.decorator.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
+import type { ChannelAccess } from './channels.types.js';
 
 @ApiTags('Channels')
 @Controller('orgs/:orgId/channels/:channelId/members')

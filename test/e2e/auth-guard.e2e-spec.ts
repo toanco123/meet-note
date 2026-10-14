@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { AuthUser } from '../../src/common/auth/auth-user.js';
+import type { AuthUser } from '../../src/common/auth/auth.types.js';
 import { DRIZZLE } from '../../src/infra/database/database.module.js';
 import type { Database } from '../../src/infra/database/database.types.js';
 import { sessions } from '../../src/infra/database/schema/index.js';

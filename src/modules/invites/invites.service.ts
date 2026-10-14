@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { generateOpaqueToken } from '../../common/crypto/opaque-token.js';
-import { decodeCursor, type Page, toPage } from '../../common/pagination/cursor.js';
+import { decodeCursor, toPage } from '../../common/pagination/cursor.js';
 import type { CursorQueryDto } from '../../common/pagination/cursor-query.dto.js';
 import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
@@ -13,6 +13,7 @@ import type { CreateInviteDto } from './dto/create-invite.dto.js';
 import { CreatedInviteResponseDto, InviteResponseDto } from './dto/invite-response.dto.js';
 import { InvitesRepository } from './invites.repository.js';
 import { Errors } from '../../common/errors/errors.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
 
 @Injectable()
 export class InvitesService {

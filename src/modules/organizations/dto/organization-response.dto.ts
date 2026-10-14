@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ORG_ROLES, type OrgRoleValue } from '../../../infra/database/schema/index.js';
-import type { MyOrganizationRow, OrganizationDetailRow } from '../organizations.repository.js';
+import type { MyOrganizationRow, OrganizationDetailRow } from '../organizations.types.js';
 
 /** Một org trong danh sách "org của tôi". */
 export class MyOrganizationResponseDto {

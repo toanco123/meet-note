@@ -10,7 +10,7 @@ import {
   Patch,
 } from '@nestjs/common';
 import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
-import type { AuthUser } from '../../common/auth/auth-user.js';
+import type { AuthUser } from '../../common/auth/auth.types.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { MeResponseDto } from './dto/me-response.dto.js';

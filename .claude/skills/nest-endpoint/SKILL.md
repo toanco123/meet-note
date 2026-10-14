@@ -22,6 +22,7 @@ src/modules/<domain>/
 ├─ <domain>.service.ts        # use-case: ranh giới transaction, gọi policy, ném Errors.*, ghi audit
 ├─ <domain>.repository.ts     # query Drizzle; mọi hàm nhận `DbExecutor` (db hoặc tx)
 ├─ <domain>.policy.ts         # hàm thuần (actor, target) → boolean
+├─ <domain>.types.ts          # interface / type viết tay (row repository, context, params); kiểu suy ra từ giá trị để cạnh giá trị
 └─ dto/*.dto.ts               # request + response DTO
 ```
 

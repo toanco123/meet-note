@@ -4,25 +4,7 @@ import { escapeLike, timestampKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import { channelMembers, type ChannelRoleValue, users } from '../../infra/database/schema/index.js';
-
-export interface ChannelMemberRow {
-  userId: string;
-  displayName: string;
-  email: string;
-  role: ChannelRoleValue;
-  joinedAt: Date;
-  /** Khoá cursor (ISO micro giây do DB sinh). */
-  joinedAtKey: string;
-}
-
-export interface ListChannelMembersParams {
-  channelId: string;
-  q?: string;
-  role?: ChannelRoleValue;
-  /** [joinedAtKey, userId] của dòng cuối trang trước. */
-  after?: [string, string];
-  limit: number;
-}
+import type { ChannelMemberListRow, ListChannelMembersParams } from './channels.types.js';
 
 const memberColumns = {
   userId: channelMembers.userId,
@@ -47,7 +29,7 @@ export class ChannelMembersRepository {
     role,
     after,
     limit,
-  }: ListChannelMembersParams): Promise<ChannelMemberRow[]> {
+  }: ListChannelMembersParams): Promise<ChannelMemberListRow[]> {
     return this.db
       .select(memberColumns)
       .from(channelMembers)
@@ -68,7 +50,7 @@ export class ChannelMembersRepository {
       .limit(limit + 1);
   }
 
-  async findMember(channelId: string, userId: string): Promise<ChannelMemberRow | undefined> {
+  async findMember(channelId: string, userId: string): Promise<ChannelMemberListRow | undefined> {
     const [row] = await this.db
       .select(memberColumns)
       .from(channelMembers)

@@ -3,8 +3,7 @@ import { Transform } from 'class-transformer';
 import { IsIn, IsOptional, IsString, IsUUID, Length } from 'class-validator';
 import { CursorQueryDto } from '../../../common/pagination/cursor-query.dto.js';
 import { CHANNEL_ROLES, type ChannelRoleValue } from '../../../infra/database/schema/index.js';
-import type { ChannelMemberRow } from '../channel-members.repository.js';
-import type { GrantableChannelRole } from '../channel.policy.js';
+import type { ChannelMemberListRow, GrantableChannelRole } from '../channels.types.js';
 
 /** Vai trò gán được qua API. `owner` không nằm ở đây: đổi chủ kênh = chuyển chủ kênh (B5). */
 export const GRANTABLE_CHANNEL_ROLES = [
@@ -70,7 +69,7 @@ export class ChannelMemberResponseDto {
   /** @example "2026-10-14T08:00:00.000Z" */
   joinedAt: string;
 
-  static from(row: ChannelMemberRow): ChannelMemberResponseDto {
+  static from(row: ChannelMemberListRow): ChannelMemberResponseDto {
     return {
       userId: row.userId,
       displayName: row.displayName,

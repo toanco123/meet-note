@@ -10,18 +10,7 @@ import {
   type JoinRequestStatus,
   users,
 } from '../../infra/database/schema/index.js';
-
-export interface JoinRequestListRow {
-  id: string;
-  userId: string;
-  displayName: string;
-  email: string;
-  role: InviteRole;
-  status: JoinRequestStatus;
-  createdAt: Date;
-  decidedAt: Date | null;
-  createdAtKey: string;
-}
+import type { JoinRequestListRow } from './invites.types.js';
 
 @Injectable()
 export class JoinRequestsRepository {

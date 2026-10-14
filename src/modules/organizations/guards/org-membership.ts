@@ -1,16 +1,6 @@
 import { createParamDecorator, type ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
-import type { OrgMembershipContext } from '../organization.policy.js';
-
-// Declaration merging: `req.orgMembership` có kiểu ở mọi nơi (do OrgMemberGuard gắn).
-declare global {
-  // oxlint-disable-next-line typescript/no-namespace -- cú pháp bắt buộc để mở rộng namespace Express
-  namespace Express {
-    interface Request {
-      orgMembership?: OrgMembershipContext;
-    }
-  }
-}
+import type { OrgMembershipContext } from '../organizations.types.js';
 
 /**
  * Lấy membership của người gọi trong org trên path: `handler(@CurrentOrgMembership() m)`.

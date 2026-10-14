@@ -1,10 +1,8 @@
 import type { AppException } from '../errors/app.exception.js';
 import { Errors } from '../errors/errors.js';
+import type { CursorKey, Page } from './pagination.types.js';
 
 const CURSOR_VERSION = 1;
-
-/** Giá trị trong cursor: cột sort + tie-breaker. Timestamp giữ dạng string lấy từ DB (đủ micro giây). */
-export type CursorKey = string | number;
 
 interface CursorPayload {
   v: number;
@@ -48,11 +46,6 @@ function isCursorPayload(value: unknown): value is CursorPayload {
 /** Giữ tên cũ cho các hàm khoá cursor; thông điệp nằm trong catalog. */
 export function invalidCursor(): AppException {
   return Errors.common.invalidCursor();
-}
-
-export interface Page<T> {
-  data: T[];
-  nextCursor: string | null;
 }
 
 /**

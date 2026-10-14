@@ -7,27 +7,11 @@ import {
   organizations,
   type OrgRoleValue,
 } from '../../infra/database/schema/index.js';
-
-export interface MyOrganizationRow {
-  id: string;
-  name: string;
-  role: OrgRoleValue;
-  joinedAt: Date;
-}
-
-/** Các field sửa được qua `PATCH /orgs/:orgId`. */
-export interface OrganizationPatch {
-  name?: string;
-  requireJoinApproval?: boolean;
-}
-
-export interface OrganizationDetailRow {
-  id: string;
-  name: string;
-  requireJoinApproval: boolean;
-  createdAt: Date;
-  memberCount: number;
-}
+import type {
+  MyOrganizationRow,
+  OrganizationDetailRow,
+  OrganizationPatch,
+} from './organizations.types.js';
 
 @Injectable()
 export class OrganizationsRepository {

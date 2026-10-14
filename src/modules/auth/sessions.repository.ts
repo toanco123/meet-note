@@ -9,11 +9,7 @@ import {
   type SessionRow,
   sessions,
 } from '../../infra/database/schema/index.js';
-
-export interface SessionMeta {
-  userAgent?: string | null;
-  ip?: string | null;
-}
+import type { SessionMeta } from './auth.types.js';
 
 /**
  * Truy vấn thuần cho sessions + refresh_tokens. Mọi hàm nhận `executor` để chạy được trong

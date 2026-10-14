@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
-import type { AuthUser } from '../../common/auth/auth-user.js';
+import type { AuthUser } from '../../common/auth/auth.types.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { UserAuditCtx } from '../audit/audit-context.decorator.js';
@@ -12,13 +12,13 @@ import {
 } from './dto/organization-response.dto.js';
 import { CurrentOrgMembership } from './guards/org-membership.js';
 import { RequireOrgPermission } from './guards/require-org-permission.decorator.js';
-import type { OrgMembershipContext } from './organization.policy.js';
 import { OrganizationMembersService } from './organization-members.service.js';
 import { OrganizationsService } from './organizations.service.js';
 import {
   OwnershipTransferResponseDto,
   TransferOwnershipDto,
 } from './dto/ownership-transfer.dto.js';
+import type { OrgMembershipContext } from './organizations.types.js';
 
 @ApiTags('Organizations')
 @Controller('orgs')

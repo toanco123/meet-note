@@ -1,6 +1,7 @@
 import { type AnyColumn, type SQL, sql } from 'drizzle-orm';
 import { isUuid } from '../validation/uuid.js';
-import { type CursorKey, invalidCursor } from './cursor.js';
+import { invalidCursor } from './cursor.js';
+import type { CursorKey } from './pagination.types.js';
 
 /**
  * Khoá thời gian cho cursor, do Postgres sinh: ISO 8601 UTC đủ MICRO giây.

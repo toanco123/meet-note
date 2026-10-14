@@ -4,16 +4,10 @@ import type { EnvironmentVariables } from '../../config/env.validation.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database } from '../../infra/database/database.types.js';
 import type { SessionRevokedReason, SessionRow } from '../../infra/database/schema/index.js';
-import { type SessionMeta, SessionsRepository } from './sessions.repository.js';
-import { hashRefreshToken, type IssuedToken, TokenService } from './token.service.js';
+import { SessionsRepository } from './sessions.repository.js';
+import { hashRefreshToken, TokenService } from './token.service.js';
 import { Errors } from '../../common/errors/errors.js';
-
-export interface AuthTokens {
-  userId: string;
-  sessionId: string;
-  accessToken: IssuedToken;
-  refreshToken: IssuedToken;
-}
+import type { AuthTokens, IssuedToken, SessionMeta } from './auth.types.js';
 
 /** Kết quả bên trong transaction. Lỗi được ném SAU khi commit — xem `rotate()`. */
 type RotateOutcome =

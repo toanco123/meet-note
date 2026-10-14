@@ -1,7 +1,7 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
-import type { AuthUser } from '../../common/auth/auth-user.js';
+import type { AuthUser } from '../../common/auth/auth.types.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import { Public } from '../../common/auth/public.decorator.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';

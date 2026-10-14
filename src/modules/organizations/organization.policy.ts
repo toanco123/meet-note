@@ -1,4 +1,5 @@
 import type { OrgRoleValue } from '../../infra/database/schema/index.js';
+import type { OrgMembershipContext, TargetDecision } from './organizations.types.js';
 
 /**
  * Quyền cấp tổ chức dưới dạng HÀM THUẦN — không DB, không HTTP. Guard và service cùng gọi;
@@ -11,12 +12,6 @@ const RANK: Record<OrgRole, number> = { owner: 3, admin: 2, member: 1 };
 
 export function isOrgRoleAtLeast(role: OrgRole, min: OrgRole): boolean {
   return RANK[role] >= RANK[min];
-}
-
-/** Do `OrgMemberGuard` gắn vào `req.orgMembership`. */
-export interface OrgMembershipContext {
-  orgId: string;
-  role: OrgRole;
 }
 
 /**
@@ -43,9 +38,6 @@ export const orgPolicy = {
 } satisfies Record<string, (ctx: OrgMembershipContext) => boolean>;
 
 export type OrgPermission = keyof typeof orgPolicy;
-
-/** Kết quả kiểm tra theo đối tượng — service đổi thành mã lỗi HTTP. */
-export type TargetDecision = 'ok' | 'forbidden' | 'owner_immutable';
 
 /**
  * Tầng 2 — đổi vai trò của MỘT người cụ thể. Gọi trong service SAU khi khoá dòng.

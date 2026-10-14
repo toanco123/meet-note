@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Errors } from '../../common/errors/errors.js';
-import { decodeCursor, type Page, toPage } from '../../common/pagination/cursor.js';
+import { decodeCursor, toPage } from '../../common/pagination/cursor.js';
 import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, Transaction } from '../../infra/database/database.types.js';
@@ -9,13 +9,10 @@ import type { UserAuditContext } from '../audit/audit.types.js';
 import type { ListMembersQueryDto } from './dto/list-members-query.dto.js';
 import { MemberResponseDto } from './dto/member-response.dto.js';
 import type { AssignableOrgRole } from './dto/update-member-role.dto.js';
-import {
-  canChangeRole,
-  canRemoveMember,
-  OrgRole,
-  type TargetDecision,
-} from './organization.policy.js';
+import { canChangeRole, canRemoveMember, OrgRole } from './organization.policy.js';
 import { OrganizationMembersRepository } from './organization-members.repository.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
+import type { TargetDecision } from './organizations.types.js';
 
 @Injectable()
 export class OrganizationMembersService {

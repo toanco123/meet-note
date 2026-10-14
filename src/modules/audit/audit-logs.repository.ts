@@ -4,21 +4,8 @@ import { timestampKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database } from '../../infra/database/database.types.js';
 import { auditLogs, users } from '../../infra/database/schema/index.js';
-import type { AuditAction } from './audit.types.js';
-
-export interface AuditLogListRow {
-  id: number;
-  action: string;
-  actorId: string | null;
-  actorDisplayName: string | null;
-  targetType: string;
-  targetId: string;
-  metadata: Record<string, unknown>;
-  requestId: string | null;
-  ip: string | null;
-  createdAt: Date;
-  createdAtKey: string;
-}
+import type { AuditAction } from './audit-actions.js';
+import type { AuditLogListRow } from './audit.types.js';
 
 @Injectable()
 export class AuditLogsRepository {

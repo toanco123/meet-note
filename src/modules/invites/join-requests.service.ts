@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { decodeCursor, type Page, toPage } from '../../common/pagination/cursor.js';
+import { decodeCursor, toPage } from '../../common/pagination/cursor.js';
 import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, Transaction } from '../../infra/database/database.types.js';
@@ -14,6 +14,7 @@ import {
 } from './dto/join-request.dto.js';
 import { JoinRequestsRepository } from './join-requests.repository.js';
 import { Errors } from '../../common/errors/errors.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
 
 @Injectable()
 export class JoinRequestsService {

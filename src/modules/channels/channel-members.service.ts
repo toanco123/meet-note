@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { decodeCursor, type Page, toPage } from '../../common/pagination/cursor.js';
+import { decodeCursor, toPage } from '../../common/pagination/cursor.js';
 import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database } from '../../infra/database/database.types.js';
@@ -11,16 +11,20 @@ import {
   canChangeChannelRole,
   canGrantChannelRole,
   canRemoveChannelMember,
-  type GrantableChannelRole,
 } from './channel.policy.js';
-import { type ChannelMemberRow, ChannelMembersRepository } from './channel-members.repository.js';
+import { ChannelMembersRepository } from './channel-members.repository.js';
 import { ChannelsService } from './channels.service.js';
 import {
   ChannelMemberResponseDto,
   type ListChannelMembersQueryDto,
 } from './dto/channel-member.dto.js';
-import type { ChannelAccess } from './guards/channel-access.js';
 import { Errors } from '../../common/errors/errors.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
+import type {
+  ChannelAccess,
+  ChannelMemberListRow,
+  GrantableChannelRole,
+} from './channels.types.js';
 
 /**
  * Mọi thao tác ghi đi theo THỨ TỰ KHOÁ CHUNG (03-database §7):
@@ -68,7 +72,7 @@ export class ChannelMembersService {
     userId: string,
     role: GrantableChannelRole,
     ctx: UserAuditContext,
-  ): Promise<ChannelMemberRow> {
+  ): Promise<ChannelMemberListRow> {
     const channelId = access.channel.id;
     await this.db.transaction(async (tx) => {
       const orgRole = await this.orgMembers.lockRoleForShare(access.orgId, userId, tx);
@@ -103,7 +107,7 @@ export class ChannelMembersService {
     userId: string,
     newRole: GrantableChannelRole,
     ctx: UserAuditContext,
-  ): Promise<ChannelMemberRow> {
+  ): Promise<ChannelMemberListRow> {
     const channelId = access.channel.id;
     await this.db.transaction(async (tx) => {
       const { actorRole } = await this.channels.lockForAction(
@@ -148,7 +152,7 @@ export class ChannelMembersService {
   }
 
   /** Đọc lại sau commit để trả response; người đó vừa bị gỡ ngay sau đó thì 404 là đúng sự thật. */
-  private async findOrFail(channelId: string, userId: string): Promise<ChannelMemberRow> {
+  private async findOrFail(channelId: string, userId: string): Promise<ChannelMemberListRow> {
     const row = await this.repo.findMember(channelId, userId);
     if (!row) throw Errors.channel.memberNotFound();
     return row;

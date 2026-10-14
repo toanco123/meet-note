@@ -9,8 +9,7 @@ import {
   type OrganizationInviteRow,
   organizations,
 } from '../../infra/database/schema/index.js';
-
-export type InviteListRow = OrganizationInviteRow & { createdAtKey: string };
+import type { InviteListRow } from './invites.types.js';
 
 @Injectable()
 export class InvitesRepository {

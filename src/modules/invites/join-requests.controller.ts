@@ -9,7 +9,6 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import type { Page } from '../../common/pagination/cursor.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { ApiPaginatedResponse } from '../../common/swagger/api-paginated-response.decorator.js';
 import { UserAuditCtx } from '../audit/audit-context.decorator.js';
@@ -21,6 +20,7 @@ import {
   ListJoinRequestsQueryDto,
 } from './dto/join-request.dto.js';
 import { JoinRequestsService } from './join-requests.service.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
 
 @ApiTags('Organizations')
 @Controller('orgs/:orgId/join-requests')

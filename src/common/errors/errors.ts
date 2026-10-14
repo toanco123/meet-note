@@ -1,6 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
-import { AppException, type ErrorDetail } from './app.exception.js';
+import { AppException } from './app.exception.js';
 import { ErrorCode } from './error-code.js';
+import type { ErrorDetail } from './errors.types.js';
 
 /**
  * CATALOG LỖI — mọi `AppException` trong `src/` được tạo ở đây, và chỉ ở đây

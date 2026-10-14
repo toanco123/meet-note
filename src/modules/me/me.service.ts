@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { AuthUser } from '../../common/auth/auth-user.js';
+import type { AuthUser } from '../../common/auth/auth.types.js';
 import { Errors } from '../../common/errors/errors.js';
 import type { UserRow } from '../../infra/database/schema/index.js';
 import { SessionsService } from '../auth/sessions.service.js';

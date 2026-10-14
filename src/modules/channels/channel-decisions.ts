@@ -1,6 +1,6 @@
 import { Errors } from '../../common/errors/errors.js';
-import type { TargetDecision } from '../organizations/organization.policy.js';
-import type { ChannelDecision } from './channel.policy.js';
+import type { TargetDecision } from '../organizations/organizations.types.js';
+import type { ChannelDecision } from './channels.types.js';
 
 /**
  * Policy là hàm THUẦN, trả về quyết định (`'ok' | 'forbidden' | …`), không biết gì về HTTP.

@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import type { SessionMeta } from './sessions.repository.js';
+import type { SessionMeta } from './auth.types.js';
 
 const MAX_USER_AGENT_LENGTH = 512;
 

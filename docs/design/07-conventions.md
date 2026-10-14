@@ -17,6 +17,15 @@
 | Audit action            | `domain.object.verb_past`                                                                | `org.member.role_changed`                                                  |
 | Env                     | UPPER_SNAKE, có tiền tố nhóm                                                             | `DATABASE_URL`, `S3_BUCKET`                                                |
 
+**Đặt interface / type ở đâu (từ M4 B4c):**
+
+- Interface / type **viết tay, được export** nằm trong `<module>.types.ts` của module đó (`channels/channels.types.ts`, `auth/auth.types.ts`, `common/pagination/pagination.types.ts`…). Gồm cả khối `declare global` mở rộng `Express.Request`. Trong file chia nhóm theo lớp dùng (policy + guard → repository).
+- Kiểu **suy ra từ một giá trị** để **cạnh giá trị gốc**: `(typeof X)[number]`, `typeof table.$inferSelect`, `keyof typeof policy`, cặp const/type cùng tên (`OrgRole`, `ErrorCode`). Tách ra thì hai thứ "là một" bị chia đôi.
+- Kiểu **không export** (chi tiết nội bộ một file, vd `CursorPayload`) để tại chỗ. Export ra chỉ để dời chỗ là biến chi tiết nội bộ thành API công khai.
+- File `*.types.ts` chỉ chứa kiểu, không có giá trị runtime. Hằng cần cho validate / Swagger enum để ở file riêng (vd `audit/audit-actions.ts`).
+- Không làm thư mục `src/types/` chung: nó thành nơi mọi module cùng import vào, type trôi xa code dùng nó, và các module dính chéo nhau qua đó.
+- Test kiến trúc `test/unit/architecture/types-location.spec.ts` canh các luật trên.
+
 **ESM:** import tương đối **bắt buộc có đuôi `.js`** (`import { X } from './x.js'`), kể cả khi file nguồn là `.ts`. Không dùng `__dirname`, dùng `import.meta.dirname`. Không `require()`.
 
 ## 2. Xử lý lỗi & định dạng lỗi

@@ -5,13 +5,13 @@ import {
   canGrantChannelRole,
   canReceiveChannelOwnership,
   canRemoveChannelMember,
-  type ChannelAccessContext,
   type ChannelPermission,
   channelPolicy,
   decideChannelPermission,
   type ChannelRole,
 } from '../../../../src/modules/channels/channel.policy.js';
-import type { TargetDecision } from '../../../../src/modules/organizations/organization.policy.js';
+import type { ChannelAccessContext } from '../../../../src/modules/channels/channels.types.js';
+import type { TargetDecision } from '../../../../src/modules/organizations/organizations.types.js';
 
 /**
  * Bản "chạy được" của ma trận docs/design/04-authorization.md §2.

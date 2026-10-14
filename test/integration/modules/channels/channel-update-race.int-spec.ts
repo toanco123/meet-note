@@ -6,7 +6,6 @@ import { channelMembers, channels } from '../../../../src/infra/database/schema/
 import { AuditService } from '../../../../src/modules/audit/audit.service.js';
 import { ChannelsRepository } from '../../../../src/modules/channels/channels.repository.js';
 import { ChannelsService } from '../../../../src/modules/channels/channels.service.js';
-import type { ChannelAccess } from '../../../../src/modules/channels/guards/channel-access.js';
 import {
   addChannelMember,
   addMember,
@@ -16,6 +15,7 @@ import {
 } from '../../../support/db-factories.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 import { lockChannelThen, runWhileLocked } from '../../../support/locks.js';
+import type { ChannelAccess } from '../../../../src/modules/channels/channels.types.js';
 
 /**
  * Guard đọc quyền + trạng thái kênh TRƯỚC khi service khoá dòng kênh. Ở giữa, một thao tác khác
