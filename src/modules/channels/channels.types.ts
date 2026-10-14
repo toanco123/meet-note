@@ -114,3 +114,20 @@ export interface ListChannelMembersParams {
   after?: [string, string];
   limit: number;
 }
+
+// ── Dọn dẹp kênh đã xoá mềm ───────────────────────────────────────────────────
+
+export interface PurgeOptions {
+  /** Số kênh tối đa mỗi lô. @default 100 */
+  limit?: number;
+  /** Chỉ xoá cứng kênh đã xoá mềm lâu hơn số ngày này. @default 30 */
+  retentionDays?: number;
+  /** Đợi khoá quá lâu thì bỏ (55P03) thay vì treo job. @default 5000 */
+  lockTimeoutMs?: number;
+}
+
+export interface PurgedChannel {
+  id: string;
+  orgId: string;
+  name: string;
+}

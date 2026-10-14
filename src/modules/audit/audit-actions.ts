@@ -24,6 +24,10 @@ export const AUDIT_ACTIONS = [
   'channel.member.joined',
   'channel.member.left',
   'channel.ownership.transferred',
+  'channel.archived',
+  'channel.unarchived',
+  'channel.deleted',
+  'channel.purged',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

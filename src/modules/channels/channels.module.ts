@@ -5,6 +5,7 @@ import { ChannelMembersRepository } from './repositories/channel-members.reposit
 import { ChannelMembersService } from './services/channel-members.service.js';
 import { ChannelsController } from './controllers/channels.controller.js';
 import { ChannelsRepository } from './repositories/channels.repository.js';
+import { ChannelsPurgeService } from './services/channels-purge.service.js';
 import { ChannelsService } from './services/channels.service.js';
 import { ChannelAccessGuard } from './guards/channel-access.guard.js';
 import { ChannelPermissionGuard } from './guards/channel-permission.guard.js';
@@ -17,6 +18,7 @@ import { ChannelPermissionGuard } from './guards/channel-permission.guard.js';
   providers: [
     ChannelsRepository,
     ChannelsService,
+    ChannelsPurgeService,
     ChannelMembersRepository,
     ChannelMembersService,
     ChannelAccessGuard,

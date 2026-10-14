@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { escapeLike } from '../../../common/pagination/keys.js';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
@@ -16,6 +16,7 @@ import type {
   ChannelPatch,
   ListChannelsParams,
   LockedChannel,
+  PurgedChannel,
 } from '../channels.types.js';
 
 export const CHANNELS_ORG_NAME_UNIQUE = 'channels_org_name_uq';
@@ -163,6 +164,49 @@ export class ChannelsRepository {
       .from(channelMembers)
       .where(and(eq(channelMembers.channelId, channelId), eq(channelMembers.userId, userId)));
     return row?.role ?? null;
+  }
+
+  /** Thời điểm lấy từ `now()` của Postgres (cùng đồng hồ với `deleted_at` / cutoff dọn dẹp). */
+  async setArchived(channelId: string, archived: boolean, executor: DbExecutor): Promise<void> {
+    await executor
+      .update(channels)
+      .set({ archivedAt: archived ? sql`now()` : null })
+      .where(eq(channels.id, channelId));
+  }
+
+  async softDelete(channelId: string, executor: DbExecutor): Promise<void> {
+    await executor
+      .update(channels)
+      .set({ deletedAt: sql`now()` })
+      .where(eq(channels.id, channelId));
+  }
+
+  /**
+   * Xoá CỨNG một lô kênh đã xoá mềm quá hạn — một câu lệnh:
+   *
+   *   DELETE FROM channels WHERE id IN (
+   *     SELECT id FROM channels WHERE deleted_at < now() - …
+   *     ORDER BY deleted_at LIMIT $n FOR UPDATE SKIP LOCKED)
+   *
+   * `SKIP LOCKED`: nhiều worker chạy cùng lúc, mỗi worker lấy những dòng CHƯA ai khoá thay vì đứng
+   * đợi worker khác → không giẫm chân nhau, không lô nào bị xoá hai lần. Dùng index
+   * `channels_purge_idx (deleted_at) WHERE deleted_at IS NOT NULL`. Cascade xoá `channel_members`.
+   */
+  purgeDeletedBatch(
+    { limit, retentionDays }: { limit: number; retentionDays: number },
+    executor: DbExecutor,
+  ): Promise<PurgedChannel[]> {
+    const batch = executor
+      .select({ id: channels.id })
+      .from(channels)
+      .where(sql`${channels.deletedAt} < now() - make_interval(days => ${retentionDays}::int)`)
+      .orderBy(asc(channels.deletedAt))
+      .limit(limit)
+      .for('update', { skipLocked: true });
+    return executor
+      .delete(channels)
+      .where(inArray(channels.id, batch))
+      .returning({ id: channels.id, orgId: channels.orgId, name: channels.name });
   }
 
   async update(channelId: string, patch: ChannelPatch, executor: DbExecutor): Promise<void> {

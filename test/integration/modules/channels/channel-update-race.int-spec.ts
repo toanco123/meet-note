@@ -15,6 +15,7 @@ import {
 } from '../../../support/db-factories.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 import { lockChannelThen, runWhileLocked } from '../../../support/locks.js';
+import { OrganizationMembersRepository } from '../../../../src/modules/organizations/repositories/organization-members.repository.js';
 import type { ChannelAccess } from '../../../../src/modules/channels/channels.types.js';
 
 /**
@@ -37,6 +38,7 @@ describe('Race: sửa kênh ‖ thay đổi đồng thời trên kênh đó (Pos
       providers: [
         ChannelsService,
         ChannelsRepository,
+        OrganizationMembersRepository,
         AuditService,
         { provide: DRIZZLE, useValue: t.db },
       ],

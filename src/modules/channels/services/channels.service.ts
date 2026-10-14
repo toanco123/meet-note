@@ -20,6 +20,7 @@ import { ChannelResponseDto } from '../dto/channel-response.dto.js';
 import type { ListChannelsQueryDto } from '../dto/list-channels-query.dto.js';
 import type { Page } from '../../../common/pagination/pagination.types.js';
 import type { OrgMembershipContext } from '../../organizations/organizations.types.js';
+import { OrganizationMembersRepository } from '../../organizations/repositories/organization-members.repository.js';
 import type {
   ChannelAccess,
   ChannelDetailRow,
@@ -35,6 +36,7 @@ export class ChannelsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly repo: ChannelsRepository,
+    private readonly orgMembers: OrganizationMembersRepository,
     private readonly audit: AuditService,
   ) {}
 
@@ -165,6 +167,65 @@ export class ChannelsService {
       })
       .catch(mapNameTaken);
     return this.getDetail(channelId, ctx.actorId);
+  }
+
+  /**
+   * Lưu trữ (`archived = true`) / bỏ lưu trữ. CO hoặc OrgAdm. Đã đúng trạng thái → không đổi gì,
+   * không ghi audit (gọi lại an toàn).
+   */
+  async setArchived(
+    access: ChannelAccess,
+    archived: boolean,
+    ctx: UserAuditContext,
+  ): Promise<ChannelDetailRow> {
+    const channelId = access.channel.id;
+    await this.db.transaction(async (tx) => {
+      const { channel } = await this.lockForOrgAdminAction(access, 'channel.archive', tx);
+      if ((channel.archivedAt !== null) === archived) return;
+
+      await this.repo.setArchived(channelId, archived, tx);
+      await this.audit.record(tx, ctx, {
+        orgId: access.orgId,
+        action: archived ? 'channel.archived' : 'channel.unarchived',
+        targetType: 'channel',
+        targetId: channelId,
+      });
+    });
+    return this.getDetail(channelId, access.userId);
+  }
+
+  /**
+   * Xoá MỀM: `deleted_at = now()` → mọi người nhận 404 (guard lọc), tên dùng lại được ngay (unique
+   * index chỉ tính kênh chưa xoá). Dữ liệu còn nguyên tới khi `ChannelsPurgeService` xoá cứng sau
+   * 30 ngày.
+   */
+  async softDelete(access: ChannelAccess, ctx: UserAuditContext): Promise<void> {
+    const channelId = access.channel.id;
+    await this.db.transaction(async (tx) => {
+      const { channel } = await this.lockForOrgAdminAction(access, 'channel.delete', tx);
+      await this.repo.softDelete(channelId, tx);
+      await this.audit.record(tx, ctx, {
+        orgId: access.orgId,
+        action: 'channel.deleted',
+        targetType: 'channel',
+        targetId: channelId,
+        metadata: { before: { name: channel.name } },
+      });
+    });
+  }
+
+  /**
+   * Thao tác mà OrgAdm làm được nhờ quyền override (lưu trữ, xoá): quyền dựa trên vai trò TỔ CHỨC,
+   * nên khoá `FOR SHARE` dòng đó trước (bậc 1) để nó giữ nguyên tới lúc commit, rồi mới khoá kênh.
+   */
+  private async lockForOrgAdminAction(
+    access: ChannelAccess,
+    permission: ChannelPermission,
+    tx: Transaction,
+  ) {
+    const orgRole = await this.orgMembers.lockRoleForShare(access.orgId, access.userId, tx);
+    if (!orgRole) throw Errors.org.notFound();
+    return this.lockForAction(access, permission, tx, orgRole);
   }
 }
 

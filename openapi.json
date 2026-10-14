@@ -2507,6 +2507,69 @@
         "tags": [
           "Channels"
         ]
+      },
+      "delete": {
+        "description": "Xoá mềm: từ giờ mọi người nhận 404, tên kênh dùng lại được ngay. Dữ liệu bị xoá cứng\nsau 30 ngày.",
+        "operationId": "Channels_remove",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã xoá kênh."
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Xoá kênh (Chủ kênh, Owner/Admin tổ chức).",
+        "tags": [
+          "Channels"
+        ]
       }
     },
     "/v1/orgs/{orgId}/channels/{channelId}/join": {
@@ -2787,6 +2850,173 @@
           }
         },
         "summary": "Chuyển chủ kênh (Chủ kênh, hoặc Owner/Admin tổ chức chuyển hộ).",
+        "tags": [
+          "Channels"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/archive": {
+      "post": {
+        "description": "Kênh lưu trữ = chỉ đọc: mọi thao tác ghi trả 409 `CHANNEL_ARCHIVED`, trừ rời kênh,\nbỏ lưu trữ và xoá. Gọi lại khi đã lưu trữ → 200, không đổi gì.",
+        "operationId": "Channels_archive",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Lưu trữ kênh (Chủ kênh, Owner/Admin tổ chức).",
+        "tags": [
+          "Channels"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/unarchive": {
+      "post": {
+        "operationId": "Channels_unarchive",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Bỏ lưu trữ kênh (Chủ kênh, Owner/Admin tổ chức). Chưa lưu trữ → 200, không đổi gì.",
         "tags": [
           "Channels"
         ]
@@ -4531,7 +4761,11 @@
           "channel.member.removed",
           "channel.member.joined",
           "channel.member.left",
-          "channel.ownership.transferred"
+          "channel.ownership.transferred",
+          "channel.archived",
+          "channel.unarchived",
+          "channel.deleted",
+          "channel.purged"
         ]
       },
       "AuditLogResponseDto": {

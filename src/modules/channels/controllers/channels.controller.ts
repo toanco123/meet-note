@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -165,5 +166,49 @@ export class ChannelsController {
     @Body() dto: TransferChannelOwnershipDto,
   ): Promise<ChannelOwnershipTransferResponseDto> {
     return this.members.transferOwnership(access, dto.newOwnerId, audit);
+  }
+
+  /**
+   * Lưu trữ kênh (Chủ kênh, Owner/Admin tổ chức).
+   *
+   * @remarks Kênh lưu trữ = chỉ đọc: mọi thao tác ghi trả 409 `CHANNEL_ARCHIVED`, trừ rời kênh,
+   * bỏ lưu trữ và xoá. Gọi lại khi đã lưu trữ → 200, không đổi gì.
+   */
+  @Post(':channelId/archive')
+  @HttpCode(HttpStatus.OK)
+  @RequireChannelPermission('channel.archive')
+  async archive(
+    @CurrentChannelAccess() access: ChannelAccess,
+    @UserAuditCtx() audit: UserAuditContext,
+  ): Promise<ChannelResponseDto> {
+    return ChannelResponseDto.from(await this.channels.setArchived(access, true, audit));
+  }
+
+  /** Bỏ lưu trữ kênh (Chủ kênh, Owner/Admin tổ chức). Chưa lưu trữ → 200, không đổi gì. */
+  @Post(':channelId/unarchive')
+  @HttpCode(HttpStatus.OK)
+  @RequireChannelPermission('channel.archive')
+  async unarchive(
+    @CurrentChannelAccess() access: ChannelAccess,
+    @UserAuditCtx() audit: UserAuditContext,
+  ): Promise<ChannelResponseDto> {
+    return ChannelResponseDto.from(await this.channels.setArchived(access, false, audit));
+  }
+
+  /**
+   * Xoá kênh (Chủ kênh, Owner/Admin tổ chức).
+   *
+   * @remarks Xoá mềm: từ giờ mọi người nhận 404, tên kênh dùng lại được ngay. Dữ liệu bị xoá cứng
+   * sau 30 ngày.
+   */
+  @Delete(':channelId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequireChannelPermission('channel.delete')
+  @ApiNoContentResponse({ description: 'Đã xoá kênh.' })
+  async remove(
+    @CurrentChannelAccess() access: ChannelAccess,
+    @UserAuditCtx() audit: UserAuditContext,
+  ): Promise<void> {
+    await this.channels.softDelete(access, audit);
   }
 }
