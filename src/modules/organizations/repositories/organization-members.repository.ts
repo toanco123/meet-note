@@ -87,6 +87,26 @@ export class OrganizationMembersRepository {
     return row?.role;
   }
 
+  /**
+   * Nhiều dòng `FOR SHARE`, LUÔN theo `user_id` tăng dần (bậc 1 của thứ tự khoá chung). Dùng khi một
+   * thao tác ở cấp kênh cần "những người này còn trong tổ chức, vai trò giữ nguyên" tới lúc commit —
+   * vd chuyển chủ kênh khoá người gọi + người nhận.
+   */
+  lockRolesForShare(
+    orgId: string,
+    userIds: string[],
+    executor: DbExecutor,
+  ): Promise<Array<{ userId: string; role: OrgRoleValue }>> {
+    return executor
+      .select({ userId: organizationMembers.userId, role: organizationMembers.role })
+      .from(organizationMembers)
+      .where(
+        and(eq(organizationMembers.orgId, orgId), inArray(organizationMembers.userId, userIds)),
+      )
+      .orderBy(asc(organizationMembers.userId))
+      .for('share');
+  }
+
   /** `ON CONFLICT DO NOTHING` trên PK (org_id, user_id): đã là thành viên → trả `false`, không lỗi. */
   async insertIfAbsent(
     values: { orgId: string; userId: string; role: OrgRoleValue },

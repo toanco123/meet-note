@@ -372,7 +372,9 @@ Dùng cho các POST không tự idempotent, theo header `Idempotency-Key`.
 
 Ví dụ:
 
-- **OrgAdm chuyển chủ kênh:** khoá `FOR SHARE` vai trò tổ chức của mình và của người nhận (bậc 1) → kênh (bậc 2) → hai dòng thành viên kênh (bậc 3).
+- **Chuyển chủ kênh (CO hoặc OrgAdm):** khoá `FOR SHARE` dòng tổ chức của người gọi và người nhận (bậc 1) → kênh (bậc 2) → dòng chủ hiện tại + người nhận (bậc 3). Đảo bậc 1 xuống cuối thì "gỡ X khỏi org ‖ chuyển cho X" chờ nhau vòng tròn → `40P01` (đã chứng minh bằng đột biến, M4 B5).
+- **Tham gia kênh:** khoá `FOR SHARE` dòng tổ chức của mình (bậc 1) → kênh (bậc 2) → `INSERT … ON CONFLICT DO NOTHING`.
+- **Rời kênh:** kênh (bậc 2) → dòng của mình (bậc 3), kiểm tra không phải chủ trên dòng VỪA KHOÁ.
 - **Gỡ X khỏi org:** khoá dòng tổ chức của người gỡ và X (bậc 1) → kiểm tra X không làm chủ kênh nào → xoá.
 - **Thêm X vào kênh:** khoá `FOR SHARE` dòng tổ chức của X (bậc 1) → kênh (bậc 2) → `INSERT … ON CONFLICT DO NOTHING`.
 - **Đổi vai trò / gỡ X khỏi kênh:** kênh (bậc 2) → dòng `channel_members` của X (bậc 3). Vẫn phải khoá bậc 3 dù kênh đã là mutex: gỡ X khỏi **tổ chức** xoá dòng này qua cascade mà không đi qua dòng kênh.

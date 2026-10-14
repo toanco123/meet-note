@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, or, sql } from 'drizzle-orm';
 import { escapeLike, timestampKey } from '../../../common/pagination/keys.js';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../../infra/database/database.types.js';
@@ -80,6 +80,28 @@ export class ChannelMembersRepository {
       .where(and(eq(channelMembers.channelId, channelId), eq(channelMembers.userId, userId)))
       .for('update');
     return row?.role;
+  }
+
+  /**
+   * Bậc 3 khi chuyển chủ kênh: khoá dòng CHỦ HIỆN TẠI + dòng NGƯỜI NHẬN trong một câu, theo `user_id`
+   * tăng dần. Không cần biết trước ai là chủ: `role = 'owner'` tìm luôn.
+   */
+  lockOwnerAndMember(
+    channelId: string,
+    userId: string,
+    executor: DbExecutor,
+  ): Promise<Array<{ userId: string; role: ChannelRoleValue }>> {
+    return executor
+      .select({ userId: channelMembers.userId, role: channelMembers.role })
+      .from(channelMembers)
+      .where(
+        and(
+          eq(channelMembers.channelId, channelId),
+          or(eq(channelMembers.role, 'owner'), eq(channelMembers.userId, userId)),
+        ),
+      )
+      .orderBy(asc(channelMembers.userId))
+      .for('update');
   }
 
   /** `ON CONFLICT DO NOTHING` trên PK (channel_id, user_id): đã là thành viên → `false`, không lỗi. */

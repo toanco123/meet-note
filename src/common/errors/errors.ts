@@ -136,6 +136,19 @@ export const Errors = {
     archived: () => conflict(ErrorCode.ChannelArchived, 'Kênh đã được lưu trữ (chỉ đọc).'),
     memberNotFound: () => notFound('Không tìm thấy thành viên kênh.'),
     alreadyMember: () => conflict(ErrorCode.ChannelAlreadyMember, 'Người này đã ở trong kênh.'),
+    alreadyJoined: () => conflict(ErrorCode.ChannelAlreadyMember, 'Bạn đã ở trong kênh này.'),
+    ownerMustTransfer: () =>
+      conflict(
+        ErrorCode.ChannelOwnerMustTransfer,
+        'Chủ kênh phải chuyển chủ kênh cho người khác trước khi rời kênh.',
+      ),
+    transferToCurrentOwner: () =>
+      conflict(ErrorCode.ChannelTransferInvalidTarget, 'Người này đã là Chủ kênh.'),
+    transferToGuest: () =>
+      conflict(
+        ErrorCode.ChannelTransferInvalidTarget,
+        'Khách không thể làm Chủ kênh. Hãy đổi vai trò người này trước.',
+      ),
     ownerImmutable: () =>
       conflict(
         ErrorCode.ChannelOwnerImmutable,

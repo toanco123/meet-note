@@ -10,7 +10,9 @@ import { assertChannelTargetDecision } from '../channel-decisions.js';
 import {
   canChangeChannelRole,
   canGrantChannelRole,
+  canReceiveChannelOwnership,
   canRemoveChannelMember,
+  ChannelRole,
 } from '../channel.policy.js';
 import { ChannelMembersRepository } from '../repositories/channel-members.repository.js';
 import { ChannelsService } from './channels.service.js';
@@ -149,6 +151,113 @@ export class ChannelMembersService {
         metadata: { userId, before: { role: target } },
       });
     });
+  }
+
+  /**
+   * Tự tham gia kênh công khai. Cùng thứ tự khoá với `add`: dòng tổ chức của mình `FOR SHARE`
+   * (bậc 1) → kênh (bậc 2, kiểm tra lại: kênh vẫn công khai, chưa lưu trữ) → INSERT.
+   */
+  async join(access: ChannelAccess, ctx: UserAuditContext): Promise<void> {
+    const channelId = access.channel.id;
+    await this.db.transaction(async (tx) => {
+      const orgRole = await this.orgMembers.lockRoleForShare(access.orgId, ctx.actorId, tx);
+      if (!orgRole) throw Errors.org.notFound();
+      await this.channels.lockForAction(access, 'channel.join', tx, orgRole);
+
+      const inserted = await this.repo.insertIfAbsent(
+        { channelId, orgId: access.orgId, userId: ctx.actorId, role: 'member' },
+        tx,
+      );
+      if (!inserted) throw Errors.channel.alreadyJoined();
+      await this.audit.record(tx, ctx, {
+        orgId: access.orgId,
+        action: 'channel.member.joined',
+        targetType: 'channel',
+        targetId: channelId,
+        metadata: { userId: ctx.actorId, after: { role: 'member' } },
+      });
+    });
+  }
+
+  /**
+   * Tự rời kênh. Kênh lưu trữ vẫn cho rời (không ai bị kẹt). Chủ kênh phải chuyển chủ trước:
+   * kiểm tra trên dòng VỪA KHOÁ — một transfer song song có thể vừa biến người này thành chủ.
+   */
+  async leave(access: ChannelAccess, ctx: UserAuditContext): Promise<void> {
+    const channelId = access.channel.id;
+    await this.db.transaction(async (tx) => {
+      await this.channels.lockForAction(access, 'channel.leave', tx);
+      const role = await this.repo.lockMember(channelId, ctx.actorId, tx);
+      if (!role) throw Errors.channel.memberNotFound();
+      if (role === ChannelRole.Owner) throw Errors.channel.ownerMustTransfer();
+
+      await this.repo.deleteMember(channelId, ctx.actorId, tx);
+      await this.audit.record(tx, ctx, {
+        orgId: access.orgId,
+        action: 'channel.member.left',
+        targetType: 'channel',
+        targetId: channelId,
+        metadata: { userId: ctx.actorId, before: { role } },
+      });
+    });
+  }
+
+  /**
+   * Chuyển chủ kênh (CO, hoặc OrgAdm chuyển hộ) — đúng THỨ TỰ KHOÁ CHUNG, từng bậc:
+   *
+   * 1. `organization_members` của người gọi + người nhận, `FOR SHARE`, theo `user_id`: người nhận
+   *    không bị gỡ khỏi org giữa chừng; vai trò OrgAdm của người gọi giữ nguyên tới lúc commit.
+   * 2. `channels` (mutex của kênh) + kiểm tra lại quyền với vai trò org VỪA KHOÁ.
+   * 3. `channel_members` của chủ hiện tại + người nhận, `FOR UPDATE`, theo `user_id`.
+   *
+   * Đảo bậc 1 xuống cuối → "gỡ X khỏi org ‖ chuyển cho X" chờ nhau vòng tròn → 40P01 (race test).
+   * Ghi: HẠ chủ cũ trước, NÂNG chủ mới sau — partial unique index "một chủ / kênh" không deferrable.
+   */
+  async transferOwnership(
+    access: ChannelAccess,
+    newOwnerId: string,
+    ctx: UserAuditContext,
+  ): Promise<{ channelId: string; ownerId: string }> {
+    const channelId = access.channel.id;
+    await this.db.transaction(async (tx) => {
+      // Bậc 1
+      const orgRows = await this.orgMembers.lockRolesForShare(
+        access.orgId,
+        [ctx.actorId, newOwnerId],
+        tx,
+      );
+      const actorOrgRole = orgRows.find((r) => r.userId === ctx.actorId)?.role;
+      if (!actorOrgRole) throw Errors.org.notFound();
+      if (!orgRows.some((r) => r.userId === newOwnerId)) throw Errors.org.memberNotFound();
+
+      // Bậc 2
+      await this.channels.lockForAction(access, 'channel.ownership.transfer', tx, actorOrgRole);
+
+      // Bậc 3
+      const rows = await this.repo.lockOwnerAndMember(channelId, newOwnerId, tx);
+      const target = rows.find((r) => r.userId === newOwnerId)?.role ?? null;
+      if (target === null) throw Errors.channel.memberNotFound();
+      if (!canReceiveChannelOwnership(target)) {
+        throw target === ChannelRole.Owner
+          ? Errors.channel.transferToCurrentOwner()
+          : Errors.channel.transferToGuest();
+      }
+      const oldOwner = rows.find((r) => r.role === ChannelRole.Owner);
+
+      if (oldOwner) await this.repo.updateRole(channelId, oldOwner.userId, ChannelRole.Admin, tx);
+      await this.repo.updateRole(channelId, newOwnerId, ChannelRole.Owner, tx);
+      await this.audit.record(tx, ctx, {
+        orgId: access.orgId,
+        action: 'channel.ownership.transferred',
+        targetType: 'channel',
+        targetId: channelId,
+        metadata: {
+          before: { ownerId: oldOwner?.userId ?? null, newOwnerRole: target },
+          after: { ownerId: newOwnerId, previousOwnerRole: ChannelRole.Admin },
+        },
+      });
+    });
+    return { channelId, ownerId: newOwnerId };
   }
 
   /** Đọc lại sau commit để trả response; người đó vừa bị gỡ ngay sau đó thì 404 là đúng sự thật. */

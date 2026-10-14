@@ -36,7 +36,7 @@ CO = Chủ kênh, CA = QTV kênh, CM = Thành viên kênh, G = Khách.
 | Xem metadata kênh                            |           ✓           |        ✓         |          ✓           |  ✓  |      ✓      |                 ✓                 |
 | Xem meeting / transcript / tóm tắt / báo cáo |           ✓           |        ✓         |          ✓           |  ✓  |      ✓      |      chỉ khi kênh công khai       |
 | Xem danh sách thành viên                     |           ✓           |        ✓         |          ✓           |  ✗  |      ✓      |                 ✓                 |
-| Tự join                                      |           –           |        –         |          –           |  –  |      ✓      |       ✓ nếu kênh công khai        |
+| Tự join                                      |   409 (đã ở trong)    | 409 (đã ở trong) |   409 (đã ở trong)   | 409 |      ✓      |       ✓ nếu kênh công khai        |
 | Rời kênh                                     | phải chuyển chủ trước |        ✓         |          ✓           |  ✓  |      –      |                 –                 |
 | Chia sẻ meeting (của chính mình) vào kênh    |           ✓           |        ✓         |          ✓           |  ✗  |      ✗      |                 ✗                 |
 | Gỡ meeting khỏi kênh                         |           ✓           |        ✓         | chỉ meeting của mình |  ✗  |      ✗      |                 ✗                 |

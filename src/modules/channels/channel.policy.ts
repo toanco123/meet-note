@@ -37,7 +37,8 @@ export const channelPolicy = {
   /** Khách không xem được danh sách thành viên; người ngoài kênh công khai và OrgAdm thì được. */
   'channel.member.list': (c) =>
     isChannelMember(c) ? c.channelRole !== ChannelRole.Guest : isPublic(c) || isOrgAdmin(c),
-  'channel.join': (c) => !isChannelMember(c) && isPublic(c),
+  /** Thành viên kênh gọi được (service trả 409 "đã ở trong kênh"); người ngoài chỉ join kênh công khai. */
+  'channel.join': (c) => isChannelMember(c) || isPublic(c),
   /** Mọi thành viên kênh; service trả 409 riêng cho Chủ kênh (phải chuyển chủ trước). */
   'channel.leave': (c) => isChannelMember(c),
   'channel.member.add': (c) => isChannelRoleAtLeast(c.channelRole, ChannelRole.Admin),

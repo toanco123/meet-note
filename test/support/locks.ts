@@ -1,5 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
-import type { AppException } from '../../src/common/errors/app.exception.js';
+import { AppException } from '../../src/common/errors/app.exception.js';
+import { findPgError } from '../../src/common/errors/pg-error.js';
 import type { Database, Transaction } from '../../src/infra/database/database.types.js';
 import { channels } from '../../src/infra/database/schema/index.js';
 
@@ -26,44 +27,67 @@ export async function waitForLockWaiters(db: Database, count = 1, timeoutMs = 50
 /**
  * Ép thứ tự xen kẽ cho test race:
  *
- *   T1 (holder):   BEGIN → `hold(tx)` (khoá + đổi dữ liệu) ──── giữ khoá ──── COMMIT
- *   T2 (contender):              `contend()` → chạm khoá của T1 … ĐỢI … ─────────── → chạy tiếp
+ *   T1 (holder):    BEGIN → `hold(tx)` (khoá…) ── giữ khoá ── [`afterWait(tx)`] ── COMMIT
+ *   T2 (contender):           `contend()` → chạm khoá của T1 … ĐỢI … ──────────── → chạy tiếp
  *
- * T1 chỉ commit khi T2 đã THỰC SỰ đợi khoá (`waitForLockWaiters`) → T2 luôn thấy dữ liệu T1 vừa
- * commit. Kết quả của T2 trả về dạng chuỗi qua `outcomeOf` để so sánh gọn.
+ * T1 chỉ đi tiếp khi T2 đã THỰC SỰ đợi khoá (`waitForLockWaiters`). `afterWait` (tuỳ chọn) chạy ở
+ * thời điểm đó, vd xoá một dòng mà cascade cần khoá T2 có thể đang giữ — chính là chỗ deadlock
+ * xảy ra nếu T2 khoá sai thứ tự. Trả kết quả CẢ HAI phía (`outcomeOf`) để thấy ai bị Postgres
+ * chọn làm nạn nhân (`pg:40P01`).
  */
+export async function interleave(
+  db: Database,
+  steps: {
+    hold: (tx: Transaction) => Promise<unknown>;
+    contend: () => Promise<unknown>;
+    afterWait?: (tx: Transaction) => Promise<unknown>;
+  },
+): Promise<{ holder: string; contender: string }> {
+  const held = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const holder = outcomeOf(
+    db.transaction(async (tx) => {
+      await steps.hold(tx);
+      held.resolve();
+      await release.promise;
+      await steps.afterWait?.(tx);
+    }),
+  );
+
+  await Promise.race([held.promise, holder]);
+  const contender = outcomeOf(steps.contend());
+  await waitForLockWaiters(db, 1);
+  release.resolve();
+  return { holder: await holder, contender: await contender };
+}
+
+/** `interleave` khi T1 chỉ giữ khoá rồi commit: trả kết quả của T2; T1 lỗi thì ném luôn. */
 export async function runWhileLocked(
   db: Database,
   hold: (tx: Transaction) => Promise<unknown>,
   contend: () => Promise<unknown>,
 ): Promise<string> {
-  const held = Promise.withResolvers<void>();
-  const release = Promise.withResolvers<void>();
-  const holder = db.transaction(async (tx) => {
-    await hold(tx);
-    held.resolve();
-    await release.promise;
-  });
-
-  await Promise.race([held.promise, holder]);
-  const outcome = outcomeOf(contend());
-  await waitForLockWaiters(db, 1);
-  release.resolve();
-  await holder;
-  return outcome;
+  const { holder, contender } = await interleave(db, { hold, contend });
+  if (holder !== 'OK') throw new Error(`Transaction giữ khoá thất bại: ${holder}`);
+  return contender;
 }
 
-/** 'OK' hoặc mã lỗi (`AppException.code`); lỗi khác (vd lỗi Postgres lọt ra) → chuỗi mô tả. */
+/**
+ * 'OK', mã lỗi nghiệp vụ (`AppException.code`), hoặc `pg:<SQLSTATE>` cho lỗi Postgres lọt ra
+ * (vd `pg:40P01` deadlock, `pg:23503` vi phạm FK). Còn lại → chuỗi mô tả.
+ */
 export async function outcomeOf(promise: Promise<unknown>): Promise<string> {
   try {
     await promise;
     return 'OK';
   } catch (error) {
-    return (error as Partial<AppException>).code ?? String(error);
+    if (error instanceof AppException) return error.code;
+    const pg = findPgError(error);
+    return pg ? `pg:${pg.code}` : String(error);
   }
 }
 
-/** `hold` cho `runWhileLocked`: khoá dòng kênh như MỌI thao tác ghi trên kênh, rồi làm `change`. */
+/** `hold` cho `runWhileLocked` / `interleave`: khoá dòng kênh như MỌI thao tác ghi trên kênh, rồi làm `change`. */
 export function lockChannelThen(
   channelId: string,
   change: (tx: Transaction) => Promise<unknown>,

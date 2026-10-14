@@ -34,7 +34,7 @@ const MATRIX: Array<[ChannelPermission, boolean[], boolean[]]> = [
   ['channel.read', [T, T, T, T, T, T], [T, T, T, T, F, T]],
   ['channel.content.read', [T, T, T, T, T, T], [T, T, T, T, F, F]],
   ['channel.member.list', [T, T, T, F, T, T], [T, T, T, F, F, T]],
-  ['channel.join', [F, F, F, F, T, T], [F, F, F, F, F, F]],
+  ['channel.join', [T, T, T, T, T, T], [T, T, T, T, F, F]],
   ['channel.leave', [T, T, T, T, F, F], [T, T, T, T, F, F]],
   ['channel.member.add', [T, T, F, F, F, F], [T, T, F, F, F, F]],
   ['channel.member.role.change', [T, T, F, F, F, F], [T, T, F, F, F, F]],

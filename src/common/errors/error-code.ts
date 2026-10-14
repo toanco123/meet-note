@@ -44,6 +44,8 @@ export const ErrorCode = {
   ChannelArchived: 'CHANNEL_ARCHIVED',
   ChannelAlreadyMember: 'CHANNEL_ALREADY_MEMBER',
   ChannelOwnerImmutable: 'CHANNEL_OWNER_IMMUTABLE',
+  ChannelOwnerMustTransfer: 'CHANNEL_OWNER_MUST_TRANSFER',
+  ChannelTransferInvalidTarget: 'CHANNEL_TRANSFER_INVALID_TARGET',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

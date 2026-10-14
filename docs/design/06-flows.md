@@ -159,26 +159,30 @@ sequenceDiagram
   participant DB as Postgres
 
   C->>A: POST /channels/:channelId/ownership-transfer {newOwnerId}
-  A->>A: Guards: JWT → OrgMember → ChannelAccess → @Require('channel.transfer')
+  A->>A: Guards: JWT → OrgMember → ChannelAccess → @RequireChannelPermission('channel.ownership.transfer')
   A->>DB: BEGIN
-  A->>DB: SELECT * FROM channels WHERE id=$1 AND deleted_at IS NULL FOR UPDATE
-  Note right of DB: Mutex của kênh — mọi đổi quyền khác trên kênh này phải đợi
-  A->>DB: SELECT * FROM channel_members WHERE channel_id=$1 AND user_id IN ($old,$new)<br/>ORDER BY user_id FOR UPDATE
-  A->>A: Kiểm tra lại sau khi khoá:<br/>kênh chưa lưu trữ; actor vẫn là owner (hoặc OrgAdm);<br/>newOwner là thành viên kênh, không phải guest, ≠ owner hiện tại
+  A->>DB: SELECT role FROM organization_members WHERE org_id=$1 AND user_id IN ($actor,$new)<br/>ORDER BY user_id FOR SHARE
+  Note right of DB: Bậc 1 — người nhận không bị gỡ khỏi org giữa chừng;<br/>vai trò OrgAdm của người gọi giữ nguyên
+  A->>DB: SELECT * FROM channels WHERE id=$2 AND deleted_at IS NULL FOR UPDATE
+  Note right of DB: Bậc 2 — mutex của kênh
+  A->>A: Kiểm tra lại quyền với vai trò VỪA KHOÁ (kênh chưa lưu trữ; actor vẫn là CO hoặc OrgAdm)
+  A->>DB: SELECT user_id, role FROM channel_members WHERE channel_id=$2<br/>AND (role='owner' OR user_id=$new) ORDER BY user_id FOR UPDATE
+  Note right of DB: Bậc 3 — chủ hiện tại + người nhận
+  A->>A: Người nhận là thành viên kênh (không → 404), không phải Khách / chủ hiện tại (→ 409)
   A->>DB: UPDATE channel_members SET role='admin' WHERE user_id=$old  -- hạ trước
   A->>DB: UPDATE channel_members SET role='owner' WHERE user_id=$new  -- nâng sau
-  A->>DB: INSERT audit_logs (channel.ownership_transferred, before/after)
-  A->>DB: INSERT notifications (newOwner, oldOwner)
+  A->>DB: INSERT audit_logs (channel.ownership.transferred, before/after)
   A->>DB: COMMIT
-  A->>A: (sau commit) emit notification.created
   A-->>C: 200 {channelId, ownerId: new}
 ```
 
 Vì sao làm như vậy:
 
-- **Khoá dòng `channels` trước.** Giả sử A chuyển chủ kênh cho B, cùng lúc Admin khác gỡ B khỏi kênh. Không có mutex chung thì có thể kết thúc với "owner là người không còn trong kênh". Khoá kênh trước khiến hai thao tác chạy tuần tự.
-- **`ORDER BY user_id` khi khoá nhiều dòng member.** Thứ tự khoá cố định nên không deadlock.
-- **Kiểm tra lại sau khi khoá.** Dữ liệu guard đọc lúc đầu có thể đã cũ (actor vừa bị hạ quyền ở request khác).
+- **Theo đúng thứ tự khoá chung** (`03-database.md` §7): `organization_members` → `channels` → `channel_members`. Gỡ X khỏi org khoá dòng org của X rồi cascade xoá dòng `channel_members` của X. Nếu chuyển chủ kênh khoá kênh + `channel_members` TRƯỚC rồi mới khoá dòng org của X, hai bên chờ nhau vòng tròn → Postgres giết một bên với `40P01`. Race test `channel-ownership-race.int-spec.ts` ép đúng thứ tự xen kẽ này; đột biến đảo thứ tự → `pg:40P01` sau ~1 giây (`deadlock_timeout`).
+- **Khoá dòng `channels` làm mutex.** Chuyển chủ cho X song song với X rời kênh / bị gỡ khỏi kênh thì chạy tuần tự: không bao giờ "chủ là người không còn trong kênh".
+- **`ORDER BY user_id` khi khoá nhiều dòng** ở cùng một bậc: thứ tự cố định nên không deadlock giữa hai thao tác cùng loại.
+- **Kiểm tra lại sau khi khoá.** Dữ liệu guard đọc lúc đầu có thể đã cũ (actor vừa bị hạ quyền, vừa chuyển chủ cho người khác ở request song song).
 - **Hạ trước nâng sau.** Partial unique index `one owner per channel` không deferrable.
-- **Owner cũ thành Admin**, không bị gỡ khỏi kênh. Ai muốn rời thì làm bước riêng.
-- **Test:** chạy 2 transfer song song (`Promise.all`) tới 2 người khác nhau. Kết quả phải là đúng 1 owner, và một request nhận 409 hoặc kết quả tuần tự hợp lệ.
+- **Chủ cũ thành QTV kênh**, không bị gỡ khỏi kênh. Ai muốn rời thì làm bước riêng.
+- **Test:** 2 transfer song song tới 2 người khác nhau → đúng 1 thành công (lần sau thấy mình không còn là chủ → 403), kênh có đúng 1 chủ.
+- Thông báo cho chủ mới / chủ cũ (gửi sau commit) đến ở M10.

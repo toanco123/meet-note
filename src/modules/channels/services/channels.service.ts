@@ -4,7 +4,7 @@ import { decodeCursor, toPage } from '../../../common/pagination/cursor.js';
 import { expectTextKey } from '../../../common/pagination/keys.js';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database, Transaction } from '../../../infra/database/database.types.js';
-import type { ChannelVisibility } from '../../../infra/database/schema/index.js';
+import type { OrgRoleValue, ChannelVisibility } from '../../../infra/database/schema/index.js';
 import { diffForAudit, isEmptyDiff } from '../../audit/audit-diff.js';
 import { AuditService } from '../../audit/audit.service.js';
 import type { UserAuditContext } from '../../audit/audit.types.js';
@@ -118,11 +118,15 @@ export class ChannelsService {
    * Guard đọc TRƯỚC khi khoá: giữa lúc đó kênh có thể vừa bị lưu trữ, hoặc người gọi vừa bị hạ
    * quyền. Mọi thay đổi vai trò trong kênh đều khoá dòng kênh này trước → sau khi khoá, vai trò
    * đọc được là vai trò mới nhất, không ai đổi được cho tới khi transaction này xong.
+   *
+   * @param orgRole vai trò tổ chức VỪA KHOÁ ở bậc 1 (nếu thao tác có khoá bậc 1); mặc định dùng
+   * vai trò guard đã đọc.
    */
   async lockForAction(
     access: ChannelAccess,
     permission: ChannelPermission,
     tx: Transaction,
+    orgRole: OrgRoleValue = access.orgRole,
   ): Promise<{ channel: LockedChannel; actorRole: ChannelRole | null }> {
     const channel = await this.repo.lockForUpdate(access.channel.id, tx);
     if (!channel) throw Errors.channel.notFound();
@@ -130,7 +134,7 @@ export class ChannelsService {
     assertChannelDecision(
       decideChannelPermission(permission, {
         channelRole: actorRole,
-        orgRole: access.orgRole,
+        orgRole,
         channel,
       }),
     );
