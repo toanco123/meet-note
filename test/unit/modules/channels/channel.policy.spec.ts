@@ -8,6 +8,7 @@ import {
   type ChannelAccessContext,
   type ChannelPermission,
   channelPolicy,
+  decideChannelPermission,
   type ChannelRole,
 } from '../../../../src/modules/channels/channel.policy.js';
 import type { TargetDecision } from '../../../../src/modules/organizations/organization.policy.js';
@@ -138,5 +139,30 @@ describe('canReceiveChannelOwnership(target)', () => {
     [null, false],
   ])('%s → %s', (target, expected) => {
     expect(canReceiveChannelOwnership(target)).toBe(expected);
+  });
+});
+
+describe('decideChannelPermission(permission, ctx)', () => {
+  const at = (role: ChannelRole | null, archivedAt: Date | null) => ({
+    channelRole: role,
+    orgRole: 'member' as const,
+    channel: { visibility: 'public' as const, archivedAt },
+  });
+  const archived = new Date();
+
+  it.each([
+    ['CA sửa kênh đang hoạt động', 'channel.update', at('admin', null), 'ok'],
+    ['CA sửa kênh lưu trữ', 'channel.update', at('admin', archived), 'archived'],
+    [
+      'CM sửa kênh lưu trữ: xét quyền trước trạng thái',
+      'channel.update',
+      at('member', archived),
+      'forbidden',
+    ],
+    ['CM đọc kênh lưu trữ', 'channel.read', at('member', archived), 'ok'],
+    ['CM rời kênh lưu trữ', 'channel.leave', at('member', archived), 'ok'],
+    ['CO lưu trữ / bỏ lưu trữ kênh lưu trữ', 'channel.archive', at('owner', archived), 'ok'],
+  ] as const)('%s → %s', (_label, permission, ctx, expected) => {
+    expect(decideChannelPermission(permission, ctx)).toBe(expected);
   });
 });

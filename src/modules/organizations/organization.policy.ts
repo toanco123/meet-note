@@ -37,6 +37,9 @@ export const orgPolicy = {
   // thông điệp rõ hơn một 403 chung chung.
   'org.leave': () => true,
   'org.audit.read': (ctx) => isOrgRoleAtLeast(ctx.role, OrgRole.Admin),
+  // M4 — kênh chưa tồn tại nên là quyền cấp org. Danh sách tự lọc theo quyền thấy (service).
+  'org.channel.create': () => true,
+  'org.channel.list': () => true,
 } satisfies Record<string, (ctx: OrgMembershipContext) => boolean>;
 
 export type OrgPermission = keyof typeof orgPolicy;

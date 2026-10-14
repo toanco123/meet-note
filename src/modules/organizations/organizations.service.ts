@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppException } from '../../common/errors/app.exception.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
+import { diffForAudit, isEmptyDiff } from '../audit/audit-diff.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { UserAuditContext } from '../audit/audit.types.js';
 import type { Database } from '../../infra/database/database.types.js';
@@ -63,8 +64,8 @@ export class OrganizationsService {
       const current = await this.repo.lockForUpdate(orgId, tx);
       if (!current) throw AppException.notFound('Không tìm thấy tổ chức.');
 
-      const changed = changedFields(current, patch);
-      if (Object.keys(changed.after).length === 0) return; // không đổi gì → không ghi, không log
+      const changed = diffForAudit(current, patch);
+      if (isEmptyDiff(changed)) return; // không đổi gì → không ghi, không log
 
       await this.repo.update(orgId, changed.after, tx);
       await this.audit.record(tx, ctx, {
@@ -77,19 +78,4 @@ export class OrganizationsService {
     });
     return this.getDetail(orgId);
   }
-}
-
-function changedFields(
-  current: Required<OrganizationPatch>,
-  patch: OrganizationPatch,
-): { before: OrganizationPatch; after: OrganizationPatch } {
-  const before: Record<string, unknown> = {};
-  const after: Record<string, unknown> = {};
-  for (const key of Object.keys(patch) as Array<keyof OrganizationPatch>) {
-    if (patch[key] !== undefined && patch[key] !== current[key]) {
-      before[key] = current[key];
-      after[key] = patch[key];
-    }
-  }
-  return { before: before as OrganizationPatch, after: after as OrganizationPatch };
 }

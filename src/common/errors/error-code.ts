@@ -38,6 +38,10 @@ export const ErrorCode = {
   JoinRequestNotPending: 'JOIN_REQUEST_NOT_PENDING',
   OrgOwnerMustTransfer: 'ORG_OWNER_MUST_TRANSFER',
   OrgTransferInvalidTarget: 'ORG_TRANSFER_INVALID_TARGET',
+
+  // M4 — Kênh
+  ChannelNameTaken: 'CHANNEL_NAME_TAKEN',
+  ChannelArchived: 'CHANNEL_ARCHIVED',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -23,13 +23,15 @@ export const AUDIT_ACTIONS = [
   'org.join_request.approved',
   'org.join_request.rejected',
   'org.ownership.transferred',
+  'channel.created',
+  'channel.updated',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export interface AuditEntry {
   orgId: string;
   action: AuditAction;
-  targetType: 'organization' | 'member' | 'invite' | 'join_request';
+  targetType: 'organization' | 'member' | 'invite' | 'join_request' | 'channel';
   targetId: string;
   /** Thường là `{ before, after }` — chỉ những field thay đổi, KHÔNG ghi dữ liệu nhạy cảm. */
   metadata?: Record<string, unknown>;

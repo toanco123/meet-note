@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { findPgError } from '../../../../../src/common/errors/pg-error.js';
 import {
@@ -132,6 +132,42 @@ describe('Schema channels (Postgres thật)', () => {
         t.db.insert(channels).values({ orgId: org.id, name: 'x', visibility: 'secret' }),
       );
       expect(error).toMatchObject({ code: '23514', constraint: 'channels_visibility_ck' });
+    });
+  });
+
+  /**
+   * Danh sách kênh sắp theo BIỂU THỨC `lower(name)` (M4 Q4). Index `channels_org_name_uq` được tạo
+   * trên đúng biểu thức đó + cùng điều kiện partial `deleted_at IS NULL` → planner đọc thẳng index
+   * theo thứ tự. Viết `ORDER BY name` (không lower) thì không khớp → phải Sort.
+   */
+  describe('index biểu thức phục vụ danh sách theo tên', () => {
+    async function planOf(orgId: string, orderBy: string, extra = ''): Promise<string> {
+      return t.db.transaction(async (tx) => {
+        await tx.execute(sql`analyze channels`);
+        await tx.execute(sql`set local enable_seqscan = off`);
+        await tx.execute(sql`set local enable_bitmapscan = off`);
+        const result = await tx.execute(
+          sql.raw(
+            `explain select id from channels where org_id = '${orgId}' and deleted_at is null ${extra} order by ${orderBy} limit 21`,
+          ),
+        );
+        return result.rows.map((r) => String(r['QUERY PLAN'])).join('\n');
+      });
+    }
+
+    it('ORDER BY lower(name) + cursor `lower(name) > …` → Index Scan, không Sort', async () => {
+      const { owner, org } = await orgWithOwner();
+      for (const name of ['Bravo', 'alpha', 'Charlie']) {
+        await insertChannel(t.db, org.id, owner.id, { name });
+      }
+      const plan = await planOf(org.id, 'lower(name)', "and lower(name) > 'alpha'");
+      expect(plan).toContain('channels_org_name_uq');
+      expect(plan).not.toMatch(/\bSort\b/);
+    });
+
+    it('ORDER BY name (lệch biểu thức của index) → phải Sort', async () => {
+      const { org } = await orgWithOwner();
+      expect(await planOf(org.id, 'name')).toMatch(/\bSort\b/);
     });
   });
 });

@@ -182,7 +182,7 @@ id, org_id (FK CASCADE), user_id (FK → users CASCADE), invite_id (FK → invit
 Index:
 
 - `channels_id_org_uq UNIQUE (id, org_id)`: đích của composite FK.
-- `channels_org_name_uq UNIQUE (org_id, lower(name)) WHERE deleted_at IS NULL`: vừa chặn trùng tên, vừa phục vụ danh sách sắp theo tên (keyset trên `(lower(name), id)`, M4 Q4).
+- `channels_org_name_uq UNIQUE (org_id, lower(name)) WHERE deleted_at IS NULL`: vừa chặn trùng tên, vừa phục vụ danh sách sắp theo tên (keyset chỉ trên `lower(name)`, M4 Q4: index unique nên không cần `id` làm tie-breaker).
 - `channels_purge_idx (deleted_at) WHERE deleted_at IS NOT NULL`: cho job dọn dẹp.
 - CHECK `channels_visibility_ck`, `channels_name_length_ck` (1–80).
 

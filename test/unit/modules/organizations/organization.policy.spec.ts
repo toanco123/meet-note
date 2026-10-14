@@ -28,6 +28,8 @@ describe('orgPolicy — loại hành động theo vai trò', () => {
     ['org.ownership.transfer', true, false, false],
     ['org.leave', true, true, true],
     ['org.audit.read', true, true, false],
+    ['org.channel.create', true, true, true],
+    ['org.channel.list', true, true, true],
   ];
 
   it.each(

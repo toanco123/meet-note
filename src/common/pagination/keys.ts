@@ -29,6 +29,12 @@ export function expectPositiveIntKey(value: CursorKey | undefined): number {
   return value;
 }
 
+/** Khoá chuỗi (vd `lower(name)` do DB tính). Giới hạn độ dài để cursor bị sửa không thành query khổng lồ. */
+export function expectTextKey(value: CursorKey | undefined, maxLength: number): string {
+  if (typeof value !== 'string' || value.length > maxLength) throw invalidCursor();
+  return value;
+}
+
 export function expectUuidKey(value: CursorKey | undefined): string {
   if (!isUuid(value)) throw invalidCursor();
   return value;

@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
@@ -16,6 +17,8 @@ export class CursorQueryDto {
    * Số phần tử mỗi trang (1–100).
    * @default 20
    */
+  // Có giá trị mặc định nên không viết `?` → plugin tưởng là BẮT BUỘC. Khai báo tay là tuỳ chọn.
+  @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
   @IsInt()

@@ -71,6 +71,22 @@ export const BLOCKED_WHEN_ARCHIVED: ReadonlySet<ChannelPermission> = new Set<Cha
   'channel.ownership.transfer',
 ]);
 
+export type ChannelDecision = 'ok' | 'forbidden' | 'archived';
+
+/**
+ * Một nơi quyết định 403 hay 409: guard gọi TRƯỚC khi khoá (từ chối nhanh), service gọi LẠI trên
+ * dữ liệu vừa khoá (kênh có thể vừa bị lưu trữ, người gọi có thể vừa bị hạ quyền).
+ * Xét quyền trước, trạng thái sau: người không có quyền luôn nhận 403, dù kênh lưu trữ hay không.
+ */
+export function decideChannelPermission(
+  permission: ChannelPermission,
+  ctx: ChannelAccessContext & { channel: { archivedAt: Date | null } },
+): ChannelDecision {
+  if (!channelPolicy[permission](ctx)) return 'forbidden';
+  if (ctx.channel.archivedAt !== null && BLOCKED_WHEN_ARCHIVED.has(permission)) return 'archived';
+  return 'ok';
+}
+
 /** Vai trò cấp được khi THÊM người vào kênh. Chủ kênh không bao giờ cấp qua đây. */
 export type GrantableChannelRole = Exclude<ChannelRole, 'owner'>;
 

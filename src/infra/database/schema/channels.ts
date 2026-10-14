@@ -59,7 +59,7 @@ export const channels = pgTable(
     // Đích cho composite FK của bảng con: (channel_id, org_id) phải khớp ĐÚNG org của kênh.
     unique('channels_id_org_uq').on(t.id, t.orgId),
     // Tên duy nhất trong org (không phân biệt hoa thường), chỉ tính kênh chưa xoá → xoá rồi dùng lại
-    // được tên. Cũng là index cho danh sách sắp theo tên: keyset trên (lower(name), id) (M4 Q4).
+    // được tên. Cũng là index cho danh sách sắp theo tên: keyset chỉ trên lower(name) (M4 Q4) — index unique nên không cần id làm tie-breaker.
     uniqueIndex('channels_org_name_uq')
       .on(t.orgId, sql`lower(${t.name})`)
       .where(sql`${t.deletedAt} is null`),
