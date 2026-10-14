@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { OrganizationsModule } from '../organizations/organizations.module.js';
-import { ChannelMembersController } from './channel-members.controller.js';
-import { ChannelMembersRepository } from './channel-members.repository.js';
-import { ChannelMembersService } from './channel-members.service.js';
-import { ChannelsController } from './channels.controller.js';
-import { ChannelsRepository } from './channels.repository.js';
-import { ChannelsService } from './channels.service.js';
+import { ChannelMembersController } from './controllers/channel-members.controller.js';
+import { ChannelMembersRepository } from './repositories/channel-members.repository.js';
+import { ChannelMembersService } from './services/channel-members.service.js';
+import { ChannelsController } from './controllers/channels.controller.js';
+import { ChannelsRepository } from './repositories/channels.repository.js';
+import { ChannelsService } from './services/channels.service.js';
 import { ChannelAccessGuard } from './guards/channel-access.guard.js';
 import { ChannelPermissionGuard } from './guards/channel-permission.guard.js';
 

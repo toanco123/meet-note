@@ -2,8 +2,8 @@ import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/com
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../../../common/auth/public.decorator.js';
-import { SessionsService } from '../sessions.service.js';
-import { TokenService } from '../token.service.js';
+import { SessionsService } from '../services/sessions.service.js';
+import { TokenService } from '../services/token.service.js';
 import { Errors } from '../../../common/errors/errors.js';
 
 const BEARER = /^Bearer ([A-Za-z0-9._~+/-]+=*)$/i;

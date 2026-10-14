@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { OrgMemberGuard } from './guards/org-member.guard.js';
 import { OrgPermissionGuard } from './guards/org-permission.guard.js';
-import { OrganizationMembersController } from './organization-members.controller.js';
-import { OrganizationMembersRepository } from './organization-members.repository.js';
-import { OrganizationMembersService } from './organization-members.service.js';
-import { OrganizationsController } from './organizations.controller.js';
-import { OrganizationsRepository } from './organizations.repository.js';
-import { OrganizationsService } from './organizations.service.js';
+import { OrganizationMembersController } from './controllers/organization-members.controller.js';
+import { OrganizationMembersRepository } from './repositories/organization-members.repository.js';
+import { OrganizationMembersService } from './services/organization-members.service.js';
+import { OrganizationsController } from './controllers/organizations.controller.js';
+import { OrganizationsRepository } from './repositories/organizations.repository.js';
+import { OrganizationsService } from './services/organizations.service.js';
 
 @Module({
   controllers: [OrganizationsController, OrganizationMembersController],

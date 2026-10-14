@@ -1,5 +1,5 @@
 import { IsString, Matches } from 'class-validator';
-import { REFRESH_TOKEN_PATTERN } from '../token.service.js';
+import { REFRESH_TOKEN_PATTERN } from '../services/token.service.js';
 
 export class RefreshTokenDto {
   /**

@@ -6,8 +6,8 @@ import { findPgError } from '../../../../src/common/errors/pg-error.js';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
 import { organizationMembers } from '../../../../src/infra/database/schema/index.js';
 import { AuditService } from '../../../../src/modules/audit/audit.service.js';
-import { OrganizationMembersRepository } from '../../../../src/modules/organizations/organization-members.repository.js';
-import { OrganizationMembersService } from '../../../../src/modules/organizations/organization-members.service.js';
+import { OrganizationMembersRepository } from '../../../../src/modules/organizations/repositories/organization-members.repository.js';
+import { OrganizationMembersService } from '../../../../src/modules/organizations/services/organization-members.service.js';
 import { addMember, insertOrg, insertUser } from '../../../support/db-factories.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 

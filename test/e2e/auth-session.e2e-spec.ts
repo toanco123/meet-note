@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DRIZZLE } from '../../src/infra/database/database.module.js';
 import type { Database } from '../../src/infra/database/database.types.js';
 import { refreshTokens } from '../../src/infra/database/schema/index.js';
-import { hashRefreshToken } from '../../src/modules/auth/token.service.js';
+import { hashRefreshToken } from '../../src/modules/auth/services/token.service.js';
 import { createTestApp } from '../support/app.js';
 import { bearer, registerUser, type TokenPair } from '../support/factories.js';
 import { ProbeController } from '../support/probe.controller.js';

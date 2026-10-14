@@ -8,7 +8,7 @@ import type { AuthUser } from '../../src/common/auth/auth.types.js';
 import { DRIZZLE } from '../../src/infra/database/database.module.js';
 import type { Database } from '../../src/infra/database/database.types.js';
 import { sessions } from '../../src/infra/database/schema/index.js';
-import { JWT_AUDIENCE, JWT_ISSUER } from '../../src/modules/auth/token.service.js';
+import { JWT_AUDIENCE, JWT_ISSUER } from '../../src/modules/auth/services/token.service.js';
 import { createTestApp } from '../support/app.js';
 import { bearer, registerUser } from '../support/factories.js';
 import { ProbeController } from '../support/probe.controller.js';

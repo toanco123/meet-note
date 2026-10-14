@@ -2,7 +2,7 @@ import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/com
 import type { Request } from 'express';
 import { Errors } from '../../../common/errors/errors.js';
 import { isUuid } from '../../../common/validation/uuid.js';
-import { OrganizationsRepository } from '../organizations.repository.js';
+import { OrganizationsRepository } from '../repositories/organizations.repository.js';
 
 /**
  * Tầng 2 của phân quyền: người gọi có phải thành viên org `:orgId` không?

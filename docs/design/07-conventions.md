@@ -17,6 +17,8 @@
 | Audit action            | `domain.object.verb_past`                                                                | `org.member.role_changed`                                                  |
 | Env                     | UPPER_SNAKE, có tiền tố nhóm                                                             | `DATABASE_URL`, `S3_BUCKET`                                                |
 
+**Thư mục theo vai trò (từ M4 B4d):** trong một thư mục, khi có **từ 2 file cùng vai trò** trở lên (`*.service.ts`, `*.repository.ts`, `*.controller.ts`, `*.types.ts`) thì gom vào `services/`, `repositories/`, `controllers/`, `types/`. Chỉ có 1 file thì để ngay cấp module. `dto/` và `guards/` luôn là thư mục. `*.module.ts` luôn ở cấp module (cửa vào của thư mục). Thư mục vai trò chỉ chứa đúng vai trò đó. Test kiến trúc `test/unit/architecture/folder-layout.spec.ts` canh quy tắc này.
+
 **Đặt interface / type ở đâu (từ M4 B4c):**
 
 - Interface / type **viết tay, được export** nằm trong `<module>.types.ts` của module đó (`channels/channels.types.ts`, `auth/auth.types.ts`, `common/pagination/pagination.types.ts`…). Gồm cả khối `declare global` mở rộng `Express.Request`. Trong file chia nhóm theo lớp dùng (policy + guard → repository).

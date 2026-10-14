@@ -38,7 +38,7 @@ export class SessionsRepository {
   /**
    * `FOR UPDATE`: request refresh thứ hai với CÙNG token phải đợi request đầu commit, rồi mới
    * đọc — lúc đó nó thấy `rotated_at` đã có. Bỏ khoá thì cả hai cùng thấy "chưa xoay" và cùng
-   * cấp token mới (xem test concurrency trong test/integration/modules/auth/sessions.service.int-spec.ts).
+   * cấp token mới (xem test concurrency trong test/integration/modules/auth/services/sessions.service.int-spec.ts).
    */
   async findRefreshTokenForUpdate(
     tokenHash: Buffer,

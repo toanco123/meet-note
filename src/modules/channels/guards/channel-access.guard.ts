@@ -3,7 +3,7 @@ import type { Request } from 'express';
 import { isUuid } from '../../../common/validation/uuid.js';
 import { Errors } from '../../../common/errors/errors.js';
 import { channelPolicy } from '../channel.policy.js';
-import { ChannelsRepository } from '../channels.repository.js';
+import { ChannelsRepository } from '../repositories/channels.repository.js';
 import type { ChannelAccess } from '../channels.types.js';
 
 /**

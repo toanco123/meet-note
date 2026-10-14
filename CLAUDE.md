@@ -20,7 +20,8 @@ MeetNote là ứng dụng biên bản họp theo nhóm. Người dùng thuộc t
 | M0 — Khung                     | **Xong**. CI xanh, e2e + Docker Compose đã chạy trên máy dev (OrbStack) |
 | M1 — Auth                      | **Xong** (PR #1 đã merge)                                               |
 | M2 — Tổ chức                   | **Xong** (PR #2)                                                        |
-| M3 — Mời, duyệt, sở hữu, audit | **Xong** (PR #3). Mốc tiếp theo: M4 — Kênh                              |
+| M3 — Mời, duyệt, sở hữu, audit | **Xong** (PR #3)                                                        |
+| M4 — Kênh                      | **Đang làm** (nhánh `m4-channels`): B1–B4d xong, tiếp theo B5           |
 
 Lộ trình đầy đủ: `docs/design/10-roadmap.md`.
 
@@ -57,6 +58,7 @@ Không có pnpm global thì dùng `npx -y pnpm@12.11.2 <lệnh>`. Kiểm tra tr�
 
 - **ESM:** import tương đối phải có đuôi `.js`. Dùng `import.meta.dirname`, không dùng `__dirname`.
 - **DI:** class được inject theo kiểu constructor phải import **giá trị**, không được `import type`. Token Symbol (`DRIZZLE`, `REDIS`) đi kèm `@Inject()`.
+- **Thư mục:** trong một thư mục có từ 2 file cùng vai trò (`*.service.ts`, `*.repository.ts`, `*.controller.ts`, `*.types.ts`) thì gom vào `services/`, `repositories/`, `controllers/`, `types/`. Chỉ 1 file thì để ở cấp module (test kiến trúc chặn).
 - **Type:** interface / type viết tay được export nằm trong `<module>.types.ts`. Kiểu suy ra từ giá trị (`typeof`, `$inferSelect`, cặp const/type cùng tên) để cạnh giá trị. File types không chứa giá trị runtime (test kiến trúc chặn).
 - **DTO:** là `class` trong file `*.dto.ts`, mô tả bằng JSDoc (Swagger CLI plugin đọc). Không trả row DB ra API, luôn map sang `*ResponseDto`. Method controller khai báo kiểu trả về tường minh.
 - **Lỗi:** ném lỗi lấy từ catalog `src/common/errors/errors.ts` (`throw Errors.channel.archived()`). Lỗi mới thì thêm mục vào catalog. **Không** tự `new AppException(...)` ở module (test kiến trúc chặn). Tài nguyên ẩn trả **404**, không trả 403.

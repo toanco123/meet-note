@@ -1,5 +1,5 @@
 import type { JwtModuleOptions } from '@nestjs/jwt';
-import { JWT_AUDIENCE, JWT_ISSUER } from './token.service.js';
+import { JWT_AUDIENCE, JWT_ISSUER } from './services/token.service.js';
 
 /**
  * Cấu hình JwtModule dùng chung cho AuthModule và test.

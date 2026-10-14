@@ -12,7 +12,7 @@ File test:
 
 Mọi test nằm trong `test/`, **không** đặt trong `src/` (quyết định 2026-10-13, M1). `test/unit` và `test/integration` mô phỏng cây `src/` để dễ tìm test của một file:
 
-- Unit: `test/unit/**/*.spec.ts`, vd `test/unit/modules/auth/token.service.spec.ts`
+- Unit: `test/unit/**/*.spec.ts`, vd `test/unit/modules/auth/services/token.service.spec.ts`. Test gắn với một file cụ thể mô phỏng đúng đường dẫn của file đó (kể cả thư mục vai trò `services/`…); test theo kịch bản (race) đặt ở cấp module, vd `test/integration/modules/channels/channel-members-race.int-spec.ts`
 - Integration: `test/integration/**/*.int-spec.ts`
 - E2E: `test/e2e/*.e2e-spec.ts`
 

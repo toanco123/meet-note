@@ -8,9 +8,9 @@ import {
   organizationJoinRequests,
 } from '../../../../src/infra/database/schema/index.js';
 import { AuditService } from '../../../../src/modules/audit/audit.service.js';
-import { JoinRequestsRepository } from '../../../../src/modules/invites/join-requests.repository.js';
-import { JoinRequestsService } from '../../../../src/modules/invites/join-requests.service.js';
-import { OrganizationMembersRepository } from '../../../../src/modules/organizations/organization-members.repository.js';
+import { JoinRequestsRepository } from '../../../../src/modules/invites/repositories/join-requests.repository.js';
+import { JoinRequestsService } from '../../../../src/modules/invites/services/join-requests.service.js';
+import { OrganizationMembersRepository } from '../../../../src/modules/organizations/repositories/organization-members.repository.js';
 import { addMember, insertOrg, insertUser } from '../../../support/db-factories.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 

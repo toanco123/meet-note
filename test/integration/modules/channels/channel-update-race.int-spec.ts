@@ -4,8 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
 import { channelMembers, channels } from '../../../../src/infra/database/schema/index.js';
 import { AuditService } from '../../../../src/modules/audit/audit.service.js';
-import { ChannelsRepository } from '../../../../src/modules/channels/channels.repository.js';
-import { ChannelsService } from '../../../../src/modules/channels/channels.service.js';
+import { ChannelsRepository } from '../../../../src/modules/channels/repositories/channels.repository.js';
+import { ChannelsService } from '../../../../src/modules/channels/services/channels.service.js';
 import {
   addChannelMember,
   addMember,

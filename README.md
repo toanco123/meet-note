@@ -14,7 +14,17 @@
 | Báo cáo tuần        | Cron 08:00 thứ 2 (giờ VN), retry khi AI lỗi, tạo lại tối đa 3 lần                                                     | M9      |
 | Thông báo & audit   | Thông báo realtime, đã đọc, xoá mềm. Audit log thao tác quản trị                                                      | M3, M10 |
 
-Trạng thái hiện tại: **M0 (khung dự án)**. Chi tiết trong [docs/plans/](docs/plans/).
+Trạng thái hiện tại:
+
+| Mốc                            | Trạng thái                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ |
+| M0 — Khung                     | Xong                                                                                             |
+| M1 — Auth                      | Xong (PR #1)                                                                                     |
+| M2 — Tổ chức                   | Xong (PR #2)                                                                                     |
+| M3 — Mời, duyệt, sở hữu, audit | Xong (PR #3)                                                                                     |
+| M4 — Kênh                      | Đang làm: schema, policy, CRUD kênh, thành viên kênh xong; tiếp theo join/leave, chuyển chủ kênh |
+
+Chi tiết từng mốc (các bước, quyết định, bài học) trong [docs/plans/](docs/plans/).
 
 ## Stack
 
@@ -104,18 +114,88 @@ Hoặc chạy toàn bộ trong Docker: `docker compose up --build`.
 
 ```
 src/
-  main.ts, worker.ts          entry của 2 tiến trình
-  core.module.ts              hạ tầng dùng chung (config, log, db, redis, queue)
-  bootstrap/                  cấu hình app + Swagger (dùng chung với e2e)
-  common/                     lỗi, phân trang cursor, decorator Swagger
-  infra/                      database (Drizzle), redis, queue, logger
-  modules/<domain>/           controller → service → repository + policy
-  scripts/                    migrate, export-openapi
-migrations/                   SQL migration (commit)
-test/                         e2e + Testcontainers setup
-docs/design/                  thiết kế (DB, quyền, API, luồng, quy ước…)
-docs/plans/                   plan từng mốc (viết trước khi code)
-.claude/                      skill + cấu hình plugin cho Claude Code
+├─ main.ts, worker.ts          entry của 2 tiến trình (api, worker)
+├─ app.module.ts               module gốc của api
+├─ worker.module.ts            module gốc của worker (chỉ processor, không HTTP)
+├─ core.module.ts              hạ tầng dùng chung (config, log, db, redis, queue)
+├─ bootstrap/                  cấu hình app + Swagger (dùng chung với e2e)
+├─ config/                     validate biến môi trường
+├─ common/                     dùng chung mọi module
+│  ├─ errors/                  catalog lỗi `Errors`, AppException, ErrorCode, exception filter
+│  ├─ pagination/              cursor, khoá keyset, CursorQueryDto
+│  ├─ auth/                    @Public, @CurrentUser, kiểu AuthUser
+│  ├─ swagger/                 @ApiErrorResponses, @ApiPaginatedResponse
+│  └─ crypto/, validation/     token opaque, kiểm tra uuid
+├─ infra/                      database (Drizzle + schema), redis, queue, logger
+├─ modules/<domain>/           auth, me, users, organizations, invites, channels, audit, health
+└─ scripts/                    migrate, export-openapi
+migrations/                    SQL migration (drizzle-kit + viết tay), đã commit thì không sửa
+test/
+├─ unit/                       không cần Docker; mô phỏng cây src/ + `architecture/` (test quy ước)
+├─ integration/                Postgres/Redis thật: schema, race test, service
+├─ e2e/                        gọi HTTP thật qua toàn bộ app
+└─ support/                    Testcontainers setup, factory, helper khoá (`runWhileLocked`)
+docs/design/                   thiết kế (DB, quyền, API, luồng, quy ước…)
+docs/plans/                    plan từng mốc (viết trước khi code)
+```
+
+### Bên trong một module
+
+Ví dụ `src/modules/channels/`:
+
+```
+channels/
+├─ channels.module.ts
+├─ channel.policy.ts          policy thuần: (người gọi, kênh) → quyết định
+├─ channel-decisions.ts       quyết định của policy → lỗi (Errors.*)
+├─ channels.types.ts          interface / type viết tay của module
+├─ controllers/               chỉ HTTP: route, DTO, Swagger — không có logic
+├─ services/                  use-case: transaction, khoá dòng, gọi policy, ghi audit
+├─ repositories/              query Drizzle, nhận `tx` của service
+├─ guards/                    guard + decorator gộp guard (@RequireChannelPermission)
+└─ dto/                       *.dto.ts (request + response), Swagger plugin đọc
+```
+
+Luồng: controller → service → repository. Policy là hàm thuần, guard và service cùng gọi.
+
+**Quy tắc thư mục theo vai trò:** trong một thư mục, khi có **từ 2 file cùng vai trò** trở lên (`*.service.ts`, `*.repository.ts`, `*.controller.ts`, `*.types.ts`) thì gom vào `services/`, `repositories/`, `controllers/`, `types/`. Chỉ có 1 file thì để ngay cấp module (vd `me/me.service.ts`). `dto/` và `guards/` luôn là thư mục; `*.module.ts` luôn ở cấp module. Cây `test/` dời theo cho test gắn với một file cụ thể (vd `test/unit/modules/auth/services/token.service.spec.ts`); test theo kịch bản race để ở cấp module.
+
+## Quy ước code
+
+Đầy đủ trong [docs/design/07-conventions.md](docs/design/07-conventions.md). Những điều quan trọng nhất:
+
+| Chủ đề               | Quy ước                                                                                                                                                                                                                                                                                                                |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ESM                  | Import tương đối phải có đuôi `.js`. Dùng `import.meta.dirname`, không dùng `__dirname`.                                                                                                                                                                                                                               |
+| Dependency injection | Class inject qua constructor phải import **giá trị**, không `import type`. Token Symbol (`DRIZZLE`) đi kèm `@Inject()`.                                                                                                                                                                                                |
+| Lỗi                  | Mọi lỗi trả về client lấy từ catalog [`src/common/errors/errors.ts`](src/common/errors/errors.ts): `throw Errors.channel.archived()`. Lỗi mới thì thêm mục vào catalog. Không tự `new AppException(...)`. Client dựa vào `code`, `message` cho người đọc. Tài nguyên người gọi không được thấy trả **404**, không 403. |
+| Interface / type     | Kiểu viết tay được export nằm trong `<module>.types.ts`, kể cả `declare global` mở rộng `Express.Request`. Kiểu suy ra từ giá trị (`typeof`, `$inferSelect`, cặp const/type cùng tên như `OrgRole`) để cạnh giá trị gốc. File types không chứa giá trị runtime.                                                        |
+| DTO                  | `class` trong `*.dto.ts`, mô tả bằng JSDoc (Swagger CLI plugin đọc). Không trả row DB, luôn map sang `*ResponseDto`. Method controller khai báo kiểu trả về. Query param có giá trị mặc định thì thêm `@ApiPropertyOptional()`.                                                                                        |
+| Danh sách            | Phân trang cursor `{ data, nextCursor }` theo keyset, có index khớp đúng thứ tự sort. Timestamp trong cursor lấy dạng text từ DB (đủ micro giây). Cursor bị sửa tay → 400 `INVALID_CURSOR`, không 500.                                                                                                                 |
+| Phân quyền           | `JwtAuthGuard` (global) → `OrgMemberGuard` (404) → `ChannelAccessGuard` (404) → guard quyền (403), gộp sẵn trong `@RequireOrgPermission` / `@RequireChannelPermission`. Ma trận quyền: [04-authorization.md](docs/design/04-authorization.md).                                                                         |
+| Transaction          | Đổi quyền / sở hữu: khoá dòng cha trước, **kiểm tra lại sau khi khoá**, audit trong cùng transaction, enqueue / publish sau commit. Thứ tự khoá chung: `organization_members` → `channels` → `channel_members` (tránh deadlock).                                                                                       |
+| Schema               | Đặt tên mọi constraint. Enum = `text` + `CHECK`. Bảng con có composite FK theo `org_id`. Không sửa migration đã commit.                                                                                                                                                                                                |
+| BullMQ               | Payload chỉ chứa ID. `jobId = <tên-job>.<id>[.<lần>]`, không có `:`. Processor idempotent.                                                                                                                                                                                                                             |
+| Git                  | Conventional Commits, mỗi mốc một nhánh `mx-<slug>`, merge qua PR.                                                                                                                                                                                                                                                     |
+
+## Test
+
+| Loại        | Ở đâu                     | Chạy            | Ghi chú                                                                                            |
+| ----------- | ------------------------- | --------------- | -------------------------------------------------------------------------------------------------- |
+| Unit        | `test/unit/`              | `pnpm test`     | Hàm thuần, policy (bảng phủ toàn bộ ma trận quyền), service với Nest TestingModule                 |
+| Kiến trúc   | `test/unit/architecture/` | `pnpm test`     | Quét `src/` để giữ quy ước: lỗi chỉ tạo trong catalog, vị trí interface/type, thư mục theo vai trò |
+| Integration | `test/integration/`       | `pnpm test:e2e` | Postgres 18 + Redis 8 thật (Testcontainers). Ràng buộc schema, EXPLAIN index, **race test**        |
+| E2E         | `test/e2e/`               | `pnpm test:e2e` | HTTP thật qua toàn bộ app, phân quyền dạng bảng                                                    |
+
+- Mỗi file test có một database riêng, clone từ template đã chạy migration.
+- Mỗi chỗ khoá dòng đều có race test. Thứ tự xen kẽ được ép bằng `runWhileLocked` (T1 giữ khoá, T2 phải thực sự đợi rồi mới cho T1 commit). Test được **kiểm chứng bằng đột biến**: bỏ khoá hoặc bỏ bước kiểm tra lại thì test phải đỏ. Kết quả ghi trong plan của từng mốc.
+
+Kiểm tra trước khi đẩy code:
+
+```bash
+pnpm format:check && pnpm lint && pnpm typecheck && pnpm test
+pnpm test:e2e                          # cần Docker
+pnpm build && pnpm openapi:export      # openapi.json phải khớp code (CI kiểm tra)
 ```
 
 ## Tài liệu

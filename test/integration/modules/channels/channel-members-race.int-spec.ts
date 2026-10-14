@@ -10,11 +10,11 @@ import {
   organizationMembers,
 } from '../../../../src/infra/database/schema/index.js';
 import { AuditService } from '../../../../src/modules/audit/audit.service.js';
-import { ChannelMembersRepository } from '../../../../src/modules/channels/channel-members.repository.js';
-import { ChannelMembersService } from '../../../../src/modules/channels/channel-members.service.js';
-import { ChannelsRepository } from '../../../../src/modules/channels/channels.repository.js';
-import { ChannelsService } from '../../../../src/modules/channels/channels.service.js';
-import { OrganizationMembersRepository } from '../../../../src/modules/organizations/organization-members.repository.js';
+import { ChannelMembersRepository } from '../../../../src/modules/channels/repositories/channel-members.repository.js';
+import { ChannelMembersService } from '../../../../src/modules/channels/services/channel-members.service.js';
+import { ChannelsRepository } from '../../../../src/modules/channels/repositories/channels.repository.js';
+import { ChannelsService } from '../../../../src/modules/channels/services/channels.service.js';
+import { OrganizationMembersRepository } from '../../../../src/modules/organizations/repositories/organization-members.repository.js';
 import {
   addChannelMember,
   addMember,
