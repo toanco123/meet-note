@@ -51,7 +51,7 @@ CO = Chủ kênh, CA = QTV kênh, CM = Thành viên kênh, G = Khách.
 | Tạo lại báo cáo tuần                         |           ✓           |        ✓         |          ✗           |  ✗  |      ✗      |                 ✗                 |
 | Nhận thông báo báo cáo tuần                  |           ✓           |        ✓         |          ✓           |  ✗  |      ✗      |                 ✗                 |
 
-**Kênh đã lưu trữ:** mọi hành động ghi đều trả `409 CHANNEL_ARCHIVED`, trừ bỏ lưu trữ và xoá.
+**Kênh đã lưu trữ:** mọi hành động ghi đều trả `409 CHANNEL_ARCHIVED`, trừ bỏ lưu trữ, xoá và **rời kênh** (để không ai bị kẹt trong kênh chỉ đọc). Danh sách nằm ở `BLOCKED_WHEN_ARCHIVED` trong `channel.policy.ts`.
 **Kênh riêng tư mà người gọi không có quyền thấy:** trả `404`, không trả `403`, để không lộ việc kênh tồn tại.
 
 ## 3. Quyền xem meeting

@@ -129,7 +129,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá đều
     - kênh org A không chứa được membership ghi org B;
     - xoá org membership → tự rời mọi kênh;
     - tên trùng không phân biệt hoa thường → 23505, xoá mềm rồi thì dùng lại được tên.
-- [ ] **B2 — Policy kênh (thuần)**
+- [x] **B2 — Policy kênh (thuần)**
   - Việc: permission theo ma trận §2 + 3 hàm theo đối tượng.
   - Test (unit): bảng phủ **toàn bộ** ma trận × 6 kiểu người gọi (CO/CA/CM/G/ngoài-pub/OrgAdm) × công khai/riêng tư; test "bảng phủ đủ permission".
 - [ ] **B3 — Guard + tạo / liệt kê / xem / sửa kênh**
