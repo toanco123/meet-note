@@ -1,6 +1,6 @@
 # M3 — Mời, duyệt, chuyển quyền sở hữu, rời tổ chức, audit log
 
-- **Trạng thái:** Xong ở local (2026-10-13). Còn chờ CI trên PR
+- **Trạng thái:** Xong (2026-10-14). CI xanh trên PR #3 (run 38496449748)
 - **Nhánh:** `m3-invites-ownership`
 - **Tài liệu thiết kế liên quan:** [01-overview D7](../design/01-overview.md), [03-database §2, §6](../design/03-database.md), [04-authorization §1](../design/04-authorization.md), [05-api Organizations](../design/05-api.md), [06-flows](../design/06-flows.md)
 
@@ -139,7 +139,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
 
 - [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 115)
 - [x] `pnpm test:e2e` xanh ở local (integration + e2e 206). 3 race test (B5 link 30 người, B6 hai Admin duyệt, B7 chuyển cho B ‖ C) đều đã đột biến và đỏ đúng dự đoán
-- [ ] `pnpm test:e2e` xanh trên CI: **chờ push nhánh**
+- [x] `pnpm test:e2e` xanh trên CI (PR #3, run 38496449748), Docker image build xanh
 - [x] Mọi thao tác quản trị của M2 + M3 đều có audit log trong cùng transaction (12 loại hành động). Chạy tay trên Docker Compose: audit ghi đủ 9 sự kiện của luồng mời → duyệt → chuyển sở hữu → rời; trigger chặn `UPDATE` kể cả qua psql
 - [x] `openapi.json` có đủ route mới (24 path), có response 410 cho link hết hạn/hết lượt
 - [x] `docs/design/` khớp với code (02, 03, 04, 05, 07, 10)
@@ -185,3 +185,4 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ có khoá ho
 22. **Owner không bao giờ rời được khi chưa chuyển quyền** (409 `ORG_OWNER_MUST_TRANSFER`), nên org không thể mất owner. e2e kiểm cả đường "chuyển quyền rồi mới rời". Ghi chú M4: `leave` cũng phải chuyển các kênh người đó làm chủ (đã để comment).
 23. **Tách `AuditModule` (chỉ ghi, global) khỏi `AuditLogsModule` (API đọc).** Worker ở M6 cần ghi audit mà không kéo theo controller và guard tổ chức. Cursor của audit log dùng khoá thứ hai là `id bigint`, nên thêm `expectPositiveIntKey` để chặn số âm, số thực, số vượt `MAX_SAFE_INTEGER` trong cursor bị sửa tay.
 24. **Trigger chỉ-ghi-thêm có hiệu lực cả với người vận hành DB.** Chạy tay trên Docker Compose: `UPDATE audit_logs …` bằng psql với user chủ bảng vẫn nhận `audit_logs là bảng chỉ ghi thêm: UPDATE bị từ chối`. Muốn sửa phải chủ động `DISABLE TRIGGER`, và hành động đó để lại dấu vết.
+25. **`gh run watch` thoát lỗi không có nghĩa là CI đỏ.** Lần theo dõi PR #3 dừng với `HTTP 500` từ API GitHub, trong khi job vẫn chạy và sau đó xanh. Phải đọc lý do lỗi (`failed to get jobs: HTTP 500`), rồi hỏi lại trạng thái thật bằng `gh run view --json status,conclusion` trước khi kết luận.
