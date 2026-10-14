@@ -20,6 +20,7 @@ describe('orgPolicy — loại hành động theo vai trò', () => {
   const matrix: Array<[OrgPermission, owner: boolean, admin: boolean, member: boolean]> = [
     ['org.read', true, true, true],
     ['org.update', true, true, false],
+    ['org.delete', true, false, false],
     ['org.member.list', true, true, true],
     ['org.member.role.change', true, false, false],
     ['org.member.remove', true, true, false],

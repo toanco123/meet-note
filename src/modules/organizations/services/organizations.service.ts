@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { OrganizationMembersRepository } from '../repositories/organization-members.repository.js';
 import { Errors } from '../../../common/errors/errors.js';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import { diffForAudit, isEmptyDiff } from '../../audit/audit-diff.js';
@@ -18,6 +19,7 @@ export class OrganizationsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly repo: OrganizationsRepository,
+    private readonly members: OrganizationMembersRepository,
     private readonly audit: AuditService,
   ) {}
 
@@ -77,5 +79,31 @@ export class OrganizationsService {
       });
     });
     return this.getDetail(orgId);
+  }
+
+  /**
+   * Xoá MỀM tổ chức (chỉ Owner). Từ đây `OrgMemberGuard` trả 404 cho MỌI route bên trong (kênh,
+   * thành viên, link mời…), link mời hết dùng được. Xoá cứng làm sau (ngoài phạm vi M4).
+   *
+   * Khoá dòng CHA trước: `organizations` (bậc 0) → dòng thành viên của người gọi `FOR SHARE`
+   * (bậc 1) → kiểm tra LẠI người gọi còn là Owner (có thể vừa chuyển quyền sở hữu đi).
+   */
+  async softDelete(orgId: string, ctx: UserAuditContext): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const current = await this.repo.lockForUpdate(orgId, tx);
+      if (!current) throw Errors.org.notFound();
+      const role = await this.members.lockRoleForShare(orgId, ctx.actorId, tx);
+      if (!role) throw Errors.org.notFound();
+      if (role !== OrgRole.Owner) throw Errors.org.noLongerOwner();
+
+      await this.repo.softDelete(orgId, tx);
+      await this.audit.record(tx, ctx, {
+        orgId,
+        action: 'org.deleted',
+        targetType: 'organization',
+        targetId: orgId,
+        metadata: { before: { name: current.name } },
+      });
+    });
   }
 }

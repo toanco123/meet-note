@@ -18,3 +18,9 @@ export interface MappedError {
   message: string;
   details?: ErrorDetail[];
 }
+
+/** Kênh mà một người đang làm chủ — liệt kê trong lỗi `ORG_MEMBER_OWNS_CHANNELS`. */
+export interface OwnedChannel {
+  id: string;
+  name: string;
+}

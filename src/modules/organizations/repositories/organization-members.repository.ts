@@ -1,13 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { escapeLike, timestampKey } from '../../../common/pagination/keys.js';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../../infra/database/database.types.js';
 import {
+  channelMembers,
+  channels,
   organizationMembers,
   type OrgRoleValue,
   users,
 } from '../../../infra/database/schema/index.js';
+import type { OwnedChannel } from '../../../common/errors/errors.types.js';
 import type { ListMembersParams, MemberRow } from '../organizations.types.js';
 
 @Injectable()
@@ -105,6 +108,28 @@ export class OrganizationMembersRepository {
       )
       .orderBy(asc(organizationMembers.userId))
       .for('share');
+  }
+
+  /**
+   * Kênh (chưa xoá mềm) mà người này đang làm chủ. Đọc thẳng bảng kênh qua schema thay vì gọi module
+   * kênh: module kênh đã phụ thuộc module tổ chức, gọi ngược sẽ thành vòng.
+   * Gọi SAU khi đã khoá `FOR UPDATE` dòng tổ chức của người này — chuyển chủ kênh cho họ cần
+   * `FOR SHARE` chính dòng đó (bậc 1), nên hai việc chạy tuần tự và kết quả ở đây là mới nhất.
+   */
+  findOwnedChannels(orgId: string, userId: string, executor: DbExecutor): Promise<OwnedChannel[]> {
+    return executor
+      .select({ id: channels.id, name: channels.name })
+      .from(channelMembers)
+      .innerJoin(channels, eq(channels.id, channelMembers.channelId))
+      .where(
+        and(
+          eq(channelMembers.orgId, orgId),
+          eq(channelMembers.userId, userId),
+          eq(channelMembers.role, 'owner'),
+          isNull(channels.deletedAt),
+        ),
+      )
+      .orderBy(asc(sql`lower(${channels.name})`));
   }
 
   /** `ON CONFLICT DO NOTHING` trên PK (org_id, user_id): đã là thành viên → trả `false`, không lỗi. */

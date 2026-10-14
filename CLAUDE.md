@@ -21,7 +21,7 @@ MeetNote là ứng dụng biên bản họp theo nhóm. Người dùng thuộc t
 | M1 — Auth                      | **Xong** (PR #1 đã merge)                                               |
 | M2 — Tổ chức                   | **Xong** (PR #2)                                                        |
 | M3 — Mời, duyệt, sở hữu, audit | **Xong** (PR #3)                                                        |
-| M4 — Kênh                      | **Đang làm** (nhánh `m4-channels`): B1–B6 xong, tiếp theo B7            |
+| M4 — Kênh                      | **Đang làm** (nhánh `m4-channels`): B1–B7 xong, còn B8 (đóng mốc)       |
 
 Lộ trình đầy đủ: `docs/design/10-roadmap.md`.
 

@@ -38,6 +38,7 @@ export const ErrorCode = {
   JoinRequestNotPending: 'JOIN_REQUEST_NOT_PENDING',
   OrgOwnerMustTransfer: 'ORG_OWNER_MUST_TRANSFER',
   OrgTransferInvalidTarget: 'ORG_TRANSFER_INVALID_TARGET',
+  OrgMemberOwnsChannels: 'ORG_MEMBER_OWNS_CHANNELS',
 
   // M4 — Kênh
   ChannelNameTaken: 'CHANNEL_NAME_TAKEN',

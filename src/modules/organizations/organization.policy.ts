@@ -21,6 +21,7 @@ export function isOrgRoleAtLeast(role: OrgRole, min: OrgRole): boolean {
 export const orgPolicy = {
   'org.read': () => true,
   'org.update': (ctx) => isOrgRoleAtLeast(ctx.role, OrgRole.Admin),
+  'org.delete': (ctx) => ctx.role === OrgRole.Owner,
   'org.member.list': () => true,
   'org.member.role.change': (ctx) => ctx.role === OrgRole.Owner,
   'org.member.remove': (ctx) => isOrgRoleAtLeast(ctx.role, OrgRole.Admin),

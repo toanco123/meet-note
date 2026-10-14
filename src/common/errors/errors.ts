@@ -1,6 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 import { AppException } from './app.exception.js';
 import { ErrorCode } from './error-code.js';
+import type { OwnedChannel } from './errors.types.js';
 import type { ErrorDetail } from './errors.types.js';
 
 /**
@@ -28,6 +29,9 @@ const notFound = (message: string, code: ErrorCode = ErrorCode.NotFound) =>
 const conflict = (code: ErrorCode, message: string, details?: ErrorDetail[]) =>
   new AppException(code, HttpStatus.CONFLICT, message, details);
 const gone = (code: ErrorCode, message: string) => new AppException(code, HttpStatus.GONE, message);
+
+const ownedChannelDetails = (channels: OwnedChannel[]) =>
+  channels.map((c) => ({ field: `channels.${c.id}`, message: c.name }));
 
 export const Errors = {
   common: {
@@ -110,6 +114,22 @@ export const Errors = {
     noLongerOwner: () => forbidden('Bạn không còn là Owner của tổ chức này.'),
     alreadyMember: () =>
       conflict(ErrorCode.OrgAlreadyMember, 'Bạn đã là thành viên của tổ chức này.'),
+    /**
+     * Rời / bị gỡ khỏi org khi còn làm chủ kênh (M4 Q3). `details[i].field = channels.<id>`,
+     * `message` = tên kênh, để client dẫn thẳng tới màn chuyển chủ kênh.
+     */
+    leaverOwnsChannels: (channels: OwnedChannel[]) =>
+      conflict(
+        ErrorCode.OrgMemberOwnsChannels,
+        `Bạn đang làm chủ ${channels.length} kênh. Hãy chuyển chủ kênh trước khi rời tổ chức.`,
+        ownedChannelDetails(channels),
+      ),
+    targetOwnsChannels: (channels: OwnedChannel[]) =>
+      conflict(
+        ErrorCode.OrgMemberOwnsChannels,
+        `Người này đang làm chủ ${channels.length} kênh. Hãy chuyển chủ các kênh đó trước khi gỡ.`,
+        ownedChannelDetails(channels),
+      ),
   },
 
   invite: {

@@ -7,6 +7,7 @@ import {
   organizationMembers,
   organizations,
 } from '../../../../../src/infra/database/schema/index.js';
+import { OrganizationMembersRepository } from '../../../../../src/modules/organizations/repositories/organization-members.repository.js';
 import { OrganizationsRepository } from '../../../../../src/modules/organizations/repositories/organizations.repository.js';
 import { OrganizationsService } from '../../../../../src/modules/organizations/services/organizations.service.js';
 import { addMember, insertOrg, insertUser } from '../../../../support/db-factories.js';
@@ -23,6 +24,7 @@ describe('OrganizationsService (Postgres thật)', () => {
       providers: [
         OrganizationsService,
         OrganizationsRepository,
+        OrganizationMembersRepository,
         AuditService,
         { provide: DRIZZLE, useValue: t.db },
       ],

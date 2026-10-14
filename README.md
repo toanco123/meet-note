@@ -16,13 +16,13 @@
 
 Trạng thái hiện tại:
 
-| Mốc                            | Trạng thái                                                                                                                                                                              |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0 — Khung                     | Xong                                                                                                                                                                                    |
-| M1 — Auth                      | Xong (PR #1)                                                                                                                                                                            |
-| M2 — Tổ chức                   | Xong (PR #2)                                                                                                                                                                            |
-| M3 — Mời, duyệt, sở hữu, audit | Xong (PR #3)                                                                                                                                                                            |
-| M4 — Kênh                      | Đang làm: schema, policy, CRUD kênh, thành viên kênh, tham gia / rời / chuyển chủ kênh, lưu trữ, xoá mềm + logic dọn dẹp xong; tiếp theo chặn rời org khi còn làm chủ kênh, xoá tổ chức |
+| Mốc                            | Trạng thái                                                                                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 — Khung                     | Xong                                                                                                                                                                                        |
+| M1 — Auth                      | Xong (PR #1)                                                                                                                                                                                |
+| M2 — Tổ chức                   | Xong (PR #2)                                                                                                                                                                                |
+| M3 — Mời, duyệt, sở hữu, audit | Xong (PR #3)                                                                                                                                                                                |
+| M4 — Kênh                      | Đang làm: schema, policy, CRUD kênh, thành viên kênh, tham gia / rời / chuyển chủ kênh, lưu trữ, xoá mềm + logic dọn dẹp, chặn rời org khi còn làm chủ kênh, xoá tổ chức xong; còn đóng mốc |
 
 Chi tiết từng mốc (các bước, quyết định, bài học) trong [docs/plans/](docs/plans/).
 

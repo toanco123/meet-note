@@ -806,6 +806,61 @@
         "tags": [
           "Organizations"
         ]
+      },
+      "delete": {
+        "description": "Xoá mềm: từ đây mọi route trong tổ chức trả 404 với mọi người, link mời hết dùng được.",
+        "operationId": "Organizations_remove",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã xoá tổ chức."
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Xoá tổ chức (chỉ Owner).",
+        "tags": [
+          "Organizations"
+        ]
       }
     },
     "/v1/orgs/{orgId}/ownership-transfer": {
@@ -4754,6 +4809,7 @@
           "org.join_request.approved",
           "org.join_request.rejected",
           "org.ownership.transferred",
+          "org.deleted",
           "channel.created",
           "channel.updated",
           "channel.member.added",

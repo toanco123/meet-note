@@ -16,6 +16,7 @@ export const AUDIT_ACTIONS = [
   'org.join_request.approved',
   'org.join_request.rejected',
   'org.ownership.transferred',
+  'org.deleted',
   'channel.created',
   'channel.updated',
   'channel.member.added',

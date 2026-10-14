@@ -366,6 +366,7 @@ Dùng cho các POST không tự idempotent, theo header `Idempotency-Key`.
 
 **Mọi thao tác khoá nhiều loại dòng phải theo đúng thứ tự sau** (khoá ngược thứ tự → hai transaction có thể chờ nhau vòng tròn → Postgres giết một bên với `40P01`):
 
+0. `organizations` (dòng cha của mọi thứ; hiện chỉ xoá tổ chức và sửa tổ chức khoá dòng này)
 1. `organization_members`, sắp theo `user_id` (`FOR UPDATE` khi đổi/xoá, `FOR SHARE` khi chỉ cần "vai trò này giữ nguyên")
 2. `channels`, sắp theo `id` (dòng kênh là mutex cho mọi thay đổi quyền trong kênh)
 3. `channel_members`, sắp theo `user_id`
@@ -377,7 +378,8 @@ Ví dụ:
 - **Rời kênh:** kênh (bậc 2) → dòng của mình (bậc 3), kiểm tra không phải chủ trên dòng VỪA KHOÁ.
 - **Lưu trữ / bỏ lưu trữ / xoá kênh:** khoá `FOR SHARE` dòng tổ chức của người gọi (bậc 1, vì quyền override của OrgAdm dựa trên nó) → kênh (bậc 2).
 - **Dọn kênh đã xoá mềm (`purgeBatch`):** một câu `DELETE … WHERE id IN (SELECT … ORDER BY deleted_at LIMIT n FOR UPDATE SKIP LOCKED)`, chỉ chạm bậc 2 (cascade xoá `channel_members`). `lock_timeout` đặt bằng `set_config('lock_timeout', $1, true)`, vì `SET LOCAL … = $1` không nhận tham số bind (lỗi 42601).
-- **Gỡ X khỏi org:** khoá dòng tổ chức của người gỡ và X (bậc 1) → kiểm tra X không làm chủ kênh nào → xoá.
+- **Gỡ X khỏi org / X tự rời:** khoá `FOR UPDATE` dòng tổ chức của người gỡ và X (bậc 1) → kiểm tra X không làm chủ kênh nào (chưa xoá mềm) → xoá. Chuyển chủ kênh cho X khoá `FOR SHARE` chính dòng đó, nên hai việc chạy tuần tự: chuyển trước → gỡ nhận 409; gỡ trước → chuyển nhận 404.
+- **Xoá tổ chức:** `organizations` `FOR UPDATE` (bậc 0) → dòng tổ chức của người gọi `FOR SHARE` (bậc 1), kiểm tra lại vẫn là Owner → `deleted_at = now()`.
 - **Thêm X vào kênh:** khoá `FOR SHARE` dòng tổ chức của X (bậc 1) → kênh (bậc 2) → `INSERT … ON CONFLICT DO NOTHING`.
 - **Đổi vai trò / gỡ X khỏi kênh:** kênh (bậc 2) → dòng `channel_members` của X (bậc 3). Vẫn phải khoá bậc 3 dù kênh đã là mutex: gỡ X khỏi **tổ chức** xoá dòng này qua cascade mà không đi qua dòng kênh.
 

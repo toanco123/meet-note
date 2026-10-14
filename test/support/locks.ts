@@ -11,9 +11,21 @@ import { channels } from '../../src/infra/database/schema/index.js';
  * mới cho A commit. Không dùng `sleep`: ngắn thì test chập chờn, dài thì chậm.
  * Mỗi file test có database riêng (clone từ template) → lọc theo `current_database()` là đủ cô lập.
  */
-export async function waitForLockWaiters(db: Database, count = 1, timeoutMs = 5000): Promise<void> {
+export async function waitForLockWaiters(
+  db: Database,
+  count = 1,
+  timeoutMs = 5000,
+  /** Dừng chờ (không lỗi) khi promise này xong — vd T2 chạy hết mà không cần đợi khoá. */
+  stopWhen?: Promise<unknown>,
+): Promise<void> {
+  let stopped = false;
+  void stopWhen?.then(
+    () => (stopped = true),
+    () => (stopped = true),
+  );
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    if (stopped) return;
     const result = await db.execute<{ n: number }>(sql`
       select count(*)::int as n from pg_stat_activity
       where datname = current_database() and wait_event_type = 'Lock'
@@ -56,7 +68,9 @@ export async function interleave(
 
   await Promise.race([held.promise, holder]);
   const contender = outcomeOf(steps.contend());
-  await waitForLockWaiters(db, 1);
+  // Code đúng: T2 phải đợi khoá. Code đột biến: T2 có thể chạy thẳng tới xong — vẫn đi tiếp để
+  // assert thấy HẬU QUẢ thật (vd kênh mất chủ), thay vì đỏ vì timeout của bước chờ.
+  await waitForLockWaiters(db, 1, 5000, contender);
   release.resolve();
   return { holder: await holder, contender: await contender };
 }

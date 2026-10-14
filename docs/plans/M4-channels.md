@@ -182,7 +182,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá đều
 - [x] **B6 — Lưu trữ / bỏ lưu trữ / xoá mềm + logic dọn dẹp**
   - Việc: lưu trữ chặn ghi (409); xoá mềm thì 404 với mọi người, tên dùng lại được; `purgeBatch` dùng `FOR UPDATE SKIP LOCKED`.
   - **Test xác định (không phụ thuộc thời gian):** transaction A giữ khoá 5 kênh, transaction B (đặt `lock_timeout`) phải lấy ngay 5 kênh **khác**. Đột biến bỏ `SKIP LOCKED` → B lỗi `55P03` (hết thời gian chờ khoá).
-- [ ] **B7 — Chặn rời / gỡ khỏi tổ chức khi còn làm chủ kênh + xoá tổ chức**
+- [x] **B7 — Chặn rời / gỡ khỏi tổ chức khi còn làm chủ kênh + xoá tổ chức**
   - Việc:
     - `remove` / `leave` của tổ chức kiểm tra người đó còn làm chủ kênh nào (chưa xoá) → 409 `ORG_MEMBER_OWNS_CHANNELS` kèm danh sách kênh (Q3);
       - lưu ý từ B6: kênh **đã xoá mềm** vẫn còn dòng chủ kênh tới khi bị dọn (30 ngày). Không được tính, nếu không người đó sẽ bị chặn rời org vì một kênh không ai thấy;
@@ -190,7 +190,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá đều
   - **Race phải chặn:** Admin gỡ X ‖ chủ kênh chuyển kênh cho X. Không phối hợp khoá thì: gỡ kiểm tra "X không làm chủ kênh nào" → chuyển kênh commit → gỡ xoá membership của X → cascade xoá dòng chủ kênh → **kênh mất chủ**.
     - Cách chặn bằng thứ tự khoá chung: chuyển chủ kênh khoá `FOR SHARE` dòng thành viên tổ chức của **người nhận** (bậc 1) trước khi khoá kênh; gỡ khoá `FOR UPDATE` cùng dòng đó. Kết quả là hai thao tác chạy tuần tự.
     - Ai trước cũng ra kết cục hợp lệ: chuyển trước → gỡ thấy X làm chủ → 409; gỡ trước → chuyển thấy X không còn trong org → 404.
-  - Test (integration, 10 vòng): race trên → không bao giờ có kênh mất chủ. **Đột biến** bỏ khoá dòng thành viên tổ chức của người nhận → kênh mất chủ (đỏ).
+  - Test (integration): race trên → không bao giờ có kênh mất chủ. **Đã làm xác định cho CẢ HAI thứ tự** (thay cho 10 vòng ngẫu nhiên, xem bài học 24). **Đột biến** bỏ khoá dòng thành viên tổ chức của người nhận → kênh mất chủ (đỏ).
   - Test (e2e): chủ kênh rời org → 409 kèm tên kênh; chuyển chủ kênh xong thì rời được; Owner org xoá org → mọi route bên trong 404.
 - [ ] **B8 — Đóng mốc**
   - Việc: `openapi.json`, đối chiếu tài liệu, chạy tay trên Docker Compose, ghi "Điều học được".
@@ -237,3 +237,6 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá đều
 21. **`SKIP LOCKED` chứng minh được bằng `lock_timeout`, không cần đo thời gian.** Worker A giữ khoá 5 kênh cũ nhất; B gọi `purgeBatch({ limit: 5, lockTimeoutMs: 200 })`. Có `SKIP LOCKED` → B lấy ngay 5 kênh kế tiếp, hai lô không trùng nhau. Đột biến bỏ `SKIP LOCKED` → `pg:55P03` sau ~279 ms. `lock_timeout` vừa là thứ làm test xác định (không có nó, B đợi mãi, test treo thay vì đỏ), vừa là lưới an toàn ở production (job không bao giờ đứng đợi vô hạn).
 22. **`SET LOCAL lock_timeout = $1` không chạy được với tham số bind.** Đã kiểm chứng trên Postgres thật: lỗi `42601 syntax error at or near "$1"`, vì `SET` không phải câu lệnh có tham số. Dùng `select set_config('lock_timeout', $1, true)` (`is_local = true`): bind được, chỉ có hiệu lực trong transaction, sau commit trở về `0`.
 23. **Lưu trữ / xoá do OrgAdm làm cũng khoá bậc 1** (dòng tổ chức của người gọi, `FOR SHARE`), giống chuyển chủ kênh: quyền override dựa trên vai trò tổ chức, nên vai trò đó phải giữ nguyên tới lúc commit. Kênh đã xoá mềm vẫn còn dòng `channel_members` (kể cả chủ) tới khi bị dọn. Đây là điểm B7 phải lọc khi kiểm tra "còn làm chủ kênh nào".
+24. **Race "gỡ X ‖ chuyển chủ kênh cho X" làm XÁC ĐỊNH cho cả hai thứ tự, thay vì chạy 10 vòng rồi hy vọng trúng.** Gỡ trước: T1 khoá dòng org của X → chuyển chủ (service thật) đợi → T1 xoá X → chuyển nhận 404 (`OK/NOT_FOUND/<chủ cũ>`). Chuyển trước: T1 làm đúng các bước khoá của chuyển chủ → `remove` (service thật) đợi → thấy X đã là chủ → 409 (`ORG_MEMBER_OWNS_CHANNELS/<X>`). Mỗi thứ tự một đột biến làm đỏ, và cả hai đều ra **kênh mất chủ**: chuyển không khoá dòng org của người nhận → `OK/OK/`; `remove` bỏ kiểm tra → `OK/`. Vòng lặp ngẫu nhiên chỉ trúng khoảng hở thời gian nếu may, còn ép thứ tự thì lần nào cũng trúng.
+25. **Helper race phải chịu được code đột biến "không thèm đợi".** Code đúng thì T2 phải đợi khoá. Code đột biến có thể chạy thẳng tới commit, khiến `waitForLockWaiters` chờ đủ 5 s rồi báo lỗi timeout, tức test đỏ vì lý do sai. Đã thêm `stopWhen`: khi T2 xong thì thôi chờ, T1 làm tiếp, và assert thấy hậu quả thật (đột biến 1 đỏ sau 66 ms với `OK/OK/`).
+26. **Truy vấn "đang làm chủ kênh nào" đặt trong repository thành viên ORG, đọc thẳng bảng kênh qua schema.** `ChannelsModule` đã import `OrganizationsModule`; inject ngược service kênh sẽ thành phụ thuộc vòng giữa module. Đọc ở tầng schema không tạo phụ thuộc module. **Thứ tự khoá có thêm bậc 0 `organizations`** cho xoá tổ chức: khoá dòng cha trước, rồi tới dòng thành viên của người gọi.

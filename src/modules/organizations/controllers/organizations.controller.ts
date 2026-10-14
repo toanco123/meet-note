@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthUser } from '../../../common/auth/auth.types.js';
 import { CurrentUser } from '../../../common/auth/current-user.decorator.js';
@@ -116,5 +126,21 @@ export class OrganizationsController {
     @UserAuditCtx() audit: UserAuditContext,
   ): Promise<void> {
     await this.members.leave(orgId, audit);
+  }
+
+  /**
+   * Xoá tổ chức (chỉ Owner).
+   *
+   * @remarks Xoá mềm: từ đây mọi route trong tổ chức trả 404 với mọi người, link mời hết dùng được.
+   */
+  @Delete(':orgId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequireOrgPermission('org.delete')
+  @ApiNoContentResponse({ description: 'Đã xoá tổ chức.' })
+  async remove(
+    @Param('orgId') orgId: string,
+    @UserAuditCtx() audit: UserAuditContext,
+  ): Promise<void> {
+    await this.orgs.softDelete(orgId, audit);
   }
 }

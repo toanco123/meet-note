@@ -72,13 +72,16 @@ export class OrganizationMembersService {
    * Gỡ thành viên. Cùng mẫu khoá với `changeRole` → hai thao tác chạm cùng người được tuần tự hoá:
    * thao tác đến sau đọc vai trò MỚI (vd B vừa thành admin) rồi mới quyết định.
    *
-   * M4: khi đã có kênh, phải chuyển các kênh mà người bị gỡ làm chủ sang người khác TRONG cùng
-   * transaction này (cascade FK sẽ xoá luôn dòng chủ kênh → kênh mồ côi).
+   * M4 (Q3): người bị gỡ còn làm chủ kênh → 409 `ORG_MEMBER_OWNS_CHANNELS`, phải chuyển chủ kênh
+   * trước (OrgAdm chuyển hộ được). Kiểm tra SAU khi khoá dòng của họ — xem `findOwnedChannels`.
    */
   async remove(orgId: string, targetId: string, ctx: UserAuditContext): Promise<void> {
     await this.db.transaction(async (tx) => {
       const { actor, target } = await this.lockActorAndTarget(orgId, ctx.actorId, targetId, tx);
       assertAllowed(canRemoveMember(actor, target));
+      // Cascade `(org_id, user_id)` sẽ xoá luôn dòng CHỦ KÊNH → kênh mất chủ. Phải chuyển trước (Q3).
+      const owned = await this.repo.findOwnedChannels(orgId, targetId, tx);
+      if (owned.length > 0) throw Errors.org.targetOwnsChannels(owned);
       await this.repo.deleteMember(orgId, targetId, tx);
       await this.audit.record(tx, ctx, {
         orgId,
@@ -137,6 +140,8 @@ export class OrganizationMembersService {
       if (self.role === OrgRole.Owner) {
         throw Errors.org.ownerMustTransfer();
       }
+      const owned = await this.repo.findOwnedChannels(orgId, ctx.actorId, tx);
+      if (owned.length > 0) throw Errors.org.leaverOwnsChannels(owned);
       await this.repo.deleteMember(orgId, ctx.actorId, tx);
       await this.audit.record(tx, ctx, {
         orgId,

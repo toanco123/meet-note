@@ -94,6 +94,13 @@ export class OrganizationsRepository {
     return row;
   }
 
+  async softDelete(orgId: string, executor: DbExecutor): Promise<void> {
+    await executor
+      .update(organizations)
+      .set({ deletedAt: sql`now()` })
+      .where(eq(organizations.id, orgId));
+  }
+
   async update(orgId: string, patch: OrganizationPatch, executor: DbExecutor): Promise<void> {
     await executor.update(organizations).set(patch).where(eq(organizations.id, orgId));
   }
