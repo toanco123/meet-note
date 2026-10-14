@@ -1,6 +1,6 @@
 # M4 — Kênh
 
-- **Trạng thái:** Đang làm (plan đã duyệt 2026-10-14: ★ cho Q1, Q2, Q4; **Q3 đổi theo người dùng**: phải chuyển chủ kênh trước, giống Owner tổ chức)
+- **Trạng thái:** **Xong ở local** (2026-10-14): B1–B8, kể cả các bước thêm theo yêu cầu (B4b–B4e). CI chạy khi push / mở PR. Plan đã duyệt 2026-10-14 (★ cho Q1, Q2, Q4; Q3 theo người dùng; Q5–Q7 ★)
 - **Nhánh:** `m4-channels`
 - **Tài liệu thiết kế liên quan:** [01-overview D2, D3](../design/01-overview.md), [03-database §3, §7](../design/03-database.md), [04-authorization §2, §4](../design/04-authorization.md), [05-api Channels](../design/05-api.md), [06-flows §3](../design/06-flows.md)
 
@@ -192,16 +192,17 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá đều
     - Ai trước cũng ra kết cục hợp lệ: chuyển trước → gỡ thấy X làm chủ → 409; gỡ trước → chuyển thấy X không còn trong org → 404.
   - Test (integration): race trên → không bao giờ có kênh mất chủ. **Đã làm xác định cho CẢ HAI thứ tự** (thay cho 10 vòng ngẫu nhiên, xem bài học 24). **Đột biến** bỏ khoá dòng thành viên tổ chức của người nhận → kênh mất chủ (đỏ).
   - Test (e2e): chủ kênh rời org → 409 kèm tên kênh; chuyển chủ kênh xong thì rời được; Owner org xoá org → mọi route bên trong 404.
-- [ ] **B8 — Đóng mốc**
+- [x] **B8 — Đóng mốc**
   - Việc: `openapi.json`, đối chiếu tài liệu, chạy tay trên Docker Compose, ghi "Điều học được".
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở local và CI; các race test + test `SKIP LOCKED` đều đã được đột biến
-- [ ] Ma trận quyền kênh (§2) pass toàn bộ ở unit và e2e dạng bảng
-- [ ] Không còn đường nào để kênh mất chủ (gỡ / rời / chuyển), kể cả khi các thao tác chạy song song
-- [ ] `docs/design/` khớp với code, có **thứ tự khoá chung** trong §7
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 324)
+- [x] `pnpm test:e2e` xanh ở local (371); các race test + test `SKIP LOCKED` đều đã được đột biến (kết quả ở bài học 6, 9–10, 15–16, 21, 24)
+- [ ] `pnpm test:e2e` xanh ở CI: chờ push / PR
+- [x] Ma trận quyền kênh (§2) pass toàn bộ ở unit (12 permission × 6 kiểu người gọi × công khai/riêng tư) và e2e dạng bảng
+- [x] Không còn đường nào để kênh mất chủ (gỡ / rời / chuyển), kể cả khi các thao tác chạy song song: chủ kênh rời kênh → 409; chuyển ‖ rời kênh (B5); gỡ / rời org khi còn làm chủ → 409, gỡ ‖ chuyển cả hai thứ tự (B7). Mỗi đường đều có đột biến cho ra "kênh mất chủ"
+- [x] `docs/design/` khớp với code (đối chiếu route 05-api ↔ `openapi.json` và mã lỗi 07 ↔ `ErrorCode` bằng script), có **thứ tự khoá chung** trong §7 (bậc 0–3)
 
 ## Điều sẽ học
 
@@ -240,3 +241,5 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá đều
 24. **Race "gỡ X ‖ chuyển chủ kênh cho X" làm XÁC ĐỊNH cho cả hai thứ tự, thay vì chạy 10 vòng rồi hy vọng trúng.** Gỡ trước: T1 khoá dòng org của X → chuyển chủ (service thật) đợi → T1 xoá X → chuyển nhận 404 (`OK/NOT_FOUND/<chủ cũ>`). Chuyển trước: T1 làm đúng các bước khoá của chuyển chủ → `remove` (service thật) đợi → thấy X đã là chủ → 409 (`ORG_MEMBER_OWNS_CHANNELS/<X>`). Mỗi thứ tự một đột biến làm đỏ, và cả hai đều ra **kênh mất chủ**: chuyển không khoá dòng org của người nhận → `OK/OK/`; `remove` bỏ kiểm tra → `OK/`. Vòng lặp ngẫu nhiên chỉ trúng khoảng hở thời gian nếu may, còn ép thứ tự thì lần nào cũng trúng.
 25. **Helper race phải chịu được code đột biến "không thèm đợi".** Code đúng thì T2 phải đợi khoá. Code đột biến có thể chạy thẳng tới commit, khiến `waitForLockWaiters` chờ đủ 5 s rồi báo lỗi timeout, tức test đỏ vì lý do sai. Đã thêm `stopWhen`: khi T2 xong thì thôi chờ, T1 làm tiếp, và assert thấy hậu quả thật (đột biến 1 đỏ sau 66 ms với `OK/OK/`).
 26. **Truy vấn "đang làm chủ kênh nào" đặt trong repository thành viên ORG, đọc thẳng bảng kênh qua schema.** `ChannelsModule` đã import `OrganizationsModule`; inject ngược service kênh sẽ thành phụ thuộc vòng giữa module. Đọc ở tầng schema không tạo phụ thuộc module. **Thứ tự khoá có thêm bậc 0 `organizations`** cho xoá tổ chức: khoá dòng cha trước, rồi tới dòng thành viên của người gọi.
+27. **Đối chiếu tài liệu bằng script, không bằng mắt (B8).** Script so route trong `openapi.json` với bảng 05-api: khớp hết, chỉ còn 5 route meetings / reports của M6 / M9. Script so `ErrorCode` với bảng 07: **thiếu 4 mã từ M1 / M3** (`AUTH_EMAIL_TAKEN`, `INVITE_NOT_FOUND`, `GONE`, `SERVICE_UNAVAILABLE`), lọt qua hai lần đóng mốc trước vì khi đó chỉ đọc lướt. Đã bổ sung.
+28. **Chạy tay trên Docker Compose (B8):** `docker compose up --build -d --wait api worker` → `migrate` áp `0005_channels` rồi thoát 0, `api` healthy. Smoke test 20 bước gọi HTTP thật (mời → tạo kênh → thêm thành viên → tìm không dấu → chuyển chủ → rời org bị chặn kèm `details` → lưu trữ → sửa bị 409 → xoá kênh → rời org → xoá org → 404, cộng `x-request-id` client gửi được dùng lại ở `meta.requestId`): 20/20 đúng, log `api` / `worker` không có dòng `error`.
