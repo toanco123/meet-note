@@ -38,6 +38,7 @@ pnpm typecheck            # tsc --noEmit
 pnpm format               # prettier --write
 pnpm build && pnpm openapi:export   # cập nhật openapi.json (CI kiểm tra khớp code)
 pnpm db:generate --name=x           # migration từ schema Drizzle; --custom để viết SQL tay
+pnpm db:studio                      # Drizzle Studio xem DB dev → https://local.drizzle.studio (README: Xem database)
 pnpm build && pnpm db:migrate       # chạy migration (đọc .env)
 docker compose up -d postgres redis rustfs   # hạ tầng cho dev local
 ```

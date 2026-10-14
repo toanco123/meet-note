@@ -27,6 +27,7 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env dist/scripts/migrate.js",
+    "db:studio": "drizzle-kit studio",
     "openapi:export": "node dist/scripts/export-openapi.js"
   },
   "dependencies": {

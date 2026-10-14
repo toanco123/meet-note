@@ -92,15 +92,73 @@ Hoặc chạy toàn bộ trong Docker: `docker compose up --build`.
 
 ### Lệnh thường dùng
 
-| Lệnh                                           | Việc                                                               |
-| ---------------------------------------------- | ------------------------------------------------------------------ |
-| `pnpm start:dev` / `pnpm start:worker`         | Chạy api / worker ở chế độ watch                                   |
-| `pnpm test`                                    | Unit test (không cần Docker)                                       |
-| `pnpm test:e2e`                                | Integration + e2e với Postgres/Redis thật (Testcontainers)         |
-| `pnpm lint` / `pnpm typecheck` / `pnpm format` | oxlint / tsc / Prettier                                            |
-| `pnpm db:generate --name=xxx`                  | Sinh migration từ schema Drizzle. **Đọc lại SQL trước khi commit** |
-| `pnpm db:generate --custom --name=xxx`         | Tạo migration SQL rỗng để viết tay                                 |
-| `pnpm build && pnpm openapi:export`            | Xuất `openapi.json` (CI kiểm tra file này khớp code)               |
+| Lệnh                                           | Việc                                                                     |
+| ---------------------------------------------- | ------------------------------------------------------------------------ |
+| `pnpm start:dev` / `pnpm start:worker`         | Chạy api / worker ở chế độ watch                                         |
+| `pnpm test`                                    | Unit test (không cần Docker)                                             |
+| `pnpm test:e2e`                                | Integration + e2e với Postgres/Redis thật (Testcontainers)               |
+| `pnpm lint` / `pnpm typecheck` / `pnpm format` | oxlint / tsc / Prettier                                                  |
+| `pnpm db:generate --name=xxx`                  | Sinh migration từ schema Drizzle. **Đọc lại SQL trước khi commit**       |
+| `pnpm db:generate --custom --name=xxx`         | Tạo migration SQL rỗng để viết tay                                       |
+| `pnpm db:studio`                               | Mở Drizzle Studio để xem dữ liệu (xem mục [Xem database](#xem-database)) |
+| `pnpm build && pnpm openapi:export`            | Xuất `openapi.json` (CI kiểm tra file này khớp code)                     |
+
+### Xem database
+
+Database dev là Postgres trong Docker Compose. Phải bật hạ tầng trước: `docker compose up -d postgres redis rustfs`.
+
+| Thông số | Giá trị                                                |
+| -------- | ------------------------------------------------------ |
+| Host     | `localhost`                                            |
+| Cổng     | `5432`                                                 |
+| User     | `meetnote`                                             |
+| Mật khẩu | `meetnote` (chỉ dùng cho dev)                          |
+| Database | `meetnote`                                             |
+| URL      | `postgres://meetnote:meetnote@localhost:5432/meetnote` |
+
+**Cách 1 — Drizzle Studio (giao diện web, có sẵn trong dự án):**
+
+```bash
+pnpm db:studio          # hoặc: npx -y pnpm@12.11.2 exec drizzle-kit studio
+```
+
+Rồi mở **https://local.drizzle.studio**.
+
+- Trang web đó chỉ là giao diện. Dữ liệu do server Studio **chạy trên máy bạn** (cổng `4983`) cung cấp, không đi ra ngoài. Vì vậy **phải để terminal chạy lệnh trên mở** trong lúc xem; tắt bằng `Ctrl+C`.
+- Trang đứng ở _"Connecting to the Drizzle Kit on localhost:4983"_:
+  1. kiểm tra lệnh `pnpm db:studio` còn chạy không (in ra _"Drizzle Studio is up and running"_);
+  2. trên **Chrome**: bấm biểu tượng bên trái thanh địa chỉ (Site information) → bật **"Apps on device"** (quyền truy cập mạng cục bộ) → tải lại trang;
+  3. trên **Safari / Brave**: hai trình duyệt này chặn localhost. Cài [`mkcert`](https://github.com/FiloSottile/mkcert), chạy `mkcert -install` rồi bật lại Studio. Với Brave có thể tắt Brave Shields cho trang.
+- Studio **sửa và xoá được** dữ liệu ngay trên giao diện. Chỉ nên dùng để xem.
+
+**Cách 2 — `psql` trong container (gõ SQL trực tiếp, không cần cài gì thêm):**
+
+```bash
+docker compose exec postgres psql -U meetnote -d meetnote
+```
+
+Lệnh hay dùng: `\dt` (danh sách bảng), `\d channels` (cột, index, constraint của bảng), `\x` (hiển thị dọc), `\q` (thoát). Ví dụ:
+
+```sql
+-- Kênh kèm chủ kênh
+select c.name, c.visibility, c.archived_at, c.deleted_at, u.display_name as chu_kenh
+from channels c
+join channel_members m on m.channel_id = c.id and m.role = 'owner'
+join users u on u.id = m.user_id;
+
+-- 20 thao tác quản trị gần nhất
+select action, actor_id, target_id, metadata, created_at from audit_logs order by id desc limit 20;
+```
+
+**Cách 3 — app giao diện** (TablePlus, DBeaver, DataGrip, extension SQLTools của VS Code): tạo kết nối PostgreSQL với thông số ở bảng trên.
+
+Nên biết khi xem:
+
+- DB này chỉ có dữ liệu từ lúc **chạy tay** (`pnpm start:dev`, gọi API, smoke test). Dữ liệu của `pnpm test:e2e` nằm ở các container Testcontainers riêng và **bị xoá khi test xong**, nên không xuất hiện ở đây.
+- **Xoá mềm** (`deleted_at` khác null) thì dòng vẫn còn trong bảng. Kênh xoá mềm bị xoá cứng sau 30 ngày (job dọn dẹp, lên lịch từ M6).
+- **`audit_logs` chỉ ghi thêm**: `UPDATE` / `DELETE` / `TRUNCATE` bị trigger chặn (lỗi `23001`), đúng thiết kế.
+- `__drizzle_migrations` ghi các migration đã chạy.
+- Muốn xoá sạch DB dev để làm lại từ đầu: `docker compose down -v`. **Lệnh này xoá luôn volume dữ liệu.** Sau đó `docker compose up -d postgres redis rustfs` và `pnpm build && pnpm db:migrate`.
 
 ### Đường dẫn
 
