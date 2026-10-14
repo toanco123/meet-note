@@ -15,9 +15,16 @@ export interface MyOrganizationRow {
   joinedAt: Date;
 }
 
+/** Các field sửa được qua `PATCH /orgs/:orgId`. */
+export interface OrganizationPatch {
+  name?: string;
+  requireJoinApproval?: boolean;
+}
+
 export interface OrganizationDetailRow {
   id: string;
   name: string;
+  requireJoinApproval: boolean;
   createdAt: Date;
   memberCount: number;
 }
@@ -81,6 +88,7 @@ export class OrganizationsRepository {
         id: organizations.id,
         name: organizations.name,
         createdAt: organizations.createdAt,
+        requireJoinApproval: organizations.requireJoinApproval,
         // Sub-query đếm trên PK (org_id, …) — index-only scan, không cần GROUP BY cả bảng org.
         memberCount: sql<number>`(
           select count(*)::int from ${organizationMembers}
@@ -92,12 +100,17 @@ export class OrganizationsRepository {
     return row;
   }
 
-  async updateName(orgId: string, name: string): Promise<boolean> {
-    const rows = await this.db
-      .update(organizations)
-      .set({ name })
+  /** Khoá dòng org để đọc giá trị "trước" cho audit và tránh hai lần sửa đè nhau giữa chừng. */
+  async lockForUpdate(orgId: string, executor: DbExecutor) {
+    const [row] = await executor
+      .select({ name: organizations.name, requireJoinApproval: organizations.requireJoinApproval })
+      .from(organizations)
       .where(and(eq(organizations.id, orgId), isNull(organizations.deletedAt)))
-      .returning({ id: organizations.id });
-    return rows.length > 0;
+      .for('update');
+    return row;
+  }
+
+  async update(orgId: string, patch: OrganizationPatch, executor: DbExecutor): Promise<void> {
+    await executor.update(organizations).set(patch).where(eq(organizations.id, orgId));
   }
 }

@@ -21,7 +21,9 @@ O = Owner, A = Admin, M = Member. ✓ = được, ✗ = không, ghi chú = có �
 | Quản trị bất kỳ kênh (lưu trữ, xoá, chỉ định chủ kênh) |                         ✓                          |       ✓       |                           ✗                           |
 | Xem audit log                                          |                         ✓                          |       ✓       |                           ✗                           |
 
-Quy tắc chung: **không ai được tác động lên người có vai trò ≥ mình**, trừ Owner. Đây là kiểm tra theo _đối tượng_, nên nằm trong service/policy chứ không chỉ ở guard.
+Quy tắc chung: **không ai được tác động lên người có vai trò ≥ mình**, trừ Owner.
+
+Cấp vai trò (tạo link mời, duyệt yêu cầu tham gia) theo `canGrantRole(actor, role)` (M3): Owner cấp được admin/member, Admin chỉ cấp được member. Tức **không ai cấp được vai trò ngang hoặc cao hơn mình**, trừ Owner. Đây là kiểm tra theo _đối tượng_, nên nằm trong service/policy chứ không chỉ ở guard.
 
 ## 2. Ma trận cấp kênh
 

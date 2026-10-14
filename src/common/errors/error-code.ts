@@ -27,6 +27,17 @@ export const ErrorCode = {
 
   // M2 — Tổ chức
   OrgOwnerImmutable: 'ORG_OWNER_IMMUTABLE',
+
+  // M3 — Mời, duyệt, chuyển sở hữu
+  Gone: 'GONE',
+  InviteNotFound: 'INVITE_NOT_FOUND',
+  InviteExpired: 'INVITE_EXPIRED',
+  InviteExhausted: 'INVITE_EXHAUSTED',
+  OrgAlreadyMember: 'ORG_ALREADY_MEMBER',
+  OrgJoinRequestPending: 'ORG_JOIN_REQUEST_PENDING',
+  JoinRequestNotPending: 'JOIN_REQUEST_NOT_PENDING',
+  OrgOwnerMustTransfer: 'ORG_OWNER_MUST_TRANSFER',
+  OrgTransferInvalidTarget: 'ORG_TRANSFER_INVALID_TARGET',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -44,6 +55,8 @@ export function defaultCodeForStatus(status: number): ErrorCode {
       return ErrorCode.NotFound;
     case 409:
       return ErrorCode.Conflict;
+    case 410:
+      return ErrorCode.Gone;
     case 413:
       return ErrorCode.PayloadTooLarge;
     case 429:

@@ -37,6 +37,9 @@ export class OrganizationResponseDto {
   /** @example 12 */
   memberCount: number;
 
+  /** `true`: chấp nhận link mời chỉ tạo yêu cầu, phải được duyệt. */
+  requireJoinApproval: boolean;
+
   static from(row: OrganizationDetailRow, myRole: OrgRoleValue): OrganizationResponseDto {
     return {
       id: row.id,
@@ -44,6 +47,7 @@ export class OrganizationResponseDto {
       createdAt: row.createdAt.toISOString(),
       myRole,
       memberCount: row.memberCount,
+      requireJoinApproval: row.requireJoinApproval,
     };
   }
 }

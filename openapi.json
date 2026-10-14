@@ -686,6 +686,167 @@
         ]
       }
     },
+    "/v1/orgs/{orgId}/ownership-transfer": {
+      "post": {
+        "description": "Owner cũ trở thành Admin. Người nhận không phải thành viên → 404; chuyển cho chính\nmình → 409 `ORG_TRANSFER_INVALID_TARGET`.",
+        "operationId": "Organizations_transferOwnership",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferOwnershipDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnershipTransferResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Chuyển quyền sở hữu cho một thành viên khác (chỉ Owner).",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/leave": {
+      "post": {
+        "description": "Owner phải chuyển quyền sở hữu trước → 409 `ORG_OWNER_MUST_TRANSFER`.",
+        "operationId": "Organizations_leave",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã rời tổ chức."
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Rời tổ chức.",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
     "/v1/orgs/{orgId}/members": {
       "get": {
         "description": "Phân trang cursor theo thời điểm tham gia. `q` tìm không dấu theo tên/email.",
@@ -1001,6 +1162,840 @@
           }
         },
         "summary": "Gỡ thành viên khỏi tổ chức.",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/invites": {
+      "post": {
+        "description": "`token` CHỈ trả về một lần trong response này — hãy lưu lại link ngay.",
+        "operationId": "Invites_create",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInviteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedInviteResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tạo link mời (Admin trở lên; link vai trò `admin` chỉ Owner tạo được).",
+        "tags": [
+          "Organizations"
+        ]
+      },
+      "get": {
+        "operationId": "Invites_list",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponseDto"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "data"
+                      ],
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/InviteResponseDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Danh sách link mời, mới nhất trước. Không chứa token.",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/invites/{inviteId}": {
+      "delete": {
+        "operationId": "Invites_revoke",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "inviteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã thu hồi."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Thu hồi link mời (idempotent).",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/invites/{token}": {
+      "get": {
+        "description": "Không có / đã thu hồi → 404 `INVITE_NOT_FOUND`; hết hạn / hết lượt → 410.",
+        "operationId": "InviteAcceptance_preview",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitePreviewResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Từng hợp lệ nhưng không còn dùng được, vd link mời hết hạn / hết lượt (`INVITE_EXPIRED`, `INVITE_EXHAUSTED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ],
+        "summary": "Xem trước link mời (không cần đăng nhập).",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/invites/{token}/accept": {
+      "post": {
+        "description": "Tổ chức không cần duyệt → vào thẳng (`joined`); cần duyệt → tạo yêu cầu (`pending`).\nĐã là thành viên → 409 `ORG_ALREADY_MEMBER` (không bị trừ lượt).",
+        "operationId": "InviteAcceptance_accept",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptInviteResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Từng hợp lệ nhưng không còn dùng được, vd link mời hết hạn / hết lượt (`INVITE_EXPIRED`, `INVITE_EXHAUSTED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Chấp nhận link mời.",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/join-requests": {
+      "get": {
+        "operationId": "JoinRequests_list",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "@default \"pending\"",
+            "schema": {
+              "$ref": "#/components/schemas/JoinRequestStatus"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponseDto"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "data"
+                      ],
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/JoinRequestResponseDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Yêu cầu tham gia (mặc định đang chờ), mới nhất trước.",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/join-requests/{requestId}/approve": {
+      "post": {
+        "description": "Yêu cầu vào với vai trò `admin` chỉ Owner duyệt được. Đã xử lý → 409.",
+        "operationId": "JoinRequests_approve",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinRequestDecisionResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Duyệt yêu cầu.",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/join-requests/{requestId}/reject": {
+      "post": {
+        "operationId": "JoinRequests_reject",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinRequestDecisionResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Từ chối yêu cầu. Người đó có thể gửi yêu cầu mới bằng link khác.",
+        "tags": [
+          "Organizations"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/audit-logs": {
+      "get": {
+        "description": "Lọc theo `action`, `actorId`. Log chỉ ghi thêm, không sửa/xoá được.",
+        "operationId": "AuditLogs_list",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Lọc theo loại hành động.",
+            "schema": {
+              "$ref": "#/components/schemas/AuditAction"
+            }
+          },
+          {
+            "name": "actorId",
+            "required": false,
+            "in": "query",
+            "description": "Lọc theo người thực hiện.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PaginatedResponseDto"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "data"
+                      ],
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AuditLogResponseDto"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Nhật ký thao tác quản trị của tổ chức, mới nhất trước (Admin trở lên).",
         "tags": [
           "Organizations"
         ]
@@ -1464,6 +2459,10 @@
           "memberCount": {
             "type": "number",
             "example": 12
+          },
+          "requireJoinApproval": {
+            "type": "boolean",
+            "description": "`true`: chấp nhận link mời chỉ tạo yêu cầu, phải được duyệt."
           }
         },
         "required": [
@@ -1471,7 +2470,8 @@
           "id",
           "name",
           "createdAt",
-          "memberCount"
+          "memberCount",
+          "requireJoinApproval"
         ]
       },
       "UpdateOrganizationDto": {
@@ -1482,10 +2482,40 @@
             "example": "Bình Minh Group",
             "minLength": 1,
             "maxLength": 100
+          },
+          "requireJoinApproval": {
+            "type": "boolean",
+            "description": "Bật: chấp nhận link mời chỉ tạo yêu cầu tham gia, Owner/Admin phải duyệt."
+          }
+        }
+      },
+      "TransferOwnershipDto": {
+        "type": "object",
+        "properties": {
+          "newOwnerId": {
+            "type": "string",
+            "description": "Người nhận quyền sở hữu — phải đang là thành viên của tổ chức.",
+            "format": "uuid"
           }
         },
         "required": [
-          "name"
+          "newOwnerId"
+        ]
+      },
+      "OwnershipTransferResponseDto": {
+        "type": "object",
+        "properties": {
+          "orgId": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "Owner mới. Owner cũ trở thành Admin."
+          }
+        },
+        "required": [
+          "orgId",
+          "ownerId"
         ]
       },
       "PaginatedResponseDto": {
@@ -1558,6 +2588,377 @@
         },
         "required": [
           "role"
+        ]
+      },
+      "InviteRole": {
+        "type": "string",
+        "enum": [
+          "admin",
+          "member"
+        ],
+        "description": "Vai trò người vào sẽ nhận. Link `admin` chỉ Owner tạo được."
+      },
+      "CreateInviteDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "description": "Vai trò người vào sẽ nhận. Link `admin` chỉ Owner tạo được.",
+            "default": "member",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteRole"
+              }
+            ]
+          },
+          "expiresInHours": {
+            "type": "number",
+            "description": "Link hết hạn sau bao nhiêu giờ (1–720, tức tối đa 30 ngày).\n@default 168",
+            "default": 168,
+            "minimum": 1,
+            "maximum": 720
+          },
+          "maxUses": {
+            "type": "number",
+            "description": "Số lượt dùng tối đa (1–1000). Bỏ trống = không giới hạn.",
+            "minimum": 1,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "expiresInHours"
+        ]
+      },
+      "InviteStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "expired",
+          "exhausted",
+          "revoked"
+        ]
+      },
+      "CreatedInviteResponseDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteRole"
+              }
+            ]
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteStatus"
+              }
+            ]
+          },
+          "maxUses": {
+            "type": "number",
+            "nullable": true,
+            "description": "`null` = không giới hạn."
+          },
+          "token": {
+            "type": "string",
+            "description": "Token của link mời — CHỈ trả một lần ở đây, không xem lại được. Link: `/invites/{token}`.",
+            "example": "q3Jt0b6Q2l3Zc0p9QpXb5m1q8D0yJ4dA7m2N5r1sT6w"
+          },
+          "id": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z"
+          },
+          "useCount": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-13T08:00:00.000Z"
+          }
+        },
+        "required": [
+          "role",
+          "status",
+          "maxUses",
+          "token",
+          "id",
+          "expiresAt",
+          "useCount",
+          "createdAt"
+        ]
+      },
+      "InviteResponseDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteRole"
+              }
+            ]
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteStatus"
+              }
+            ]
+          },
+          "maxUses": {
+            "type": "number",
+            "nullable": true,
+            "description": "`null` = không giới hạn."
+          },
+          "id": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z"
+          },
+          "useCount": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-13T08:00:00.000Z"
+          }
+        },
+        "required": [
+          "role",
+          "status",
+          "maxUses",
+          "id",
+          "expiresAt",
+          "useCount",
+          "createdAt"
+        ]
+      },
+      "InvitePreviewResponseDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteRole"
+              }
+            ]
+          },
+          "orgName": {
+            "type": "string",
+            "example": "Công ty TNHH Bình Minh"
+          },
+          "expiresAt": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z"
+          },
+          "requiresApproval": {
+            "type": "boolean",
+            "description": "`true` → chấp nhận link chỉ tạo yêu cầu, chờ Owner/Admin duyệt."
+          }
+        },
+        "required": [
+          "role",
+          "orgName",
+          "expiresAt",
+          "requiresApproval"
+        ]
+      },
+      "AcceptInviteStatus": {
+        "type": "string",
+        "enum": [
+          "joined",
+          "pending"
+        ],
+        "description": "`joined`: đã vào tổ chức; `pending`: đã gửi yêu cầu, chờ duyệt."
+      },
+      "AcceptInviteResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "`joined`: đã vào tổ chức; `pending`: đã gửi yêu cầu, chờ duyệt.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcceptInviteStatus"
+              }
+            ]
+          },
+          "orgId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Chỉ có khi `status = pending`."
+          }
+        },
+        "required": [
+          "status",
+          "orgId"
+        ]
+      },
+      "JoinRequestStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected"
+        ]
+      },
+      "JoinRequestResponseDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InviteRole"
+              }
+            ]
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JoinRequestStatus"
+              }
+            ]
+          },
+          "decidedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Nguyễn Văn An"
+          },
+          "email": {
+            "type": "string",
+            "example": "an.nguyen@example.com"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "status",
+          "decidedAt",
+          "id",
+          "userId",
+          "displayName",
+          "email",
+          "createdAt"
+        ]
+      },
+      "JoinRequestDecision": {
+        "type": "string",
+        "enum": [
+          "approved",
+          "rejected"
+        ]
+      },
+      "JoinRequestDecisionResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JoinRequestDecision"
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "id"
+        ]
+      },
+      "AuditAction": {
+        "type": "string",
+        "enum": [
+          "org.created",
+          "org.updated",
+          "org.member.role_changed",
+          "org.member.removed",
+          "org.member.joined",
+          "org.member.left",
+          "org.invite.created",
+          "org.invite.revoked",
+          "org.join_request.created",
+          "org.join_request.approved",
+          "org.join_request.rejected",
+          "org.ownership.transferred"
+        ]
+      },
+      "AuditLogResponseDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuditAction"
+              }
+            ]
+          },
+          "actorId": {
+            "type": "string",
+            "nullable": true,
+            "description": "`null` = hệ thống."
+          },
+          "actorDisplayName": {
+            "type": "string",
+            "nullable": true,
+            "description": "`null` nếu người thực hiện đã bị xoá (log không có FK, vẫn giữ nguyên)."
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Thường là `{ before, after }`."
+          },
+          "requestId": {
+            "type": "string",
+            "nullable": true
+          },
+          "ip": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "number",
+            "example": 1024
+          },
+          "targetType": {
+            "type": "string",
+            "example": "member"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "actorId",
+          "actorDisplayName",
+          "metadata",
+          "requestId",
+          "ip",
+          "id",
+          "targetType",
+          "targetId",
+          "createdAt"
         ]
       }
     }

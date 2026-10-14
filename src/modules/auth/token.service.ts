@@ -1,14 +1,18 @@
-import { createHash, randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
+import {
+  generateOpaqueToken,
+  hashOpaqueToken,
+  OPAQUE_TOKEN_PATTERN,
+} from '../../common/crypto/opaque-token.js';
 import type { EnvironmentVariables } from '../../config/env.validation.js';
 
 export const JWT_ISSUER = 'meetnote-api';
 export const JWT_AUDIENCE = 'meetnote';
 
 /** 32 byte ngẫu nhiên → 43 ký tự base64url. DTO dùng regex này để từ chối rác trước khi tra DB. */
-export const REFRESH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+export const REFRESH_TOKEN_PATTERN = OPAQUE_TOKEN_PATTERN;
 
 export interface AccessTokenClaims {
   /** user id */
@@ -26,9 +30,7 @@ export type AccessTokenVerification =
   { ok: true; claims: AccessTokenClaims } | { ok: false; reason: 'expired' | 'invalid' };
 
 /** SHA-256 đủ cho refresh token (entropy 256 bit) — không cần hash chậm như mật khẩu. */
-export function hashRefreshToken(token: string): Buffer {
-  return createHash('sha256').update(token, 'utf8').digest();
-}
+export const hashRefreshToken = hashOpaqueToken;
 
 @Injectable()
 export class TokenService {
@@ -66,11 +68,11 @@ export class TokenService {
   }
 
   issueRefreshToken(now = new Date()): IssuedToken & { hash: Buffer } {
-    const token = randomBytes(32).toString('base64url');
+    const { token, hash } = generateOpaqueToken();
     const ttlDays = this.config.get('REFRESH_TOKEN_TTL_DAYS', { infer: true });
     return {
       token,
-      hash: hashRefreshToken(token),
+      hash,
       expiresAt: new Date(now.getTime() + ttlDays * 24 * 3600 * 1000),
     };
   }

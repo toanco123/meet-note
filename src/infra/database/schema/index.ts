@@ -4,3 +4,5 @@
 export * from './users.js';
 export * from './sessions.js';
 export * from './organizations.js';
+export * from './invites.js';
+export * from './audit.js';

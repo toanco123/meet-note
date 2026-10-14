@@ -14,8 +14,8 @@ import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
 import type { Page } from '../../common/pagination/cursor.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { ApiPaginatedResponse } from '../../common/swagger/api-paginated-response.decorator.js';
-import type { AuthUser } from '../../common/auth/auth-user.js';
-import { CurrentUser } from '../../common/auth/current-user.decorator.js';
+import { UserAuditCtx } from '../audit/audit-context.decorator.js';
+import type { UserAuditContext } from '../audit/audit.types.js';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto.js';
 import { ListMembersQueryDto } from './dto/list-members-query.dto.js';
 import { MemberResponseDto } from './dto/member-response.dto.js';
@@ -54,10 +54,10 @@ export class OrganizationMembersController {
   changeRole(
     @Param('orgId') orgId: string,
     @Param('userId', new ParseUUIDPipe()) userId: string,
-    @CurrentUser() actor: AuthUser,
+    @UserAuditCtx() audit: UserAuditContext,
     @Body() dto: UpdateMemberRoleDto,
   ): Promise<MemberResponseDto> {
-    return this.members.changeRole(orgId, actor.id, userId, dto.role);
+    return this.members.changeRole(orgId, userId, dto.role, audit);
   }
 
   /**
@@ -74,8 +74,8 @@ export class OrganizationMembersController {
   async remove(
     @Param('orgId') orgId: string,
     @Param('userId', new ParseUUIDPipe()) userId: string,
-    @CurrentUser() actor: AuthUser,
+    @UserAuditCtx() audit: UserAuditContext,
   ): Promise<void> {
-    await this.members.remove(orgId, actor.id, userId);
+    await this.members.remove(orgId, userId, audit);
   }
 }

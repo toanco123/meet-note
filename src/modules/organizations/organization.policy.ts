@@ -29,6 +29,14 @@ export const orgPolicy = {
   'org.member.list': () => true,
   'org.member.role.change': (ctx) => ctx.role === OrgRole.Owner,
   'org.member.remove': (ctx) => isOrgRoleAtLeast(ctx.role, OrgRole.Admin),
+  // M3
+  'org.invite.manage': (ctx) => isOrgRoleAtLeast(ctx.role, OrgRole.Admin),
+  'org.join_request.manage': (ctx) => isOrgRoleAtLeast(ctx.role, OrgRole.Admin),
+  'org.ownership.transfer': (ctx) => ctx.role === OrgRole.Owner,
+  // Mọi thành viên gọi được; service trả 409 riêng cho Owner (phải chuyển quyền sở hữu trước),
+  // thông điệp rõ hơn một 403 chung chung.
+  'org.leave': () => true,
+  'org.audit.read': (ctx) => isOrgRoleAtLeast(ctx.role, OrgRole.Admin),
 } satisfies Record<string, (ctx: OrgMembershipContext) => boolean>;
 
 export type OrgPermission = keyof typeof orgPolicy;
@@ -56,4 +64,13 @@ export function canRemoveMember(actor: OrgRole, target: OrgRole): TargetDecision
   if (actor === OrgRole.Owner) return 'ok';
   if (actor === OrgRole.Admin && target === OrgRole.Member) return 'ok';
   return 'forbidden';
+}
+
+/**
+ * Tầng 2 — cấp một vai trò cho người khác (tạo link mời, duyệt yêu cầu tham gia).
+ * Không ai cấp được vai trò NGANG hoặc CAO HƠN mình, trừ Owner. Owner không bao giờ cấp qua đây.
+ */
+export function canGrantRole(actor: OrgRole, role: Exclude<OrgRole, 'owner'>): boolean {
+  if (actor === OrgRole.Owner) return true;
+  return actor === OrgRole.Admin && role === OrgRole.Member;
 }
