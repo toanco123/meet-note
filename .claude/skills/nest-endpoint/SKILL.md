@@ -1,6 +1,6 @@
 ---
 name: nest-endpoint
-description: Thêm hoặc sửa API endpoint và domain module NestJS trong MeetNote theo đúng quy ước của dự án — phân lớp controller/service/repository/policy, DTO viết cho Swagger CLI plugin, mã lỗi AppException, phân trang cursor, versioning /v1, import ESM có đuôi .js. Dùng khi tạo module mới, thêm route/controller/DTO, đổi request/response, thêm filter hoặc danh sách phân trang, ví dụ "thêm API tạo kênh", "viết endpoint list members", "tạo module organizations", "thêm field vào response", "sao Swagger không hiện schema". Use for any new or changed HTTP endpoint, DTO or Nest module in this repo.
+description: Thêm hoặc sửa API endpoint và domain module NestJS trong MeetNote theo đúng quy ước của dự án — phân lớp controller/service/repository/policy, DTO viết cho Swagger CLI plugin, catalog lỗi Errors, phân trang cursor, versioning /v1, import ESM có đuôi .js. Dùng khi tạo module mới, thêm route/controller/DTO, đổi request/response, thêm filter hoặc danh sách phân trang, ví dụ "thêm API tạo kênh", "viết endpoint list members", "tạo module organizations", "thêm field vào response", "sao Swagger không hiện schema". Use for any new or changed HTTP endpoint, DTO or Nest module in this repo.
 ---
 
 # Thêm endpoint / module NestJS
@@ -19,9 +19,10 @@ Ví dụ đầy đủ một module (controller + DTO + service + repository + te
 src/modules/<domain>/
 ├─ <domain>.module.ts
 ├─ <domain>.controller.ts     # chỉ HTTP: route, DTO, decorator Swagger. Không có logic
-├─ <domain>.service.ts        # use-case: ranh giới transaction, gọi policy, ném AppException, ghi audit
+├─ <domain>.service.ts        # use-case: ranh giới transaction, gọi policy, ném Errors.*, ghi audit
 ├─ <domain>.repository.ts     # query Drizzle; mọi hàm nhận `DbExecutor` (db hoặc tx)
 ├─ <domain>.policy.ts         # hàm thuần (actor, target) → boolean
+├─ <domain>.types.ts          # interface / type viết tay (row repository, context, params); kiểu suy ra từ giá trị để cạnh giá trị
 └─ dto/*.dto.ts               # request + response DTO
 ```
 
@@ -53,7 +54,7 @@ Domain cần chạy ở cả worker thì tách `<Domain>CoreModule` (service + r
    - JSDoc của method: câu đầu thành `summary`, `@remarks ...` thành `description`.
    - Từ M1 trở đi: `@ApiBearerAuth()` cho route cần đăng nhập.
 5. **Lỗi.**
-   - Service ném `new AppException(ErrorCode.Xxx, HttpStatus.Xxx, 'thông điệp')` hoặc dùng `AppException.notFound()` / `.forbidden()` / `.conflict(code, msg)`.
+   - Service ném lỗi lấy từ catalog `src/common/errors/errors.ts`: `throw Errors.channel.notFound()`. Chưa có thì **thêm mục vào catalog** (một hàm, đặt theo tình huống). Không tự `new AppException(...)` hay `throw new NotFoundException(...)` trong module: test kiến trúc `test/unit/architecture/errors-catalog.spec.ts` sẽ đỏ.
    - Mã lỗi mới thêm vào `src/common/errors/error-code.ts`, có tiền tố domain (`CHANNEL_ARCHIVED`).
    - Tài nguyên người gọi không được thấy thì trả **404**, không trả 403.
 6. **Quyền.** Theo skill `authorization`: guard ở controller, kiểm tra theo đối tượng ở service.

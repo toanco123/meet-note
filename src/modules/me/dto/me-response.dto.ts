@@ -4,7 +4,7 @@ import {
   type OrgRoleValue,
   type UserRow,
 } from '../../../infra/database/schema/index.js';
-import type { MyOrganizationRow } from '../../organizations/organizations.repository.js';
+import type { MyOrganizationRow } from '../../organizations/organizations.types.js';
 
 export class MeOrganizationDto {
   id: string;

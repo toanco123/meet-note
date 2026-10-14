@@ -4,11 +4,11 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { AuthUser } from '../../src/common/auth/auth-user.js';
+import type { AuthUser } from '../../src/common/auth/auth.types.js';
 import { DRIZZLE } from '../../src/infra/database/database.module.js';
 import type { Database } from '../../src/infra/database/database.types.js';
 import { sessions } from '../../src/infra/database/schema/index.js';
-import { JWT_AUDIENCE, JWT_ISSUER } from '../../src/modules/auth/token.service.js';
+import { JWT_AUDIENCE, JWT_ISSUER } from '../../src/modules/auth/services/token.service.js';
 import { createTestApp } from '../support/app.js';
 import { bearer, registerUser } from '../support/factories.js';
 import { ProbeController } from '../support/probe.controller.js';
@@ -43,11 +43,12 @@ describe('JwtAuthGuard toàn cục (e2e)', () => {
       .set(bearer(user.tokens.accessToken))
       .expect(200);
 
-    expect(res.body).toEqual({ id: expect.any(String), sessionId: expect.any(String) });
+    expect(res.body.data).toEqual({ id: expect.any(String), sessionId: expect.any(String) });
   });
 
   it('route @Public() không cần token', async () => {
-    await http().get('/v1/__probe/public').expect(200, { ok: true });
+    const res = await http().get('/v1/__probe/public').expect(200);
+    expect(res.body.data).toEqual({ ok: true });
   });
 
   it('route không đánh dấu @Public() mặc định bị chặn (mặc định đóng)', async () => {
@@ -72,7 +73,7 @@ describe('JwtAuthGuard toàn cục (e2e)', () => {
     const user = await registerUser(app);
     const { sessionId, id } = (
       await http().get('/v1/__probe/private').set(bearer(user.tokens.accessToken))
-    ).body as AuthUser;
+    ).body.data as AuthUser;
     const expired = await signRaw(
       { sid: sessionId, exp: Math.floor(Date.now() / 1000) - 5 },
       { subject: id },
@@ -86,7 +87,7 @@ describe('JwtAuthGuard toàn cục (e2e)', () => {
     const user = await registerUser(app);
     const { sessionId } = (
       await http().get('/v1/__probe/private').set(bearer(user.tokens.accessToken))
-    ).body as AuthUser;
+    ).body.data as AuthUser;
 
     await db
       .update(sessions)

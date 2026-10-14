@@ -1,6 +1,7 @@
 import { type AnyColumn, type SQL, sql } from 'drizzle-orm';
 import { isUuid } from '../validation/uuid.js';
-import { type CursorKey, invalidCursor } from './cursor.js';
+import { invalidCursor } from './cursor.js';
+import type { CursorKey } from './pagination.types.js';
 
 /**
  * Khoá thời gian cho cursor, do Postgres sinh: ISO 8601 UTC đủ MICRO giây.
@@ -26,6 +27,12 @@ export function expectTimestampKey(value: CursorKey | undefined): string {
 export function expectPositiveIntKey(value: CursorKey | undefined): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0)
     throw invalidCursor();
+  return value;
+}
+
+/** Khoá chuỗi (vd `lower(name)` do DB tính). Giới hạn độ dài để cursor bị sửa không thành query khổng lồ. */
+export function expectTextKey(value: CursorKey | undefined, maxLength: number): string {
+  if (typeof value !== 'string' || value.length > maxLength) throw invalidCursor();
   return value;
 }
 

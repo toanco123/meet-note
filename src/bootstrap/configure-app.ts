@@ -1,7 +1,8 @@
 import { type INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
-import { HttpAdapterHost } from '@nestjs/core';
+import { HttpAdapterHost, Reflector } from '@nestjs/core';
 import { AllExceptionsFilter } from '../common/errors/all-exceptions.filter.js';
 import { validationExceptionFactory } from '../common/errors/validation-exception.factory.js';
+import { ResponseEnvelopeInterceptor } from '../common/response/response-envelope.interceptor.js';
 
 /**
  * Cấu hình HTTP app dùng chung cho `main.ts` và e2e test — test chạy đúng cấu hình production.
@@ -24,4 +25,6 @@ export function configureApp(app: INestApplication): void {
   );
 
   app.useGlobalFilters(new AllExceptionsFilter(app.get(HttpAdapterHost)));
+  // Thành công → `{ data, meta }`; lỗi → `{ error }` (filter ở trên). Xem 07-conventions §3.
+  app.useGlobalInterceptors(new ResponseEnvelopeInterceptor(app.get(Reflector)));
 }

@@ -1,6 +1,6 @@
 import { createParamDecorator, type ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
-import type { AuthUser } from './auth-user.js';
+import type { AuthUser } from './auth.types.js';
 
 /**
  * Lấy user đã xác thực: `handler(@CurrentUser() user: AuthUser)`.

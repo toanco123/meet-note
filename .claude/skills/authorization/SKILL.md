@@ -88,4 +88,4 @@ export type ChannelPermission = keyof typeof channelPolicy;
 
 - Guard đăng ký bằng `APP_GUARD` luôn chạy trước guard gắn bằng `@UseGuards`. Guard sau cần `req.user` thì phải chắc guard trước đã gắn.
 - Inject `Reflector` hoặc service vào guard: guard phải nằm trong module có provider đó (hoặc module global).
-- Lỗi phân quyền ném `AppException`, không ném `ForbiddenException` trần. Body lỗi vẫn đúng chuẩn nhờ filter, nhưng dùng `AppException` thì mã lỗi rõ ràng hơn.
+- Lỗi phân quyền lấy từ catalog `Errors` (`Errors.org.forbidden()`, `Errors.channel.notFound()`…), không ném `ForbiddenException` trần. Policy chỉ trả quyết định; hàm `assert…Decision` của module đổi quyết định thành lỗi.

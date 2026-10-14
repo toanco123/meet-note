@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DRIZZLE } from '../../src/infra/database/database.module.js';
 import type { Database } from '../../src/infra/database/database.types.js';
 import { refreshTokens } from '../../src/infra/database/schema/index.js';
-import { hashRefreshToken } from '../../src/modules/auth/token.service.js';
+import { hashRefreshToken } from '../../src/modules/auth/services/token.service.js';
 import { createTestApp } from '../support/app.js';
 import { bearer, registerUser, type TokenPair } from '../support/factories.js';
 import { ProbeController } from '../support/probe.controller.js';
@@ -42,7 +42,7 @@ describe('Auth: refresh, logout, logout-all (e2e)', () => {
       const user = await registerUser(app);
 
       // 1. refresh → cặp token mới, access mới gọi được route cần đăng nhập
-      const rotated = (await refresh(user.tokens.refreshToken).expect(200)).body as TokenPair;
+      const rotated = (await refresh(user.tokens.refreshToken).expect(200)).body.data as TokenPair;
       expect(rotated.refreshToken).not.toBe(user.tokens.refreshToken);
       await probe(rotated.accessToken).expect(200);
 
@@ -62,7 +62,7 @@ describe('Auth: refresh, logout, logout-all (e2e)', () => {
 
     it('dùng lại token cũ TRONG grace (2 tab) → 401 ROTATED, phiên vẫn sống', async () => {
       const user = await registerUser(app);
-      const rotated = (await refresh(user.tokens.refreshToken).expect(200)).body as TokenPair;
+      const rotated = (await refresh(user.tokens.refreshToken).expect(200)).body.data as TokenPair;
 
       const second = await refresh(user.tokens.refreshToken).expect(401);
 
@@ -83,7 +83,7 @@ describe('Auth: refresh, logout, logout-all (e2e)', () => {
     it('không cần access token (route @Public)', async () => {
       const user = await registerUser(app);
       const res = await refresh(user.tokens.refreshToken).expect(200);
-      expect(res.body.tokenType).toBe('Bearer');
+      expect(res.body.data.tokenType).toBe('Bearer');
     });
   });
 
@@ -108,7 +108,7 @@ describe('Auth: refresh, logout, logout-all (e2e)', () => {
           .post('/v1/auth/login')
           .send({ email: user.email, password: user.password })
           .expect(200)
-      ).body as TokenPair;
+      ).body.data as TokenPair;
 
       await http().post('/v1/auth/logout').set(bearer(user.tokens.accessToken)).expect(204);
 
@@ -129,7 +129,7 @@ describe('Auth: refresh, logout, logout-all (e2e)', () => {
           .post('/v1/auth/login')
           .send({ email: user.email, password: user.password })
           .expect(200)
-      ).body as TokenPair;
+      ).body.data as TokenPair;
       const bystander = await registerUser(app);
 
       await http().post('/v1/auth/logout-all').set(bearer(user.tokens.accessToken)).expect(204);

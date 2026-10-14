@@ -16,6 +16,12 @@ export class ErrorBodyDto {
    */
   code: string;
 
+  /**
+   * HTTP status của response lỗi này (trùng status thật).
+   * @example 400
+   */
+  statusCode: number;
+
   /** Mô tả cho người đọc. Có thể thay đổi bất kỳ lúc nào. */
   message: string;
 

@@ -1,4 +1,4 @@
-import type { AuthTokens } from '../sessions.service.js';
+import type { AuthTokens } from '../auth.types.js';
 
 export class AuthTokensResponseDto {
   /** Luôn là `Bearer`: gửi `Authorization: Bearer <accessToken>`. */

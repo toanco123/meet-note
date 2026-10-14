@@ -1,4 +1,5 @@
 import type { OrgRoleValue } from '../../infra/database/schema/index.js';
+import type { OrgMembershipContext, TargetDecision } from './organizations.types.js';
 
 /**
  * Quyền cấp tổ chức dưới dạng HÀM THUẦN — không DB, không HTTP. Guard và service cùng gọi;
@@ -13,12 +14,6 @@ export function isOrgRoleAtLeast(role: OrgRole, min: OrgRole): boolean {
   return RANK[role] >= RANK[min];
 }
 
-/** Do `OrgMemberGuard` gắn vào `req.orgMembership`. */
-export interface OrgMembershipContext {
-  orgId: string;
-  role: OrgRole;
-}
-
 /**
  * Tầng 1 — "vai trò này có được làm LOẠI hành động này không" (chưa biết đối tượng cụ thể).
  * `satisfies` kiểm tra mọi hàm đúng chữ ký mà vẫn giữ union key → `@Require('org.updte')` lỗi compile.
@@ -26,6 +21,7 @@ export interface OrgMembershipContext {
 export const orgPolicy = {
   'org.read': () => true,
   'org.update': (ctx) => isOrgRoleAtLeast(ctx.role, OrgRole.Admin),
+  'org.delete': (ctx) => ctx.role === OrgRole.Owner,
   'org.member.list': () => true,
   'org.member.role.change': (ctx) => ctx.role === OrgRole.Owner,
   'org.member.remove': (ctx) => isOrgRoleAtLeast(ctx.role, OrgRole.Admin),
@@ -37,12 +33,12 @@ export const orgPolicy = {
   // thông điệp rõ hơn một 403 chung chung.
   'org.leave': () => true,
   'org.audit.read': (ctx) => isOrgRoleAtLeast(ctx.role, OrgRole.Admin),
+  // M4 — kênh chưa tồn tại nên là quyền cấp org. Danh sách tự lọc theo quyền thấy (service).
+  'org.channel.create': () => true,
+  'org.channel.list': () => true,
 } satisfies Record<string, (ctx: OrgMembershipContext) => boolean>;
 
 export type OrgPermission = keyof typeof orgPolicy;
-
-/** Kết quả kiểm tra theo đối tượng — service đổi thành mã lỗi HTTP. */
-export type TargetDecision = 'ok' | 'forbidden' | 'owner_immutable';
 
 /**
  * Tầng 2 — đổi vai trò của MỘT người cụ thể. Gọi trong service SAU khi khoá dòng.

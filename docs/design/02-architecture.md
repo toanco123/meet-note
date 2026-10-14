@@ -69,7 +69,7 @@ meetnote/
 │  │  └─ swagger.ts              #   DocumentBuilder, /docs, /docs-json
 │  ├─ config/                    # schema env (class-validator) + typed config
 │  ├─ common/                    # cross-cutting, không phụ thuộc domain
-│  │  ├─ errors/                 #   AppException, ErrorCode, exception filter
+│  │  ├─ errors/                 #   AppException, ErrorCode, catalog Errors, exception filter
 │  │  ├─ pagination/             #   cursor codec, CursorQueryDto, PaginatedDto
 │  │  ├─ swagger/                #   ApiErrorResponses, ApiPaginatedResponse
 │  │  ├─ auth/                   #   (M1) @Public, @CurrentUser, guards
@@ -107,16 +107,25 @@ meetnote/
 ```
 channels/
 ├─ channels.module.ts
-├─ channels.controller.ts            # HTTP: route, DTO, swagger. Không chứa logic
-├─ channel-members.controller.ts
-├─ channels.service.ts               # use-case: ranh giới transaction, gọi policy, ghi audit
-├─ channel-members.service.ts
-├─ channels.repository.ts            # query Drizzle. Nhận `tx` để chạy trong transaction của service
-├─ channel.policy.ts                 # hàm thuần: (actor, target) → boolean. Dễ unit test
+├─ channel.policy.ts                 # hàm thuần: (actor, target) → quyết định. Dễ unit test
+├─ channel-decisions.ts              # quyết định của policy → Errors.*
+├─ channels.types.ts                 # interface / type viết tay của module (07 §1)
+├─ controllers/                      # HTTP: route, DTO, swagger. Không chứa logic
+│  ├─ channels.controller.ts
+│  └─ channel-members.controller.ts
+├─ services/                         # use-case: ranh giới transaction, gọi policy, ghi audit
+│  ├─ channels.service.ts
+│  └─ channel-members.service.ts
+├─ repositories/                     # query Drizzle. Nhận `tx` để chạy trong transaction của service
+│  ├─ channels.repository.ts
+│  └─ channel-members.repository.ts
+├─ guards/                           # guard + decorator gộp guard của domain
 └─ dto/                              # *.dto.ts (request + response), Swagger plugin đọc file này
 
 # test tương ứng: test/unit/modules/channels/…, test/integration/modules/channels/…
 ```
+
+**Thư mục theo vai trò (từ M4 B4d):** trong một thư mục, khi có **từ 2 file cùng vai trò** trở lên (`*.service.ts`, `*.repository.ts`, `*.controller.ts`, `*.types.ts`) thì gom vào `services/`, `repositories/`, `controllers/`, `types/`. Chỉ có 1 file thì để ngay cấp module. `dto/` và `guards/` luôn là thư mục. `*.module.ts` luôn ở cấp module (cửa vào của thư mục). Thư mục vai trò chỉ chứa đúng vai trò đó. Test kiến trúc `test/unit/architecture/folder-layout.spec.ts` canh quy tắc này.
 
 **Phân lớp:** controller → service → repository. Policy là các hàm thuần được service và guard gọi. Không tạo lớp "domain entity" riêng: dùng kiểu row của Drizzle bên trong, map sang response DTO ở rìa.
 

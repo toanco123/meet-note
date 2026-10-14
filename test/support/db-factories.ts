@@ -1,6 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import type { Database } from '../../src/infra/database/database.types.js';
 import {
+  type ChannelRoleValue,
+  type ChannelVisibility,
+  channelMembers,
+  channels,
   type OrgRoleValue,
   organizationMembers,
   organizations,
@@ -55,4 +59,39 @@ export async function addMember(
   await db
     .insert(organizationMembers)
     .values({ orgId, userId, role, ...(joinedAt ? { joinedAt } : {}) });
+}
+
+/** Tạo kênh + chủ kênh (chủ phải là thành viên org — composite FK). */
+export async function insertChannel(
+  db: Database,
+  orgId: string,
+  ownerId: string,
+  overrides: { name?: string; visibility?: ChannelVisibility } = {},
+): Promise<{ id: string; name: string }> {
+  return db.transaction(async (tx) => {
+    const [channel] = await tx
+      .insert(channels)
+      .values({
+        orgId,
+        name: overrides.name ?? `kenh-${randomBytes(3).toString('hex')}`,
+        visibility: overrides.visibility ?? 'public',
+        createdBy: ownerId,
+      })
+      .returning({ id: channels.id, name: channels.name });
+    if (!channel) throw new Error('insertChannel thất bại');
+    await tx
+      .insert(channelMembers)
+      .values({ channelId: channel.id, orgId, userId: ownerId, role: 'owner' });
+    return channel;
+  });
+}
+
+export async function addChannelMember(
+  db: Database,
+  channel: { id: string },
+  orgId: string,
+  userId: string,
+  role: Exclude<ChannelRoleValue, 'owner'> = 'member',
+): Promise<void> {
+  await db.insert(channelMembers).values({ channelId: channel.id, orgId, userId, role });
 }

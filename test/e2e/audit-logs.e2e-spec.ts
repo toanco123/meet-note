@@ -39,7 +39,7 @@ describe('GET /v1/orgs/:orgId/audit-logs (e2e)', () => {
       registerUser(app),
     ]);
     orgId = (await http().post('/v1/orgs').set(as(owner)).send({ name: 'Audit' }).expect(201)).body
-      .id;
+      .data.id;
     await addMember(db, orgId, admin.id, 'admin');
     await addMember(db, orgId, member.id, 'member');
 
@@ -94,11 +94,11 @@ describe('GET /v1/orgs/:orgId/audit-logs (e2e)', () => {
     const ids: number[] = [];
     let cursor: string | null = null;
     do {
-      const res: { body: { data: LogBody[]; nextCursor: string | null } } = await logs(
+      const res: { body: { data: LogBody[]; meta: { nextCursor: string | null } } } = await logs(
         cursor ? { limit: 2, cursor } : { limit: 2 },
       ).expect(200);
       ids.push(...res.body.data.map((l) => l.id));
-      cursor = res.body.nextCursor;
+      cursor = res.body.meta.nextCursor;
     } while (cursor);
 
     expect(ids).toHaveLength(6);

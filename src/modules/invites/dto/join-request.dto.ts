@@ -7,7 +7,7 @@ import {
   JOIN_REQUEST_STATUSES,
   type JoinRequestStatus,
 } from '../../../infra/database/schema/index.js';
-import type { JoinRequestListRow } from '../join-requests.repository.js';
+import type { JoinRequestListRow } from '../invites.types.js';
 
 export class ListJoinRequestsQueryDto extends CursorQueryDto {
   /** @default "pending" */

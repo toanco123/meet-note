@@ -1,13 +1,9 @@
+import type { PgLikeError } from './errors.types.js';
+
 /** SQLSTATE của Postgres: https://www.postgresql.org/docs/current/errcodes-appendix.html */
 export const PG_UNIQUE_VIOLATION = '23505';
 export const PG_FOREIGN_KEY_VIOLATION = '23503';
 export const PG_CHECK_VIOLATION = '23514';
-
-export interface PgLikeError {
-  code: string;
-  /** Tên constraint/index bị vi phạm — dùng để map sang mã lỗi nghiệp vụ cụ thể. */
-  constraint?: string;
-}
 
 /**
  * Drizzle (≥ 0.44) bọc lỗi driver trong DrizzleQueryError, lỗi gốc của `pg` nằm ở `.cause`.

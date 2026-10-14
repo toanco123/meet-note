@@ -7,8 +7,8 @@ import {
   type OrgPermission,
   orgPolicy,
   type OrgRole,
-  type TargetDecision,
 } from '../../../../src/modules/organizations/organization.policy.js';
+import type { TargetDecision } from '../../../../src/modules/organizations/organizations.types.js';
 
 /**
  * Các bảng dưới đây là bản "chạy được" của ma trận trong docs/design/04-authorization.md §1.
@@ -20,6 +20,7 @@ describe('orgPolicy — loại hành động theo vai trò', () => {
   const matrix: Array<[OrgPermission, owner: boolean, admin: boolean, member: boolean]> = [
     ['org.read', true, true, true],
     ['org.update', true, true, false],
+    ['org.delete', true, false, false],
     ['org.member.list', true, true, true],
     ['org.member.role.change', true, false, false],
     ['org.member.remove', true, true, false],
@@ -28,6 +29,8 @@ describe('orgPolicy — loại hành động theo vai trò', () => {
     ['org.ownership.transfer', true, false, false],
     ['org.leave', true, true, true],
     ['org.audit.read', true, true, false],
+    ['org.channel.create', true, true, true],
+    ['org.channel.list', true, true, true],
   ];
 
   it.each(

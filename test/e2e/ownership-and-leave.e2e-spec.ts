@@ -33,14 +33,14 @@ describe('Chuyển quyền sở hữu + rời tổ chức (e2e)', () => {
     ]);
     const orgId: string = (
       await http().post('/v1/orgs').set(as(owner)).send({ name: 'Chuyển giao' }).expect(201)
-    ).body.id;
+    ).body.data.id;
     await addMember(db, orgId, admin.id, 'admin');
     await addMember(db, orgId, member.id, 'member');
     return { owner, admin, member, orgId };
   }
 
   const myRole = async (u: TestUser, orgId: string) =>
-    (await http().get(`/v1/orgs/${orgId}`).set(as(u)).expect(200)).body.myRole;
+    (await http().get(`/v1/orgs/${orgId}`).set(as(u)).expect(200)).body.data.myRole;
 
   describe('POST /v1/orgs/:orgId/ownership-transfer', () => {
     it('owner → member: người nhận thành owner, owner cũ thành admin và MẤT quyền owner ngay', async () => {
@@ -52,7 +52,7 @@ describe('Chuyển quyền sở hữu + rời tổ chức (e2e)', () => {
         .send({ newOwnerId: member.id })
         .expect(200);
 
-      expect(res.body).toEqual({ orgId, ownerId: member.id });
+      expect(res.body.data).toEqual({ orgId, ownerId: member.id });
       expect(await myRole(member, orgId)).toBe('owner');
       expect(await myRole(owner, orgId)).toBe('admin');
       const again = await http()

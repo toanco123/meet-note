@@ -38,7 +38,7 @@ describe('Organizations: tạo / xem / đổi tên + OrgMemberGuard (e2e)', () =
       .set(bearer(owner.tokens.accessToken))
       .send({ name: 'Bình Minh' })
       .expect(201);
-    orgId = created.body.id;
+    orgId = created.body.data.id;
     await addMember(db, orgId, admin.id, 'admin');
     await addMember(db, orgId, member.id, 'member');
   });
@@ -56,7 +56,7 @@ describe('Organizations: tạo / xem / đổi tên + OrgMemberGuard (e2e)', () =
         .set(as(outsider))
         .send({ name: '  Công ty Mới  ' })
         .expect(201);
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         id: expect.any(String),
         name: 'Công ty Mới',
         role: 'owner',
@@ -79,7 +79,7 @@ describe('Organizations: tạo / xem / đổi tên + OrgMemberGuard (e2e)', () =
   describe('GET /v1/orgs', () => {
     it('chỉ trả org của mình, kèm vai trò', async () => {
       const res = await http().get('/v1/orgs').set(as(member)).expect(200);
-      expect(res.body).toEqual([expect.objectContaining({ id: orgId, role: 'member' })]);
+      expect(res.body.data).toEqual([expect.objectContaining({ id: orgId, role: 'member' })]);
     });
   });
 
@@ -90,7 +90,7 @@ describe('Organizations: tạo / xem / đổi tên + OrgMemberGuard (e2e)', () =
       ['member', () => member, 'member'],
     ])('%s → 200, myRole đúng, memberCount = 3', async (_label, who, myRole) => {
       const res = await http().get(`/v1/orgs/${orgId}`).set(as(who())).expect(200);
-      expect(res.body).toMatchObject({ id: orgId, name: 'Bình Minh', myRole, memberCount: 3 });
+      expect(res.body.data).toMatchObject({ id: orgId, name: 'Bình Minh', myRole, memberCount: 3 });
     });
 
     it('người ngoài → 404 (không phải 403: không lộ org tồn tại)', async () => {
@@ -148,10 +148,10 @@ describe('Organizations: tạo / xem / đổi tên + OrgMemberGuard (e2e)', () =
     await db
       .update(organizations)
       .set({ deletedAt: new Date() })
-      .where(eq(organizations.id, created.body.id));
+      .where(eq(organizations.id, created.body.data.id));
 
-    await http().get(`/v1/orgs/${created.body.id}`).set(as(owner)).expect(404);
+    await http().get(`/v1/orgs/${created.body.data.id}`).set(as(owner)).expect(404);
     const mine = await http().get('/v1/orgs').set(as(owner)).expect(200);
-    expect(mine.body.map((o: { id: string }) => o.id)).not.toContain(created.body.id);
+    expect(mine.body.data.map((o: { id: string }) => o.id)).not.toContain(created.body.data.id);
   });
 });

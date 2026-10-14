@@ -1,8 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsUUID } from 'class-validator';
 import { CursorQueryDto } from '../../../common/pagination/cursor-query.dto.js';
-import type { AuditLogListRow } from '../audit-logs.repository.js';
-import { AUDIT_ACTIONS, type AuditAction } from '../audit.types.js';
+import type { AuditLogListRow } from '../audit.types.js';
+import { AUDIT_ACTIONS, type AuditAction } from '../audit-actions.js';
 
 export class ListAuditLogsQueryDto extends CursorQueryDto {
   /** Lọc theo loại hành động. */

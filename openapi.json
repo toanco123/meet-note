@@ -24,7 +24,8 @@
         "summary": "Liveness — tiến trình còn sống.",
         "tags": [
           "Health"
-        ]
+        ],
+        "x-raw-response": true
       }
     },
     "/health/ready": {
@@ -60,7 +61,8 @@
         "summary": "Readiness — sẵn sàng nhận traffic.",
         "tags": [
           "Health"
-        ]
+        ],
+        "x-raw-response": true
       }
     },
     "/v1/auth/register": {
@@ -84,7 +86,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthTokensResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AuthTokensResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -140,7 +154,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthTokensResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AuthTokensResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -196,7 +222,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthTokensResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AuthTokensResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -292,7 +330,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MeResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MeResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -332,7 +382,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MeResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MeResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -375,9 +437,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SessionResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SessionResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
                   }
                 }
               }
@@ -475,7 +549,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MyOrganizationResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MyOrganizationResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -516,9 +602,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MyOrganizationResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MyOrganizationResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
                   }
                 }
               }
@@ -563,7 +661,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OrganizationResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrganizationResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -634,7 +744,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OrganizationResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrganizationResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -684,6 +806,61 @@
         "tags": [
           "Organizations"
         ]
+      },
+      "delete": {
+        "description": "Xoá mềm: từ đây mọi route trong tổ chức trả 404 với mọi người, link mời hết dùng được.",
+        "operationId": "Organizations_remove",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã xoá tổ chức."
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Xoá tổ chức (chỉ Owner).",
+        "tags": [
+          "Organizations"
+        ]
       }
     },
     "/v1/orgs/{orgId}/ownership-transfer": {
@@ -718,7 +895,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OwnershipTransferResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OwnershipTransferResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -863,6 +1052,18 @@
             }
           },
           {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
             "name": "role",
             "required": false,
             "in": "query",
@@ -892,18 +1093,6 @@
               "maxLength": 512,
               "type": "string"
             }
-          },
-          {
-            "name": "limit",
-            "required": true,
-            "in": "query",
-            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
-            "schema": {
-              "minimum": 1,
-              "maximum": 100,
-              "default": 20,
-              "type": "number"
-            }
           }
         ],
         "responses": {
@@ -912,25 +1101,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/PaginatedResponseDto"
-                    },
-                    {
-                      "type": "object",
-                      "required": [
-                        "data"
-                      ],
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/MemberResponseDto"
-                          }
-                        }
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MemberResponseDto"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
                     }
-                  ]
+                  }
                 }
               }
             }
@@ -979,7 +1165,8 @@
         "summary": "Danh sách thành viên.",
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-paginated": true
       }
     },
     "/v1/orgs/{orgId}/members/{userId}": {
@@ -1022,7 +1209,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MemberResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MemberResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1199,7 +1398,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreatedInviteResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CreatedInviteResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1264,18 +1475,8 @@
             }
           },
           {
-            "name": "cursor",
-            "required": false,
-            "in": "query",
-            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
-            "schema": {
-              "maxLength": 512,
-              "type": "string"
-            }
-          },
-          {
             "name": "limit",
-            "required": true,
+            "required": false,
             "in": "query",
             "description": "Số phần tử mỗi trang (1–100).\n@default 20",
             "schema": {
@@ -1283,6 +1484,16 @@
               "maximum": 100,
               "default": 20,
               "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
             }
           }
         ],
@@ -1292,25 +1503,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/PaginatedResponseDto"
-                    },
-                    {
-                      "type": "object",
-                      "required": [
-                        "data"
-                      ],
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/InviteResponseDto"
-                          }
-                        }
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InviteResponseDto"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
                     }
-                  ]
+                  }
                 }
               }
             }
@@ -1359,7 +1567,8 @@
         "summary": "Danh sách link mời, mới nhất trước. Không chứa token.",
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-paginated": true
       }
     },
     "/v1/orgs/{orgId}/invites/{inviteId}": {
@@ -1456,7 +1665,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvitePreviewResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/InvitePreviewResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1511,7 +1732,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AcceptInviteResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AcceptInviteResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1578,6 +1811,18 @@
             }
           },
           {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
             "name": "status",
             "required": false,
             "in": "query",
@@ -1595,18 +1840,6 @@
               "maxLength": 512,
               "type": "string"
             }
-          },
-          {
-            "name": "limit",
-            "required": true,
-            "in": "query",
-            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
-            "schema": {
-              "minimum": 1,
-              "maximum": 100,
-              "default": 20,
-              "type": "number"
-            }
           }
         ],
         "responses": {
@@ -1615,25 +1848,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/PaginatedResponseDto"
-                    },
-                    {
-                      "type": "object",
-                      "required": [
-                        "data"
-                      ],
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/JoinRequestResponseDto"
-                          }
-                        }
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/JoinRequestResponseDto"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
                     }
-                  ]
+                  }
                 }
               }
             }
@@ -1682,7 +1912,8 @@
         "summary": "Yêu cầu tham gia (mặc định đang chờ), mới nhất trước.",
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-paginated": true
       }
     },
     "/v1/orgs/{orgId}/join-requests/{requestId}/approve": {
@@ -1715,7 +1946,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JoinRequestDecisionResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JoinRequestDecisionResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1806,7 +2049,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JoinRequestDecisionResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JoinRequestDecisionResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1868,6 +2123,1425 @@
         ]
       }
     },
+    "/v1/orgs/{orgId}/channels": {
+      "post": {
+        "description": "Tên trùng (không phân biệt hoa thường) với kênh khác trong tổ chức → 409\n`CHANNEL_NAME_TAKEN`. Tên của kênh đã xoá được dùng lại.",
+        "operationId": "Channels_create",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChannelDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tạo kênh. Người tạo trở thành Chủ kênh.",
+        "tags": [
+          "Channels"
+        ]
+      },
+      "get": {
+        "description": "Thành viên: kênh công khai + kênh riêng tư mình tham gia. Owner/Admin tổ chức: mọi\nkênh (chỉ metadata). Sắp theo tên A→Z; `q` tìm không dấu. Mặc định ẩn kênh đã lưu trữ.",
+        "operationId": "Channels_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "visibility",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/ChannelVisibility"
+            }
+          },
+          {
+            "name": "archived",
+            "required": false,
+            "in": "query",
+            "description": "`true`: chỉ kênh đã lưu trữ. Mặc định chỉ kênh đang hoạt động.\n@default false",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Tìm theo tên, không phân biệt hoa thường và dấu (\"ky thuat\" khớp \"Kỹ thuật\").",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 80,
+              "example": "ky thuat",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChannelResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Danh sách kênh tôi thấy được.",
+        "tags": [
+          "Channels"
+        ],
+        "x-paginated": true
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}": {
+      "get": {
+        "description": "Kênh riêng tư mà bạn không phải thành viên (và không phải Owner/Admin tổ chức) → 404.",
+        "operationId": "Channels_get",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Chi tiết kênh.",
+        "tags": [
+          "Channels"
+        ]
+      },
+      "patch": {
+        "description": "Chỉ field gửi lên mới được đổi. Kênh đã lưu trữ → 409 `CHANNEL_ARCHIVED`; tên trùng\n→ 409 `CHANNEL_NAME_TAKEN`.",
+        "operationId": "Channels_update",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChannelDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Sửa kênh (Chủ kênh, QTV kênh).",
+        "tags": [
+          "Channels"
+        ]
+      },
+      "delete": {
+        "description": "Xoá mềm: từ giờ mọi người nhận 404, tên kênh dùng lại được ngay. Dữ liệu bị xoá cứng\nsau 30 ngày.",
+        "operationId": "Channels_remove",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã xoá kênh."
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Xoá kênh (Chủ kênh, Owner/Admin tổ chức).",
+        "tags": [
+          "Channels"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/join": {
+      "post": {
+        "description": "Đã ở trong kênh → 409 `CHANNEL_ALREADY_MEMBER`. Kênh riêng tư không tự tham gia được\n(phải được thêm); kênh lưu trữ → 409 `CHANNEL_ARCHIVED`.",
+        "operationId": "Channels_join",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tự tham gia kênh công khai (thành viên).",
+        "tags": [
+          "Channels"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/leave": {
+      "post": {
+        "description": "Chủ kênh phải chuyển chủ kênh trước → 409 `CHANNEL_OWNER_MUST_TRANSFER`. Kênh đã lưu\ntrữ vẫn rời được.",
+        "operationId": "Channels_leave",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã rời kênh."
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Rời kênh.",
+        "tags": [
+          "Channels"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/ownership-transfer": {
+      "post": {
+        "description": "Người nhận phải là thành viên kênh (không phải → 404) và không phải Khách (→ 409\n`CHANNEL_TRANSFER_INVALID_TARGET`, cũng trả khi người nhận đã là chủ). Chủ cũ thành QTV kênh.",
+        "operationId": "Channels_transferOwnership",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferChannelOwnershipDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelOwnershipTransferResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Chuyển chủ kênh (Chủ kênh, hoặc Owner/Admin tổ chức chuyển hộ).",
+        "tags": [
+          "Channels"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/archive": {
+      "post": {
+        "description": "Kênh lưu trữ = chỉ đọc: mọi thao tác ghi trả 409 `CHANNEL_ARCHIVED`, trừ rời kênh,\nbỏ lưu trữ và xoá. Gọi lại khi đã lưu trữ → 200, không đổi gì.",
+        "operationId": "Channels_archive",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Lưu trữ kênh (Chủ kênh, Owner/Admin tổ chức).",
+        "tags": [
+          "Channels"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/unarchive": {
+      "post": {
+        "operationId": "Channels_unarchive",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Bỏ lưu trữ kênh (Chủ kênh, Owner/Admin tổ chức). Chưa lưu trữ → 200, không đổi gì.",
+        "tags": [
+          "Channels"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/members": {
+      "get": {
+        "description": "Khách không xem được (403). Phân trang theo thời điểm tham gia; `q` tìm không dấu\ntheo tên/email.",
+        "operationId": "ChannelMembers_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/ChannelRole"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Tìm theo tên hoặc email, không phân biệt hoa thường và dấu.",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "example": "nguyen",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChannelMemberResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Danh sách thành viên kênh.",
+        "tags": [
+          "Channels"
+        ],
+        "x-paginated": true
+      },
+      "post": {
+        "description": "QTV chỉ thêm được `member` / `guest`. Người không thuộc tổ chức → 404; đã ở trong\nkênh → 409 `CHANNEL_ALREADY_MEMBER`.",
+        "operationId": "ChannelMembers_add",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddChannelMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelMemberResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Thêm thành viên tổ chức vào kênh (Chủ kênh, QTV kênh).",
+        "tags": [
+          "Channels"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/members/{userId}": {
+      "patch": {
+        "description": "Chủ kênh đổi được mọi người; QTV chỉ đổi qua lại `member` ↔ `guest`. Đổi vai trò Chủ\nkênh → 409 `CHANNEL_OWNER_IMMUTABLE` (dùng chuyển chủ kênh).",
+        "operationId": "ChannelMembers_changeRole",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChannelMemberRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelMemberResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Đổi vai trò thành viên kênh.",
+        "tags": [
+          "Channels"
+        ]
+      },
+      "delete": {
+        "description": "Chủ kênh gỡ được mọi người trừ mình; QTV chỉ gỡ `member` / `guest`. Tự rời kênh là\nchức năng riêng (`POST .../leave`).",
+        "operationId": "ChannelMembers_remove",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã gỡ khỏi kênh."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Gỡ thành viên khỏi kênh.",
+        "tags": [
+          "Channels"
+        ]
+      }
+    },
     "/v1/orgs/{orgId}/audit-logs": {
       "get": {
         "description": "Lọc theo `action`, `actorId`. Log chỉ ghi thêm, không sửa/xoá được.",
@@ -1881,6 +3555,18 @@
             "schema": {
               "format": "uuid",
               "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
             }
           },
           {
@@ -1911,18 +3597,6 @@
               "maxLength": 512,
               "type": "string"
             }
-          },
-          {
-            "name": "limit",
-            "required": true,
-            "in": "query",
-            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
-            "schema": {
-              "minimum": 1,
-              "maximum": 100,
-              "default": 20,
-              "type": "number"
-            }
           }
         ],
         "responses": {
@@ -1931,25 +3605,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/PaginatedResponseDto"
-                    },
-                    {
-                      "type": "object",
-                      "required": [
-                        "data"
-                      ],
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/AuditLogResponseDto"
-                          }
-                        }
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AuditLogResponseDto"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
                     }
-                  ]
+                  }
                 }
               }
             }
@@ -1998,13 +3669,14 @@
         "summary": "Nhật ký thao tác quản trị của tổ chức, mới nhất trước (Admin trở lên).",
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-paginated": true
       }
     }
   },
   "info": {
     "title": "MeetNote API",
-    "description": "API biên bản họp theo nhóm.\n\n- Lỗi luôn có dạng `{ error: { code, message, details?, requestId } }`.\n- Danh sách phân trang cursor: `{ data, nextCursor }`, query `cursor` + `limit`.\n- Mọi response có header `x-request-id`.",
+    "description": "API biên bản họp theo nhóm.\n\n- Thành công: `{ data, meta: { statusCode, requestId } }`. Danh sách: `data` là mảng, `meta.nextCursor` để lấy trang sau (query `cursor` + `limit`).\n- Lỗi luôn có dạng `{ error: { code, statusCode, message, details?, requestId } }`.\n- `204` không có body. `/health/*` trả thẳng body (không bọc).\n- Mọi response có header `x-request-id` (trùng `meta.requestId` / `error.requestId`).",
     "version": "1.0.0",
     "contact": {}
   },
@@ -2203,6 +3875,11 @@
             "description": "Mã lỗi máy đọc được — client rẽ nhánh theo mã này, không theo `message`.",
             "example": "VALIDATION_FAILED"
           },
+          "statusCode": {
+            "type": "number",
+            "description": "HTTP status của response lỗi này (trùng status thật).",
+            "example": 400
+          },
           "message": {
             "type": "string",
             "description": "Mô tả cho người đọc. Có thể thay đổi bất kỳ lúc nào."
@@ -2222,6 +3899,7 @@
         },
         "required": [
           "code",
+          "statusCode",
           "message"
         ]
       },
@@ -2516,20 +4194,6 @@
         "required": [
           "orgId",
           "ownerId"
-        ]
-      },
-      "PaginatedResponseDto": {
-        "type": "object",
-        "properties": {
-          "nextCursor": {
-            "type": "string",
-            "nullable": true,
-            "description": "Cursor để lấy trang sau. `null` nghĩa là đã hết dữ liệu.",
-            "example": "eyJ2IjoxLCJrIjpbIjIwMjYtMTAtMTMiLCIwMTk5Il19"
-          }
-        },
-        "required": [
-          "nextCursor"
         ]
       },
       "MemberResponseDto": {
@@ -2883,6 +4547,253 @@
           "id"
         ]
       },
+      "ChannelVisibility": {
+        "type": "string",
+        "enum": [
+          "public",
+          "private"
+        ],
+        "description": "Mặc định `public`: mọi thành viên tổ chức thấy và tự tham gia được."
+      },
+      "CreateChannelDto": {
+        "type": "object",
+        "properties": {
+          "visibility": {
+            "description": "Mặc định `public`: mọi thành viên tổ chức thấy và tự tham gia được.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChannelVisibility"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Tên kênh (1–80 ký tự), duy nhất trong tổ chức, không phân biệt hoa thường.",
+            "example": "Phòng Kỹ thuật",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "description": {
+            "type": "string",
+            "description": "Mô tả ngắn (tối đa 500 ký tự).",
+            "example": "Giao ban kỹ thuật thứ Hai hằng tuần",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ChannelRole": {
+        "type": "string",
+        "enum": [
+          "owner",
+          "admin",
+          "member",
+          "guest"
+        ],
+        "description": "Vai trò của tôi trong kênh. `null` = chưa là thành viên kênh."
+      },
+      "ChannelResponseDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Giao ban kỹ thuật thứ Hai hằng tuần"
+          },
+          "visibility": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChannelVisibility"
+              }
+            ]
+          },
+          "archivedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "Thời điểm lưu trữ. `null` = đang hoạt động."
+          },
+          "myRole": {
+            "nullable": true,
+            "description": "Vai trò của tôi trong kênh. `null` = chưa là thành viên kênh.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChannelRole"
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Phòng Kỹ thuật"
+          },
+          "weeklyReportEnabled": {
+            "type": "boolean",
+            "description": "Kênh có tham gia báo cáo tuần không (M9)."
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-14T08:00:00.000Z"
+          },
+          "memberCount": {
+            "type": "number",
+            "example": 8
+          }
+        },
+        "required": [
+          "description",
+          "visibility",
+          "archivedAt",
+          "myRole",
+          "id",
+          "name",
+          "weeklyReportEnabled",
+          "createdAt",
+          "memberCount"
+        ]
+      },
+      "UpdateChannelDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500,
+            "description": "Mô tả mới. Gửi `null` hoặc chuỗi rỗng để xoá."
+          },
+          "visibility": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChannelVisibility"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "Kỹ thuật – Backend",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "weeklyReportEnabled": {
+            "type": "boolean",
+            "description": "Bật/tắt báo cáo tuần của kênh (dùng từ M9)."
+          }
+        }
+      },
+      "TransferChannelOwnershipDto": {
+        "type": "object",
+        "properties": {
+          "newOwnerId": {
+            "type": "string",
+            "description": "Người nhận: phải là thành viên kênh và không phải Khách. Chủ cũ trở thành QTV kênh.",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "newOwnerId"
+        ]
+      },
+      "ChannelOwnershipTransferResponseDto": {
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string",
+            "description": "Chủ kênh mới."
+          }
+        },
+        "required": [
+          "channelId",
+          "ownerId"
+        ]
+      },
+      "ChannelMemberResponseDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChannelRole"
+              }
+            ]
+          },
+          "userId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Nguyễn Văn An"
+          },
+          "email": {
+            "type": "string",
+            "example": "an.nguyen@example.com"
+          },
+          "joinedAt": {
+            "type": "string",
+            "example": "2026-10-14T08:00:00.000Z"
+          }
+        },
+        "required": [
+          "role",
+          "userId",
+          "displayName",
+          "email",
+          "joinedAt"
+        ]
+      },
+      "GrantableChannelRole": {
+        "type": "string",
+        "enum": [
+          "admin",
+          "member",
+          "guest"
+        ],
+        "description": "QTV kênh chỉ thêm được `member` / `guest`."
+      },
+      "AddChannelMemberDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "description": "QTV kênh chỉ thêm được `member` / `guest`.",
+            "example": "member",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GrantableChannelRole"
+              }
+            ]
+          },
+          "userId": {
+            "type": "string",
+            "description": "Người được thêm — phải là thành viên tổ chức (không phải → 404).",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "role",
+          "userId"
+        ]
+      },
+      "UpdateChannelMemberRoleDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "example": "guest",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GrantableChannelRole"
+              }
+            ]
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
       "AuditAction": {
         "type": "string",
         "enum": [
@@ -2897,7 +4808,20 @@
           "org.join_request.created",
           "org.join_request.approved",
           "org.join_request.rejected",
-          "org.ownership.transferred"
+          "org.ownership.transferred",
+          "org.deleted",
+          "channel.created",
+          "channel.updated",
+          "channel.member.added",
+          "channel.member.role_changed",
+          "channel.member.removed",
+          "channel.member.joined",
+          "channel.member.left",
+          "channel.ownership.transferred",
+          "channel.archived",
+          "channel.unarchived",
+          "channel.deleted",
+          "channel.purged"
         ]
       },
       "AuditLogResponseDto": {
@@ -2959,6 +4883,51 @@
           "targetType",
           "targetId",
           "createdAt"
+        ]
+      },
+      "ResponseMetaDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "description": "HTTP status của chính response này (đọc từ status thật, không gán cứng).",
+            "example": 200
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Trùng header `x-request-id` (và `error.requestId` khi lỗi). Gửi kèm khi báo lỗi để đối chiếu log.",
+            "example": "01J9Z6K3W8Q2V5T7Y9B1N4M6P0"
+          }
+        },
+        "required": [
+          "statusCode",
+          "requestId"
+        ]
+      },
+      "PaginatedMetaDto": {
+        "type": "object",
+        "properties": {
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Cursor để lấy trang sau (query `cursor`). `null` nghĩa là đã hết dữ liệu.",
+            "example": "eyJ2IjoxLCJrIjpbIjIwMjYtMTAtMTMiLCIwMTk5Il19"
+          },
+          "statusCode": {
+            "type": "number",
+            "description": "HTTP status của chính response này (đọc từ status thật, không gán cứng).",
+            "example": 200
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Trùng header `x-request-id` (và `error.requestId` khi lỗi). Gửi kèm khi báo lỗi để đối chiếu log.",
+            "example": "01J9Z6K3W8Q2V5T7Y9B1N4M6P0"
+          }
+        },
+        "required": [
+          "nextCursor",
+          "statusCode",
+          "requestId"
         ]
       }
     }

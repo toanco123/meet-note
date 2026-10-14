@@ -36,7 +36,7 @@ CO = Chủ kênh, CA = QTV kênh, CM = Thành viên kênh, G = Khách.
 | Xem metadata kênh                            |           ✓           |        ✓         |          ✓           |  ✓  |      ✓      |                 ✓                 |
 | Xem meeting / transcript / tóm tắt / báo cáo |           ✓           |        ✓         |          ✓           |  ✓  |      ✓      |      chỉ khi kênh công khai       |
 | Xem danh sách thành viên                     |           ✓           |        ✓         |          ✓           |  ✗  |      ✓      |                 ✓                 |
-| Tự join                                      |           –           |        –         |          –           |  –  |      ✓      |       ✓ nếu kênh công khai        |
+| Tự join                                      |   409 (đã ở trong)    | 409 (đã ở trong) |   409 (đã ở trong)   | 409 |      ✓      |       ✓ nếu kênh công khai        |
 | Rời kênh                                     | phải chuyển chủ trước |        ✓         |          ✓           |  ✓  |      –      |                 –                 |
 | Chia sẻ meeting (của chính mình) vào kênh    |           ✓           |        ✓         |          ✓           |  ✗  |      ✗      |                 ✗                 |
 | Gỡ meeting khỏi kênh                         |           ✓           |        ✓         | chỉ meeting của mình |  ✗  |      ✗      |                 ✗                 |
@@ -51,7 +51,7 @@ CO = Chủ kênh, CA = QTV kênh, CM = Thành viên kênh, G = Khách.
 | Tạo lại báo cáo tuần                         |           ✓           |        ✓         |          ✗           |  ✗  |      ✗      |                 ✗                 |
 | Nhận thông báo báo cáo tuần                  |           ✓           |        ✓         |          ✓           |  ✗  |      ✗      |                 ✗                 |
 
-**Kênh đã lưu trữ:** mọi hành động ghi đều trả `409 CHANNEL_ARCHIVED`, trừ bỏ lưu trữ và xoá.
+**Kênh đã lưu trữ:** mọi hành động ghi đều trả `409 CHANNEL_ARCHIVED`, trừ bỏ lưu trữ, xoá và **rời kênh** (để không ai bị kẹt trong kênh chỉ đọc). Danh sách nằm ở `BLOCKED_WHEN_ARCHIVED` trong `channel.policy.ts`.
 **Kênh riêng tư mà người gọi không có quyền thấy:** trả `404`, không trả `403`, để không lộ việc kênh tồn tại.
 
 ## 3. Quyền xem meeting
@@ -77,7 +77,9 @@ Request
   │                                         (guard chạy TRƯỚC pipe → tự kiểm tra uuid, đừng để
   │                                          chuỗi rác xuống Postgres thành lỗi 22P02 → 500)
   ├─ 3. ChannelAccessGuard (có :channelId) → tải channel + channel_members, gắn req.channelAccess
-  │                                         { channel, role | null, orgRole }
+  │                                         { channel, channelRole | null, orgRole }
+  │                                         không có / đã xoá / riêng tư mà không phải thành viên
+  │                                         kênh và không phải OrgAdm → 404
   ├─ 4. Guard quyền theo domain           → hàm policy(ctx) → boolean, sai → 403
   │      (OrgPermissionGuard / ChannelPermissionGuard)
   └─ 5. Service                            → kiểm tra theo đối tượng (target role, archived...)

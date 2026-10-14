@@ -17,6 +17,17 @@
 | Audit action            | `domain.object.verb_past`                                                                | `org.member.role_changed`                                                  |
 | Env                     | UPPER_SNAKE, có tiền tố nhóm                                                             | `DATABASE_URL`, `S3_BUCKET`                                                |
 
+**Thư mục theo vai trò (từ M4 B4d):** trong một thư mục, khi có **từ 2 file cùng vai trò** trở lên (`*.service.ts`, `*.repository.ts`, `*.controller.ts`, `*.types.ts`) thì gom vào `services/`, `repositories/`, `controllers/`, `types/`. Chỉ có 1 file thì để ngay cấp module. `dto/` và `guards/` luôn là thư mục. `*.module.ts` luôn ở cấp module (cửa vào của thư mục). Thư mục vai trò chỉ chứa đúng vai trò đó. Test kiến trúc `test/unit/architecture/folder-layout.spec.ts` canh quy tắc này.
+
+**Đặt interface / type ở đâu (từ M4 B4c):**
+
+- Interface / type **viết tay, được export** nằm trong `<module>.types.ts` của module đó (`channels/channels.types.ts`, `auth/auth.types.ts`, `common/pagination/pagination.types.ts`…). Gồm cả khối `declare global` mở rộng `Express.Request`. Trong file chia nhóm theo lớp dùng (policy + guard → repository).
+- Kiểu **suy ra từ một giá trị** để **cạnh giá trị gốc**: `(typeof X)[number]`, `typeof table.$inferSelect`, `keyof typeof policy`, cặp const/type cùng tên (`OrgRole`, `ErrorCode`). Tách ra thì hai thứ "là một" bị chia đôi.
+- Kiểu **không export** (chi tiết nội bộ một file, vd `CursorPayload`) để tại chỗ. Export ra chỉ để dời chỗ là biến chi tiết nội bộ thành API công khai.
+- File `*.types.ts` chỉ chứa kiểu, không có giá trị runtime. Hằng cần cho validate / Swagger enum để ở file riêng (vd `audit/audit-actions.ts`).
+- Không làm thư mục `src/types/` chung: nó thành nơi mọi module cùng import vào, type trôi xa code dùng nó, và các module dính chéo nhau qua đó.
+- Test kiến trúc `test/unit/architecture/types-location.spec.ts` canh các luật trên.
+
 **ESM:** import tương đối **bắt buộc có đuôi `.js`** (`import { X } from './x.js'`), kể cả khi file nguồn là `.ts`. Không dùng `__dirname`, dùng `import.meta.dirname`. Không `require()`.
 
 ## 2. Xử lý lỗi & định dạng lỗi
@@ -27,7 +38,8 @@ Mọi lỗi trả về cùng một dạng:
 {
   "error": {
     "code": "CHANNEL_ARCHIVED",
-    "message": "Kênh đã được lưu trữ, không thể thay đổi.",
+    "statusCode": 409,
+    "message": "Kênh đã được lưu trữ (chỉ đọc).",
     "details": [
       { "field": "name", "message": "name must be shorter than or equal to 80 characters" }
     ],
@@ -36,35 +48,57 @@ Mọi lỗi trả về cùng một dạng:
 }
 ```
 
-| HTTP | `code` mặc định                                                                                                                                                                                                                             | Khi nào                                                                                                                                                                                                |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 400  | `VALIDATION_FAILED`, `INVALID_CURSOR`                                                                                                                                                                                                       | DTO sai, cursor hỏng                                                                                                                                                                                   |
-| 401  | `UNAUTHENTICATED` (mặc định), `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED`, `AUTH_INVALID_CREDENTIALS`, `AUTH_REFRESH_TOKEN_INVALID`, `AUTH_REFRESH_TOKEN_ROTATED`, `AUTH_REFRESH_TOKEN_REUSED` | Chưa xác thực được                                                                                                                                                                                     |
-| 403  | `FORBIDDEN`                                                                                                                                                                                                                                 | Thấy được tài nguyên nhưng không đủ quyền với hành động                                                                                                                                                |
-| 404  | `NOT_FOUND`                                                                                                                                                                                                                                 | Không tồn tại **hoặc không được thấy** (kênh riêng tư)                                                                                                                                                 |
-| 410  | `INVITE_EXPIRED`, `INVITE_EXHAUSTED`                                                                                                                                                                                                        | Tài nguyên từng hợp lệ nhưng không còn dùng được (link mời hết hạn / hết lượt). Khác 404 = chưa từng có hoặc đã thu hồi                                                                                |
-| 409  | `CONFLICT` và mã cụ thể                                                                                                                                                                                                                     | Trùng unique, `ORG_OWNER_IMMUTABLE`, `ORG_ALREADY_MEMBER`, `ORG_JOIN_REQUEST_PENDING`, `JOIN_REQUEST_NOT_PENDING`, `ORG_OWNER_MUST_TRANSFER`, `ORG_TRANSFER_INVALID_TARGET`, sai trạng thái, hết quota |
-| 413  | `PAYLOAD_TOO_LARGE`                                                                                                                                                                                                                         | Part quá lớn                                                                                                                                                                                           |
-| 429  | `RATE_LIMITED`                                                                                                                                                                                                                              | (mốc hardening)                                                                                                                                                                                        |
-| 500  | `INTERNAL_ERROR`                                                                                                                                                                                                                            | Không lộ stack. Chỉ log phía server                                                                                                                                                                    |
+| HTTP | `code` mặc định                                                                                                                                                                                                                             | Khi nào                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 400  | `VALIDATION_FAILED`, `INVALID_CURSOR`                                                                                                                                                                                                       | DTO sai, cursor hỏng                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 401  | `UNAUTHENTICATED` (mặc định), `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED`, `AUTH_INVALID_CREDENTIALS`, `AUTH_REFRESH_TOKEN_INVALID`, `AUTH_REFRESH_TOKEN_ROTATED`, `AUTH_REFRESH_TOKEN_REUSED` | Chưa xác thực được                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 403  | `FORBIDDEN`                                                                                                                                                                                                                                 | Thấy được tài nguyên nhưng không đủ quyền với hành động                                                                                                                                                                                                                                                                                                                                                                 |
+| 404  | `NOT_FOUND`, `INVITE_NOT_FOUND` (mở link mời bằng token)                                                                                                                                                                                    | Không tồn tại **hoặc không được thấy** (kênh riêng tư)                                                                                                                                                                                                                                                                                                                                                                  |
+| 410  | `GONE` (mặc định), `INVITE_EXPIRED`, `INVITE_EXHAUSTED`                                                                                                                                                                                     | Tài nguyên từng hợp lệ nhưng không còn dùng được (link mời hết hạn / hết lượt). Khác 404 = chưa từng có hoặc đã thu hồi                                                                                                                                                                                                                                                                                                 |
+| 409  | `CONFLICT` và mã cụ thể                                                                                                                                                                                                                     | Trùng unique, `AUTH_EMAIL_TAKEN`, `ORG_OWNER_IMMUTABLE`, `ORG_ALREADY_MEMBER`, `ORG_JOIN_REQUEST_PENDING`, `JOIN_REQUEST_NOT_PENDING`, `ORG_OWNER_MUST_TRANSFER`, `ORG_TRANSFER_INVALID_TARGET`, `ORG_MEMBER_OWNS_CHANNELS`, `CHANNEL_NAME_TAKEN`, `CHANNEL_ARCHIVED`, `CHANNEL_ALREADY_MEMBER`, `CHANNEL_OWNER_IMMUTABLE`, `CHANNEL_OWNER_MUST_TRANSFER`, `CHANNEL_TRANSFER_INVALID_TARGET`, sai trạng thái, hết quota |
+| 413  | `PAYLOAD_TOO_LARGE`                                                                                                                                                                                                                         | Part quá lớn                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 429  | `RATE_LIMITED`                                                                                                                                                                                                                              | (mốc hardening)                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 503  | `SERVICE_UNAVAILABLE`                                                                                                                                                                                                                       | Phụ thuộc (DB, Redis) không phản hồi                                                                                                                                                                                                                                                                                                                                                                                    |
+| 500  | `INTERNAL_ERROR`                                                                                                                                                                                                                            | Không lộ stack. Chỉ log phía server                                                                                                                                                                                                                                                                                                                                                                                     |
 
 Hiện thực:
 
-- `AppException(code, httpStatus, message?, details?)`: service ném lỗi nghiệp vụ bằng class này.
+- **Catalog lỗi `src/common/errors/errors.ts` (từ M4 B4b):** mọi lỗi trả về client được tạo ở đây, chia nhóm theo domain: `throw Errors.channel.archived()`. Module **không** tự `new AppException(...)` hay `throw new NotFoundException(...)`. Test kiến trúc `test/unit/architecture/errors-catalog.spec.ts` quét `src/` và đỏ nếu có.
+  - Mỗi mục là một **hàm**, vì mỗi lần ném cần instance mới để stack trace đúng chỗ, và có lỗi nhận tham số (`details`).
+  - Tra theo **tình huống**, không theo `code`: một `NOT_FOUND` có nhiều câu (không tìm thấy kênh / tổ chức…). Cùng ý thì dùng chung một mục (vd `Errors.role.cannotGrant()` cho tạo link, duyệt yêu cầu, thêm vào kênh).
+  - Thêm lỗi mới: thêm mục vào catalog, cộng thêm `ErrorCode` nếu cần mã riêng (tiền tố domain).
+  - Client dựa vào `code`. `message` dành cho người đọc, sửa câu chữ không làm vỡ client.
+- `AppException(code, httpStatus, message?, details?)`: class lỗi nghiệp vụ, chỉ được khởi tạo trong catalog.
+- Policy trả về **quyết định** (`'ok' | 'forbidden' | …`), không ném lỗi. Hàm `assert…Decision` trong module đổi quyết định thành `Errors.*` (vd `channels/channel-decisions.ts`).
 - `AllExceptionsFilter` (global) map các loại lỗi:
   - `AppException`: giữ nguyên.
-  - `HttpException` của Nest: map status sang code mặc định.
-  - Lỗi Postgres `23505` (unique violation): 409 `CONFLICT`. Không có ngữ cảnh thì service nên tự bắt để trả mã cụ thể.
-  - Lỗi Postgres `23503` (FK violation): 409.
-  - Lỗi khác: 500 và log `error`.
+  - `HttpException` của Nest (vd sai route, body-parser): map status sang code mặc định.
+  - Lỗi Postgres `23505` (unique violation): `Errors.common.duplicate()` → 409 `CONFLICT`. Không có ngữ cảnh thì service nên tự bắt để trả mã cụ thể.
+  - Lỗi Postgres `23503` (FK violation): `Errors.common.referenceInvalid()` → 409.
+  - Lỗi khác: `Errors.common.internal()` → 500 và log `error`.
 - `requestId` lấy từ pino-http (`req.id`), đồng thời trả header `x-request-id`.
 
 ## 3. Định dạng response
 
-- **Một tài nguyên:** trả thẳng object, không bọc `{ data }`.
-- **Danh sách:** `{ "data": [...], "nextCursor": "eyJ2IjoxLC..." | null }`. Không trả `total`, vì `COUNT(*)` trên bảng lớn tốn kém và không đi cùng keyset pagination.
-- **Hành động không trả gì:** `204 No Content`.
-- **Tạo mới:** `201` + object.
+Mọi response **thành công** có cùng một vỏ `{ data, meta }` (từ M4 B4e):
+
+```json
+{ "data": { "id": "…", "name": "Kỹ thuật" }, "meta": { "statusCode": 200, "requestId": "01J9Z6…" } }
+```
+
+```json
+{
+  "data": [{ "id": "…" }, { "id": "…" }],
+  "meta": { "statusCode": 200, "requestId": "01J9Z6…", "nextCursor": "eyJ2IjoxLC…" }
+}
+```
+
+- **Một tài nguyên:** `data` là object. **Danh sách:** `data` là mảng thuần, `meta.nextCursor` để lấy trang sau (`null` = hết). Không trả `total`, vì `COUNT(*)` trên bảng lớn tốn kém và không đi cùng keyset pagination.
+- **`meta.statusCode`** luôn trùng HTTP status thật (đọc từ response, không gán cứng): tạo mới → `201`. **`meta.requestId`** trùng header `x-request-id` và `error.requestId`.
+- **Lỗi** giữ vỏ riêng `{ error: { code, statusCode, message, details?, requestId } }` (§2): có `data` là thành công, có `error` là lỗi, không cần cờ `success`.
+- **Hành động không trả gì:** `204 No Content`, không có body (không bọc).
+- **Ngoại lệ:** `/health/*` trả body thô (`@RawResponse()`), vì probe của Docker / K8s đọc thẳng `{ status }`.
+- **Hiện thực:** controller / service KHÔNG tự bọc. Chúng vẫn trả DTO hoặc `Page<T>`. `ResponseEnvelopeInterceptor` (global, đăng ký trong `configureApp`) bọc ở ranh giới HTTP; danh sách được nhận biết bằng metadata của `@ApiPaginatedResponse`. Swagger được bọc tương ứng trong `buildOpenApiDocument` (`applyResponseEnvelope`), dựa trên cùng các đánh dấu (`x-paginated`, `x-raw-response`). Test kiến trúc `openapi-envelope.spec.ts` kiểm tra mọi response 2xx JSON trong `openapi.json`.
 - Thời gian dạng ISO 8601 UTC (`2026-10-13T01:00:00.000Z`). `weekStart` dạng `YYYY-MM-DD`.
 - Không trả row DB trực tiếp. Luôn map sang `*ResponseDto` để tránh lộ `password_hash` và để Swagger đọc được kiểu.
 

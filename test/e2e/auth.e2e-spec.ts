@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DRIZZLE } from '../../src/infra/database/database.module.js';
 import type { Database } from '../../src/infra/database/database.types.js';
 import { sessions, users } from '../../src/infra/database/schema/index.js';
-import { REFRESH_TOKEN_PATTERN } from '../../src/modules/auth/token.service.js';
+import { REFRESH_TOKEN_PATTERN } from '../../src/modules/auth/services/token.service.js';
 import { createTestApp } from '../support/app.js';
 import { DEFAULT_PASSWORD, registerUser, uniqueEmail } from '../support/factories.js';
 
@@ -32,14 +32,14 @@ describe('Auth: register + login (e2e)', () => {
         .send({ email: uniqueEmail(), password: DEFAULT_PASSWORD, displayName: '  Nguyễn An  ' })
         .expect(201);
 
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         tokenType: 'Bearer',
         accessToken: expect.stringMatching(/^[\w-]+\.[\w-]+\.[\w-]+$/),
         accessTokenExpiresAt: expect.any(String),
         refreshToken: expect.stringMatching(REFRESH_TOKEN_PATTERN),
         refreshTokenExpiresAt: expect.any(String),
       });
-      expect(Date.parse(res.body.accessTokenExpiresAt)).toBeGreaterThan(Date.now());
+      expect(Date.parse(res.body.data.accessTokenExpiresAt)).toBeGreaterThan(Date.now());
     });
 
     it('lưu displayName đã trim, mật khẩu chỉ ở dạng argon2id', async () => {
@@ -93,7 +93,7 @@ describe('Auth: register + login (e2e)', () => {
         .send({ email: user.email.toUpperCase(), password: user.password })
         .expect(200);
 
-      expect(res.body.tokenType).toBe('Bearer');
+      expect(res.body.data.tokenType).toBe('Bearer');
       const [row] = await db.select().from(users).where(eq(users.email, user.email));
       const userSessions = await db
         .select()

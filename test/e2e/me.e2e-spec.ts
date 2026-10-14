@@ -30,12 +30,12 @@ describe('Me: /v1/me và /v1/me/sessions (e2e)', () => {
       .set('User-Agent', userAgent)
       .send({ email: user.email, password: user.password })
       .expect(200);
-    return res.body as TokenPair;
+    return res.body.data as TokenPair;
   }
 
   const sessionsOf = async (accessToken: string) =>
-    (await http().get('/v1/me/sessions').set(bearer(accessToken)).expect(200))
-      .body as SessionBody[];
+    (await http().get('/v1/me/sessions').set(bearer(accessToken)).expect(200)).body
+      .data as SessionBody[];
 
   describe('GET /v1/me', () => {
     it('trả hồ sơ, KHÔNG có passwordHash', async () => {
@@ -43,7 +43,7 @@ describe('Me: /v1/me và /v1/me/sessions (e2e)', () => {
 
       const res = await http().get('/v1/me').set(bearer(user.tokens.accessToken)).expect(200);
 
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         id: expect.any(String),
         email: user.email,
         displayName: 'Phạm Thu',
@@ -65,7 +65,7 @@ describe('Me: /v1/me và /v1/me/sessions (e2e)', () => {
 
       const res = await http().get('/v1/me').set(bearer(user.tokens.accessToken)).expect(200);
 
-      expect(res.body.organizations).toEqual([
+      expect(res.body.data.organizations).toEqual([
         { id: expect.any(String), name: 'Org A', role: 'owner' },
         { id: expect.any(String), name: 'Org B', role: 'owner' },
       ]);
@@ -87,7 +87,7 @@ describe('Me: /v1/me và /v1/me/sessions (e2e)', () => {
         .send({ displayName: '  Lê Văn Cường  ' })
         .expect(200);
 
-      expect(res.body.displayName).toBe('Lê Văn Cường');
+      expect(res.body.data.displayName).toBe('Lê Văn Cường');
     });
 
     it.each([

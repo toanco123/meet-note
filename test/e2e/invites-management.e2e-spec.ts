@@ -46,7 +46,7 @@ describe('Link mời: tạo / liệt kê / thu hồi (e2e)', () => {
         .set(bearer(owner.tokens.accessToken))
         .send({ name: 'Mời' })
         .expect(201)
-    ).body.id;
+    ).body.data.id;
     await addMember(db, orgId, admin.id, 'admin');
     await addMember(db, orgId, member.id, 'member');
   });
@@ -58,7 +58,7 @@ describe('Link mời: tạo / liệt kê / thu hồi (e2e)', () => {
   describe('POST /v1/orgs/:orgId/invites', () => {
     it('owner tạo link admin → 201, có token (43 ký tự) đúng một lần, mặc định 7 ngày', async () => {
       const res = await create(owner, { role: 'admin', maxUses: 5 }).expect(201);
-      const body = res.body as InviteBody & {
+      const body = res.body.data as InviteBody & {
         expiresAt: string;
         maxUses: number;
         useCount: number;
@@ -93,16 +93,21 @@ describe('Link mời: tạo / liệt kê / thu hồi (e2e)', () => {
 
     it('audit ghi org.invite.created, KHÔNG chứa token', async () => {
       const res = await create(owner, { maxUses: 3 }).expect(201);
-      const [log] = await db.select().from(auditLogs).where(eq(auditLogs.targetId, res.body.id));
+      const [log] = await db
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.targetId, res.body.data.id));
 
       expect(log).toMatchObject({ action: 'org.invite.created', actorId: owner.id });
-      expect(JSON.stringify(log)).not.toContain(res.body.token);
+      expect(JSON.stringify(log)).not.toContain(res.body.data.token);
     });
   });
 
   describe('GET /v1/orgs/:orgId/invites', () => {
     it('phân trang mới nhất trước: không trùng, không sót, giảm dần, không có token', async () => {
-      const { body: fresh } = await http()
+      const {
+        body: { data: fresh },
+      } = await http()
         .post('/v1/orgs')
         .set(bearer(owner.tokens.accessToken))
         .send({ name: 'Nhiều link' })
@@ -112,13 +117,14 @@ describe('Link mời: tạo / liệt kê / thu hồi (e2e)', () => {
       const seen: InviteBody[] = [];
       let cursor: string | null = null;
       do {
-        const res: { body: { data: InviteBody[]; nextCursor: string | null } } = await http()
-          .get(`/v1/orgs/${fresh.id}/invites`)
-          .query(cursor ? { limit: 5, cursor } : { limit: 5 })
-          .set(bearer(owner.tokens.accessToken))
-          .expect(200);
+        const res: { body: { data: InviteBody[]; meta: { nextCursor: string | null } } } =
+          await http()
+            .get(`/v1/orgs/${fresh.id}/invites`)
+            .query(cursor ? { limit: 5, cursor } : { limit: 5 })
+            .set(bearer(owner.tokens.accessToken))
+            .expect(200);
         seen.push(...res.body.data);
-        cursor = res.body.nextCursor;
+        cursor = res.body.meta.nextCursor;
       } while (cursor);
 
       expect(seen).toHaveLength(12);
@@ -139,7 +145,7 @@ describe('Link mời: tạo / liệt kê / thu hồi (e2e)', () => {
 
   describe('DELETE /v1/orgs/:orgId/invites/:inviteId', () => {
     it('thu hồi → 204, trạng thái revoked; thu hồi lần hai vẫn 204 (idempotent, chỉ 1 audit)', async () => {
-      const { body } = await create(owner).expect(201);
+      const { data: body } = (await create(owner).expect(201)).body;
       const revoke = () =>
         http().delete(`/v1/orgs/${orgId}/invites/${body.id}`).set(bearer(admin.tokens.accessToken));
 

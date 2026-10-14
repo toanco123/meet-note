@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ORG_ROLES, type OrgRoleValue } from '../../../infra/database/schema/index.js';
-import type { MemberRow } from '../organization-members.repository.js';
+import type { MemberRow } from '../organizations.types.js';
 
 export class MemberResponseDto {
   userId: string;

@@ -1,17 +1,17 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
-import type { AuthUser } from '../../common/auth/auth-user.js';
+import type { AuthUser } from '../../common/auth/auth.types.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import { Public } from '../../common/auth/public.decorator.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
-import { AuthService } from './auth.service.js';
+import { AuthService } from './services/auth.service.js';
 import { AuthTokensResponseDto } from './dto/auth-tokens-response.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { sessionMetaOf } from './session-meta.js';
-import { SessionsService } from './sessions.service.js';
+import { SessionsService } from './services/sessions.service.js';
 
 @ApiTags('Auth')
 @Controller('auth')

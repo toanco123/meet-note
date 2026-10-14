@@ -31,7 +31,7 @@ describe('DELETE /v1/orgs/:orgId/members/:userId — gỡ thành viên (e2e)', (
         .set(bearer(owner.tokens.accessToken))
         .send({ name: 'Gỡ thành viên' })
         .expect(201)
-    ).body.id;
+    ).body.data.id;
     await addMember(db, orgId, admin.id, 'admin');
     await addMember(db, orgId, member.id, 'member');
   });
@@ -89,7 +89,7 @@ describe('DELETE /v1/orgs/:orgId/members/:userId — gỡ thành viên (e2e)', (
 
     await http().get(`/v1/orgs/${orgId}`).set(bearer(victim.tokens.accessToken)).expect(404);
     const mine = await http().get('/v1/orgs').set(bearer(victim.tokens.accessToken)).expect(200);
-    expect(mine.body).toEqual([]);
+    expect(mine.body.data).toEqual([]);
   });
 
   it('gỡ lần hai cùng người → 404', async () => {

@@ -9,10 +9,10 @@ import {
   organizationMembers,
 } from '../../../../src/infra/database/schema/index.js';
 import { AuditService } from '../../../../src/modules/audit/audit.service.js';
-import { InviteAcceptanceService } from '../../../../src/modules/invites/invite-acceptance.service.js';
-import { InvitesRepository } from '../../../../src/modules/invites/invites.repository.js';
-import { JoinRequestsRepository } from '../../../../src/modules/invites/join-requests.repository.js';
-import { OrganizationMembersRepository } from '../../../../src/modules/organizations/organization-members.repository.js';
+import { InviteAcceptanceService } from '../../../../src/modules/invites/services/invite-acceptance.service.js';
+import { InvitesRepository } from '../../../../src/modules/invites/repositories/invites.repository.js';
+import { JoinRequestsRepository } from '../../../../src/modules/invites/repositories/join-requests.repository.js';
+import { OrganizationMembersRepository } from '../../../../src/modules/organizations/repositories/organization-members.repository.js';
 import { insertOrg, insertUser } from '../../../support/db-factories.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 
