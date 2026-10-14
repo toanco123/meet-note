@@ -56,24 +56,26 @@ Mọi route có `:orgId` đi qua `OrgMemberGuard`: không phải thành viên, o
 
 ## Channels (tag `Channels`)
 
-Prefix `/v1/orgs/:orgId/channels`.
+Prefix `/v1/orgs/:orgId/channels`. Mọi route có `:channelId` đi qua `@RequireChannelPermission(...)` = `OrgMemberGuard → ChannelAccessGuard → ChannelPermissionGuard`. Kênh không tồn tại / đã xoá / riêng tư mà người gọi không được thấy → **404**. Kênh đã lưu trữ + thao tác ghi → **409 `CHANNEL_ARCHIVED`** (trừ bỏ lưu trữ, xoá, rời kênh).
 
-| Method | Path                                            | Ai gọi                          |
-| ------ | ----------------------------------------------- | ------------------------------- |
-| POST   | `/`                                             | Member+ của org (trở thành CO)  |
-| GET    | `/?q=&visibility=&archived=&cursor=`            | Member+ (lọc theo quyền thấy)   |
-| GET    | `/:channelId`                                   | Người thấy được kênh            |
-| PATCH  | `/:channelId`                                   | CO, CA                          |
-| POST   | `/:channelId/archive` · `/:channelId/unarchive` | CO, OrgAdm                      |
-| DELETE | `/:channelId`                                   | CO, OrgAdm (xoá mềm)            |
-| POST   | `/:channelId/join`                              | Thành viên org (kênh công khai) |
-| POST   | `/:channelId/leave`                             | CA, CM, G                       |
-| GET    | `/:channelId/members?q=&role=&cursor=&limit=`   | CO, CA, CM, ngoài (pub), OrgAdm |
-| POST   | `/:channelId/members`                           | CO, CA                          |
-| PATCH  | `/:channelId/members/:userId`                   | CO, CA (giới hạn theo ma trận)  |
-| DELETE | `/:channelId/members/:userId`                   | CO, CA (giới hạn theo ma trận)  |
-| POST   | `/:channelId/ownership-transfer`                | CO, OrgAdm                      |
-| GET    | `/:channelId/meetings?cursor=`                  | Người xem được kênh             |
+| Method | Path                                            | Ai gọi                                                                                                         |
+| ------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| POST   | `/`                                             | Thành viên org (trở thành CO). Tên trùng (không phân biệt hoa thường) → 409 `CHANNEL_NAME_TAKEN`               |
+| GET    | `/?q=&visibility=&archived=&cursor=`            | Thành viên org. Chỉ kênh thấy được: công khai, kênh mình là thành viên, OrgAdm thấy mọi kênh. Sắp theo tên A→Z |
+| GET    | `/:channelId`                                   | Người thấy được kênh. Có `myRole` (null nếu chưa join)                                                         |
+| PATCH  | `/:channelId`                                   | CO, CA: `name`, `description`, `visibility`, `weeklyReportEnabled`                                             |
+| POST   | `/:channelId/archive` · `/:channelId/unarchive` | CO, OrgAdm                                                                                                     |
+| DELETE | `/:channelId`                                   | CO, OrgAdm (xoá mềm → 404 với mọi người, tên dùng lại được)                                                    |
+| POST   | `/:channelId/join`                              | Thành viên org, kênh công khai. Đã là thành viên → 409                                                         |
+| POST   | `/:channelId/leave`                             | Mọi thành viên kênh. CO → 409 `CHANNEL_OWNER_MUST_TRANSFER`                                                    |
+| GET    | `/:channelId/members?q=&role=&cursor=&limit=`   | CO, CA, CM, ngoài (pub), OrgAdm. Khách → 403                                                                   |
+| POST   | `/:channelId/members`                           | CO, CA. `{ userId, role }` (CA chỉ thêm member/guest; người ngoài org → 404)                                   |
+| PATCH  | `/:channelId/members/:userId`                   | CO, CA (giới hạn theo ma trận)                                                                                 |
+| DELETE | `/:channelId/members/:userId`                   | CO, CA (giới hạn theo ma trận)                                                                                 |
+| POST   | `/:channelId/ownership-transfer`                | CO, OrgAdm. `{ newOwnerId }`: phải là thành viên kênh, không phải Khách                                        |
+| GET    | `/:channelId/meetings?cursor=`                  | Người xem được nội dung kênh (M6)                                                                              |
+
+`DELETE /v1/orgs/:orgId` (Owner, xoá mềm, từ M4). Rời / bị gỡ khỏi org khi còn làm chủ kênh → 409 `ORG_MEMBER_OWNS_CHANNELS`.
 
 ## Meetings (tag `Meetings`)
 

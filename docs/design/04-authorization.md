@@ -77,7 +77,9 @@ Request
   │                                         (guard chạy TRƯỚC pipe → tự kiểm tra uuid, đừng để
   │                                          chuỗi rác xuống Postgres thành lỗi 22P02 → 500)
   ├─ 3. ChannelAccessGuard (có :channelId) → tải channel + channel_members, gắn req.channelAccess
-  │                                         { channel, role | null, orgRole }
+  │                                         { channel, channelRole | null, orgRole }
+  │                                         không có / đã xoá / riêng tư mà không phải thành viên
+  │                                         kênh và không phải OrgAdm → 404
   ├─ 4. Guard quyền theo domain           → hàm policy(ctx) → boolean, sai → 403
   │      (OrgPermissionGuard / ChannelPermissionGuard)
   └─ 5. Service                            → kiểm tra theo đối tượng (target role, archived...)

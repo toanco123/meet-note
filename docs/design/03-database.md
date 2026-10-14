@@ -181,10 +181,10 @@ id, org_id (FK CASCADE), user_id (FK → users CASCADE), invite_id (FK → invit
 
 Index:
 
-- `UNIQUE (id, org_id)`: đích của composite FK.
-- `UNIQUE (org_id, lower(name)) WHERE deleted_at IS NULL`.
-- `(org_id, created_at, id) WHERE deleted_at IS NULL`.
-- `(deleted_at) WHERE deleted_at IS NOT NULL`: cho job purge.
+- `channels_id_org_uq UNIQUE (id, org_id)`: đích của composite FK.
+- `channels_org_name_uq UNIQUE (org_id, lower(name)) WHERE deleted_at IS NULL`: vừa chặn trùng tên, vừa phục vụ danh sách sắp theo tên (keyset trên `(lower(name), id)`, M4 Q4).
+- `channels_purge_idx (deleted_at) WHERE deleted_at IS NOT NULL`: cho job dọn dẹp.
+- CHECK `channels_visibility_ck`, `channels_name_length_ck` (1–80).
 
 ### `channel_members`
 
@@ -197,14 +197,14 @@ Index:
 | joined_at  | timestamptz                                      |                                                                      |
 | PK         | (channel_id, user_id)                            |                                                                      |
 
-Index: `UNIQUE (channel_id) WHERE role = 'owner'`, `(user_id)`, `(channel_id, joined_at, user_id)`.
+Index: `channel_members_one_owner_uq UNIQUE (channel_id) WHERE role = 'owner'`, `channel_members_user_idx (user_id)`, `channel_members_channel_joined_idx (channel_id, joined_at, user_id)`.
 
 Composite FK tới `organization_members` cho 2 bảo đảm:
 
 - Không thể thêm người ngoài org vào kênh.
 - Bị xoá khỏi org thì tự rời mọi kênh (cascade).
 
-> **Bẫy:** Cascade cũng xoá luôn **chủ kênh**. Trước khi gỡ một người khỏi org, service phải chuyển các kênh mà người đó làm Owner sang một người khác, trong **cùng transaction**.
+> **Bẫy:** Cascade cũng xoá luôn **chủ kênh**. Quyết định M4 Q3: rời / bị gỡ khỏi org khi còn làm chủ kênh (chưa xoá) → **409 `ORG_MEMBER_OWNS_CHANNELS`**. Phải chuyển chủ kênh trước, giống Owner tổ chức. Kiểm tra này phải chịu được race "đang gỡ X ‖ chuyển kênh cho X" (xem thứ tự khoá §7).
 
 **Danh sách thành viên + tìm không dấu:**
 
@@ -362,7 +362,22 @@ id bigint identity, org_id, actor_id NULL (NULL = hệ thống), action text (vd
 key text, user_id, method, path, request_hash, status_code, response jsonb, created_at, expires_at. PK `(user_id, key)`.
 Dùng cho các POST không tự idempotent, theo header `Idempotency-Key`.
 
-## 7. Tóm tắt: chỗ nào cần transaction / khoá
+## 7. Thứ tự khoá chung (M4) và tóm tắt chỗ cần transaction / khoá
+
+**Mọi thao tác khoá nhiều loại dòng phải theo đúng thứ tự sau** (khoá ngược thứ tự → hai transaction có thể chờ nhau vòng tròn → Postgres giết một bên với `40P01`):
+
+1. `organization_members`, sắp theo `user_id` (`FOR UPDATE` khi đổi/xoá, `FOR SHARE` khi chỉ cần "vai trò này giữ nguyên")
+2. `channels`, sắp theo `id` (dòng kênh là mutex cho mọi thay đổi quyền trong kênh)
+3. `channel_members`, sắp theo `user_id`
+
+Ví dụ:
+
+- **OrgAdm chuyển chủ kênh:** khoá `FOR SHARE` vai trò tổ chức của mình và của người nhận (bậc 1) → kênh (bậc 2) → hai dòng thành viên kênh (bậc 3).
+- **Gỡ X khỏi org:** khoá dòng tổ chức của người gỡ và X (bậc 1) → kiểm tra X không làm chủ kênh nào → xoá.
+
+Hai thao tác chạm cùng người X luôn tuần tự, không deadlock.
+
+### Tóm tắt
 
 | Thao tác                           | Kỹ thuật                                                               | Lý do                                         |
 | ---------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------- |
