@@ -1,6 +1,6 @@
 # M4 — Kênh
 
-- **Trạng thái:** **Xong ở local** (2026-10-14): B1–B8, kể cả các bước thêm theo yêu cầu (B4b–B4e). CI chạy khi push / mở PR. Plan đã duyệt 2026-10-14 (★ cho Q1, Q2, Q4; Q3 theo người dùng; Q5–Q7 ★)
+- **Trạng thái:** **Xong** (2026-10-14, PR #4, CI xanh): B1–B8, kể cả các bước thêm theo yêu cầu (B4b–B4e). Plan đã duyệt 2026-10-14 (★ cho Q1, Q2, Q4; Q3 theo người dùng; Q5–Q7 ★)
 - **Nhánh:** `m4-channels`
 - **Tài liệu thiết kế liên quan:** [01-overview D2, D3](../design/01-overview.md), [03-database §3, §7](../design/03-database.md), [04-authorization §2, §4](../design/04-authorization.md), [05-api Channels](../design/05-api.md), [06-flows §3](../design/06-flows.md)
 
@@ -199,7 +199,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá đều
 
 - [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 324)
 - [x] `pnpm test:e2e` xanh ở local (371); các race test + test `SKIP LOCKED` đều đã được đột biến (kết quả ở bài học 6, 9–10, 15–16, 21, 24)
-- [ ] `pnpm test:e2e` xanh ở CI: chờ push / PR
+- [x] `pnpm test:e2e` xanh ở CI (PR #4: `Lint · Test · Build` + `Docker image`)
 - [x] Ma trận quyền kênh (§2) pass toàn bộ ở unit (12 permission × 6 kiểu người gọi × công khai/riêng tư) và e2e dạng bảng
 - [x] Không còn đường nào để kênh mất chủ (gỡ / rời / chuyển), kể cả khi các thao tác chạy song song: chủ kênh rời kênh → 409; chuyển ‖ rời kênh (B5); gỡ / rời org khi còn làm chủ → 409, gỡ ‖ chuyển cả hai thứ tự (B7). Mỗi đường đều có đột biến cho ra "kênh mất chủ"
 - [x] `docs/design/` khớp với code (đối chiếu route 05-api ↔ `openapi.json` và mã lỗi 07 ↔ `ErrorCode` bằng script), có **thứ tự khoá chung** trong §7 (bậc 0–3)
