@@ -44,6 +44,15 @@ export interface ChannelPatch {
   weeklyReportEnabled?: boolean;
 }
 
+/** Trạng thái kênh đọc được SAU khi khoá — đủ cho audit `before` và cho policy. */
+export interface LockedChannel {
+  name: string;
+  description: string | null;
+  visibility: ChannelVisibility;
+  weeklyReportEnabled: boolean;
+  archivedAt: Date | null;
+}
+
 export interface ListChannelsParams {
   orgId: string;
   userId: string;
@@ -174,7 +183,7 @@ export class ChannelsRepository {
    * Khoá dòng kênh = MUTEX cho mọi thay đổi của kênh đó (metadata, thành viên, chủ kênh — B4/B5).
    * Đọc luôn giá trị "trước" cho audit.
    */
-  async lockForUpdate(channelId: string, executor: DbExecutor) {
+  async lockForUpdate(channelId: string, executor: DbExecutor): Promise<LockedChannel | undefined> {
     const [row] = await executor
       .select({
         name: channels.name,

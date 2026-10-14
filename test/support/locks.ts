@@ -1,5 +1,7 @@
-import { sql } from 'drizzle-orm';
-import type { Database } from '../../src/infra/database/database.types.js';
+import { eq, sql } from 'drizzle-orm';
+import type { AppException } from '../../src/common/errors/app.exception.js';
+import type { Database, Transaction } from '../../src/infra/database/database.types.js';
+import { channels } from '../../src/infra/database/schema/index.js';
 
 /**
  * Đợi tới khi có ít nhất `count` transaction trong database NÀY đang chờ khoá dòng.
@@ -19,4 +21,59 @@ export async function waitForLockWaiters(db: Database, count = 1, timeoutMs = 50
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
   throw new Error(`Sau ${timeoutMs}ms vẫn chưa có ${count} transaction chờ khoá`);
+}
+
+/**
+ * Ép thứ tự xen kẽ cho test race:
+ *
+ *   T1 (holder):   BEGIN → `hold(tx)` (khoá + đổi dữ liệu) ──── giữ khoá ──── COMMIT
+ *   T2 (contender):              `contend()` → chạm khoá của T1 … ĐỢI … ─────────── → chạy tiếp
+ *
+ * T1 chỉ commit khi T2 đã THỰC SỰ đợi khoá (`waitForLockWaiters`) → T2 luôn thấy dữ liệu T1 vừa
+ * commit. Kết quả của T2 trả về dạng chuỗi qua `outcomeOf` để so sánh gọn.
+ */
+export async function runWhileLocked(
+  db: Database,
+  hold: (tx: Transaction) => Promise<unknown>,
+  contend: () => Promise<unknown>,
+): Promise<string> {
+  const held = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const holder = db.transaction(async (tx) => {
+    await hold(tx);
+    held.resolve();
+    await release.promise;
+  });
+
+  await Promise.race([held.promise, holder]);
+  const outcome = outcomeOf(contend());
+  await waitForLockWaiters(db, 1);
+  release.resolve();
+  await holder;
+  return outcome;
+}
+
+/** 'OK' hoặc mã lỗi (`AppException.code`); lỗi khác (vd lỗi Postgres lọt ra) → chuỗi mô tả. */
+export async function outcomeOf(promise: Promise<unknown>): Promise<string> {
+  try {
+    await promise;
+    return 'OK';
+  } catch (error) {
+    return (error as Partial<AppException>).code ?? String(error);
+  }
+}
+
+/** `hold` cho `runWhileLocked`: khoá dòng kênh như MỌI thao tác ghi trên kênh, rồi làm `change`. */
+export function lockChannelThen(
+  channelId: string,
+  change: (tx: Transaction) => Promise<unknown>,
+): (tx: Transaction) => Promise<void> {
+  return async (tx) => {
+    await tx
+      .select({ id: channels.id })
+      .from(channels)
+      .where(eq(channels.id, channelId))
+      .for('update');
+    await change(tx);
+  };
 }

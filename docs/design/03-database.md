@@ -374,6 +374,8 @@ Ví dụ:
 
 - **OrgAdm chuyển chủ kênh:** khoá `FOR SHARE` vai trò tổ chức của mình và của người nhận (bậc 1) → kênh (bậc 2) → hai dòng thành viên kênh (bậc 3).
 - **Gỡ X khỏi org:** khoá dòng tổ chức của người gỡ và X (bậc 1) → kiểm tra X không làm chủ kênh nào → xoá.
+- **Thêm X vào kênh:** khoá `FOR SHARE` dòng tổ chức của X (bậc 1) → kênh (bậc 2) → `INSERT … ON CONFLICT DO NOTHING`.
+- **Đổi vai trò / gỡ X khỏi kênh:** kênh (bậc 2) → dòng `channel_members` của X (bậc 3). Vẫn phải khoá bậc 3 dù kênh đã là mutex: gỡ X khỏi **tổ chức** xoá dòng này qua cascade mà không đi qua dòng kênh.
 
 Hai thao tác chạm cùng người X luôn tuần tự, không deadlock.
 
@@ -384,10 +386,11 @@ Hai thao tác chạm cùng người X luôn tuần tự, không deadlock.
 | Refresh token                      | tx + `FOR UPDATE` refresh_token rồi session                            | Chặn 2 refresh song song, phát hiện reuse     |
 | Chuyển quyền sở hữu org            | tx + `FOR UPDATE` 2 dòng member (sắp theo user_id) + hạ trước nâng sau | Partial unique index, chống deadlock          |
 | Đổi vai trò / gỡ thành viên org    | tx + `FOR UPDATE` dòng member mục tiêu + kiểm tra không gỡ owner       | Owner không bị gỡ nhầm                        |
-| Rời / bị gỡ khỏi org               | tx: chuyển các kênh đang làm chủ → xoá member                          | Cascade không để lại kênh mồ côi              |
+| Rời / bị gỡ khỏi org               | tx + `FOR UPDATE` member → còn làm chủ kênh thì 409 → xoá member       | Cascade không để lại kênh mồ côi (M4 Q3)      |
 | Dùng link mời                      | UPDATE có điều kiện                                                    | Nguyên tử, không cần khoá                     |
 | Duyệt yêu cầu vào org              | tx + `FOR UPDATE` request                                              | Chặn duyệt 2 lần                              |
-| Đổi vai trò / gỡ / chuyển chủ kênh | tx + `FOR UPDATE` dòng `channels` trước                                | Một mutex cho mỗi kênh, thứ tự khoá cố định   |
+| Thêm thành viên kênh               | tx + `FOR SHARE` org member của X → `FOR UPDATE` kênh → ON CONFLICT    | X không bị gỡ khỏi org giữa chừng; 404 rõ     |
+| Đổi vai trò / gỡ / chuyển chủ kênh | tx + `FOR UPDATE` dòng `channels` trước, rồi dòng `channel_members`    | Một mutex cho mỗi kênh, thứ tự khoá cố định   |
 | Complete upload                    | tx + `FOR UPDATE` upload                                               | Idempotent, chặn tạo 2 meeting                |
 | Chuyển trạng thái meeting          | UPDATE … WHERE status = expected                                       | Optimistic, không giữ khoá trong lúc chạy lâu |
 | Ghi transcript                     | tx delete + insert                                                     | Idempotent khi chạy lại                       |

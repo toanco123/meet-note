@@ -3,7 +3,7 @@ import { isUniqueViolation } from '../../common/errors/pg-error.js';
 import { decodeCursor, type Page, toPage } from '../../common/pagination/cursor.js';
 import { expectTextKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
-import type { Database } from '../../infra/database/database.types.js';
+import type { Database, Transaction } from '../../infra/database/database.types.js';
 import type { ChannelVisibility } from '../../infra/database/schema/index.js';
 import { diffForAudit, isEmptyDiff } from '../audit/audit-diff.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -14,10 +14,11 @@ import {
   OrgRole,
 } from '../organizations/organization.policy.js';
 import { assertChannelDecision, channelNameTaken, channelNotFound } from './channel.errors.js';
-import { ChannelRole, decideChannelPermission } from './channel.policy.js';
+import { ChannelRole, type ChannelPermission, decideChannelPermission } from './channel.policy.js';
 import {
   type ChannelDetailRow,
   type ChannelPatch,
+  type LockedChannel,
   CHANNELS_ORG_NAME_UNIQUE,
   ChannelsRepository,
 } from './channels.repository.js';
@@ -110,10 +111,31 @@ export class ChannelsService {
   }
 
   /**
-   * Khoá dòng kênh → kiểm tra LẠI quyền + trạng thái lưu trữ trên dữ liệu vừa khoá → ghi → audit.
+   * Bước đầu của MỌI thao tác ghi trên một kênh (sửa, thành viên, chuyển chủ, lưu trữ…):
+   * khoá dòng kênh = mutex → đọc lại vai trò người gọi → hỏi lại policy trên dữ liệu VỪA KHOÁ.
+   *
    * Guard đọc TRƯỚC khi khoá: giữa lúc đó kênh có thể vừa bị lưu trữ, hoặc người gọi vừa bị hạ
-   * từ QTV xuống thành viên (B4 đổi vai trò cũng phải khoá dòng kênh này trước → tuần tự hoá).
+   * quyền. Mọi thay đổi vai trò trong kênh đều khoá dòng kênh này trước → sau khi khoá, vai trò
+   * đọc được là vai trò mới nhất, không ai đổi được cho tới khi transaction này xong.
    */
+  async lockForAction(
+    access: ChannelAccess,
+    permission: ChannelPermission,
+    tx: Transaction,
+  ): Promise<{ channel: LockedChannel; actorRole: ChannelRole | null }> {
+    const channel = await this.repo.lockForUpdate(access.channel.id, tx);
+    if (!channel) throw channelNotFound();
+    const actorRole = await this.repo.findMemberRole(access.channel.id, access.userId, tx);
+    assertChannelDecision(
+      decideChannelPermission(permission, {
+        channelRole: actorRole,
+        orgRole: access.orgRole,
+        channel,
+      }),
+    );
+    return { channel, actorRole };
+  }
+
   async update(
     access: ChannelAccess,
     patch: ChannelPatch,
@@ -122,17 +144,7 @@ export class ChannelsService {
     const channelId = access.channel.id;
     await this.db
       .transaction(async (tx) => {
-        const current = await this.repo.lockForUpdate(channelId, tx);
-        if (!current) throw channelNotFound();
-
-        const channelRole = await this.repo.findMemberRole(channelId, ctx.actorId, tx);
-        assertChannelDecision(
-          decideChannelPermission('channel.update', {
-            channelRole,
-            orgRole: access.orgRole,
-            channel: current,
-          }),
-        );
+        const { channel: current } = await this.lockForAction(access, 'channel.update', tx);
 
         const changed = diffForAudit(current, patch);
         if (isEmptyDiff(changed)) return;

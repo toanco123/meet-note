@@ -139,7 +139,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá đều
     - danh sách lọc đúng theo quyền thấy;
     - tên trùng → 409;
     - phân trang theo tên không trùng/sót.
-- [ ] **B4 — Thành viên kênh**
+- [x] **B4 — Thành viên kênh**
   - Việc: liệt kê (cursor + tìm không dấu), thêm, đổi vai trò, gỡ. Mọi thao tác khoá **dòng kênh trước** (mutex) rồi mới khoá dòng thành viên.
   - Test (e2e): bảng phân quyền đầy đủ; Khách xem danh sách → 403.
   - **Race:** lưu trữ kênh ‖ thêm thành viên → không bao giờ "thêm thành công vào kênh đã lưu trữ". Đột biến bỏ kiểm tra lại sau khoá → đỏ.
@@ -189,3 +189,6 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá đều
 6. **"Kiểm tra lại sau khi khoá" chỉ chứng minh được bằng race có điều khiển thứ tự.** E2E không chạm được nhánh này, vì guard chặn trước. Test `channel-update-race` để T1 giữ khoá dòng kênh và đổi trạng thái (lưu trữ / hạ QTV), rồi chờ T2 (`service.update`) **thực sự đợi khoá** bằng `waitForLockWaiters` (hỏi `pg_stat_activity.wait_event_type = 'Lock'`), không dùng sleep, xong mới commit T1. Đột biến bỏ kiểm tra lại → 2 test đỏ (`expected 'OK' to be 'CHANNEL_ARCHIVED'` / `'FORBIDDEN'`). Có thêm case đối chứng "T1 không đổi gì → OK" để chắc rằng khung test không phải lúc nào cũng từ chối.
 7. **Đột biến guard kênh:** bỏ lọc `org_id` trong `findAccess` → test "kênh org khác gắn vào path org này" đỏ (đúng lỗ IDOR). Bỏ kiểm tra `channel.read` → 3 test "riêng tư → 404" đỏ.
 8. **Query param có giá trị mặc định bị Swagger ghi là bắt buộc.** `limit: number = 20` (từ M2) và `archived: boolean = false` không có `?`, nên CLI plugin đánh dấu `required: true`, và client sinh từ spec sẽ bắt truyền. Lỗi này nằm im từ M2, đến khi đọc lại `openapi.json` của B3 mới thấy. Cách sửa: thêm `@ApiPropertyOptional()`. Plugin vẫn giữ `default`/`min`/`max`, `openapi.json` đổi ở cả 5 danh sách.
+9. **Dòng kênh là mutex, nhưng chưa đủ: cascade đi vòng qua nó.** Gỡ X khỏi tổ chức xoá dòng `channel_members` của X bằng `ON DELETE CASCADE`, không khoá dòng kênh. Vì vậy đổi vai trò / gỡ trong kênh vẫn phải khoá `FOR UPDATE` dòng thành viên đích (bậc 3). Đột biến bỏ khoá này cho ra `NOT_FOUND/1`: response vẫn 404 (đọc lại sau commit không thấy), nhưng UPDATE đã trúng **0 dòng mà không báo lỗi**, và audit đã ghi "đổi vai trò" cho một thay đổi không xảy ra. Bẫy này chỉ lộ ra khi test kiểm tra cả audit, không chỉ kiểm tra status.
+10. **Khoá `FOR SHARE` dòng tổ chức trước khi thêm vào kênh (bậc 1) cho ra lỗi đúng nghĩa.** Bỏ khoá này thì dữ liệu vẫn nhất quán, vì composite FK chặn được. Nhưng INSERT phải đợi ở bước kiểm tra FK rồi nổ `23503`, và lỗi Postgres lọt ra thay vì 404 "không phải thành viên tổ chức". Đây đúng là câu trong plan: "ràng buộc DB là lưới an toàn, khoá cho ra ngữ nghĩa lỗi đúng".
+11. **Gom khung race thành helper `runWhileLocked` + `lockChannelThen`** (`test/support/locks.ts`). Mỗi race test giờ chỉ còn 3 phần: T1 làm gì, T2 gọi gì, kết quả mong đợi. Kết quả gộp thành một chuỗi `outcome/trạng-thái-DB` (vd `CHANNEL_ARCHIVED/gone`), nên khi đỏ, thông báo lỗi cho biết ngay đột biến đã làm hỏng ở đâu.

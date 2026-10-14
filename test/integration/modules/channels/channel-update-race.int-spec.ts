@@ -1,9 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { AppException } from '../../../../src/common/errors/app.exception.js';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
-import type { Transaction } from '../../../../src/infra/database/database.types.js';
 import { channelMembers, channels } from '../../../../src/infra/database/schema/index.js';
 import { AuditService } from '../../../../src/modules/audit/audit.service.js';
 import { ChannelsRepository } from '../../../../src/modules/channels/channels.repository.js';
@@ -17,16 +15,7 @@ import {
   insertUser,
 } from '../../../support/db-factories.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
-import { waitForLockWaiters } from '../../../support/locks.js';
-
-async function outcomeOf(promise: Promise<unknown>): Promise<string> {
-  try {
-    await promise;
-    return 'OK';
-  } catch (error) {
-    return (error as AppException).code ?? String(error);
-  }
-}
+import { lockChannelThen, runWhileLocked } from '../../../support/locks.js';
 
 /**
  * Guard đọc quyền + trạng thái kênh TRƯỚC khi service khoá dòng kênh. Ở giữa, một thao tác khác
@@ -77,33 +66,6 @@ describe('Race: sửa kênh ‖ thay đổi đồng thời trên kênh đó (Pos
     return { channel, qtv, access };
   }
 
-  /** T1 giữ khoá dòng kênh + làm `change`; chỉ commit khi `run` (T2) đã thực sự đợi khoá. */
-  async function interleave(
-    channelId: string,
-    change: (tx: Transaction) => Promise<unknown>,
-    run: () => Promise<unknown>,
-  ): Promise<string> {
-    const locked = Promise.withResolvers<void>();
-    const release = Promise.withResolvers<void>();
-    const holder = t.db.transaction(async (tx) => {
-      await tx
-        .select({ id: channels.id })
-        .from(channels)
-        .where(eq(channels.id, channelId))
-        .for('update');
-      await change(tx);
-      locked.resolve();
-      await release.promise;
-    });
-
-    await Promise.race([locked.promise, holder]);
-    const outcome = outcomeOf(run());
-    await waitForLockWaiters(t.db, 1);
-    release.resolve();
-    await holder;
-    return outcome;
-  }
-
   const nameOf = async (channelId: string) =>
     (await t.db.select({ name: channels.name }).from(channels).where(eq(channels.id, channelId)))[0]
       ?.name;
@@ -111,10 +73,11 @@ describe('Race: sửa kênh ‖ thay đổi đồng thời trên kênh đó (Pos
   it('kênh bị lưu trữ trong lúc QTV đang sửa → 409 CHANNEL_ARCHIVED, tên giữ nguyên', async () => {
     const { channel, qtv, access } = await setup();
 
-    const outcome = await interleave(
-      channel.id,
-      (tx) =>
+    const outcome = await runWhileLocked(
+      t.db,
+      lockChannelThen(channel.id, (tx) =>
         tx.update(channels).set({ archivedAt: new Date() }).where(eq(channels.id, channel.id)),
+      ),
       () => service.update(access, { name: 'Tên mới' }, { actorId: qtv.id }),
     );
 
@@ -125,13 +88,14 @@ describe('Race: sửa kênh ‖ thay đổi đồng thời trên kênh đó (Pos
   it('QTV bị hạ xuống thành viên trong lúc đang sửa → 403 FORBIDDEN, tên giữ nguyên', async () => {
     const { channel, qtv, access } = await setup();
 
-    const outcome = await interleave(
-      channel.id,
-      (tx) =>
+    const outcome = await runWhileLocked(
+      t.db,
+      lockChannelThen(channel.id, (tx) =>
         tx
           .update(channelMembers)
           .set({ role: 'member' })
           .where(and(eq(channelMembers.channelId, channel.id), eq(channelMembers.userId, qtv.id))),
+      ),
       () => service.update(access, { name: 'Tên mới' }, { actorId: qtv.id }),
     );
 
@@ -142,9 +106,9 @@ describe('Race: sửa kênh ‖ thay đổi đồng thời trên kênh đó (Pos
   it('đối chứng: T1 không đổi gì → T2 đợi khoá rồi sửa thành công', async () => {
     const { channel, qtv, access } = await setup();
 
-    const outcome = await interleave(
-      channel.id,
-      async () => undefined,
+    const outcome = await runWhileLocked(
+      t.db,
+      lockChannelThen(channel.id, async () => undefined),
       () => service.update(access, { name: 'Tên mới' }, { actorId: qtv.id }),
     );
 

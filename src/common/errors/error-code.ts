@@ -42,6 +42,8 @@ export const ErrorCode = {
   // M4 — Kênh
   ChannelNameTaken: 'CHANNEL_NAME_TAKEN',
   ChannelArchived: 'CHANNEL_ARCHIVED',
+  ChannelAlreadyMember: 'CHANNEL_ALREADY_MEMBER',
+  ChannelOwnerImmutable: 'CHANNEL_OWNER_IMMUTABLE',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
