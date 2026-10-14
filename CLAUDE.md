@@ -47,7 +47,7 @@ Không có pnpm global thì dùng `npx -y pnpm@12.11.2 <lệnh>`. Kiểm tra tr�
 
 - **Một codebase, hai tiến trình:** `src/main.ts` (api: HTTP + Swagger, sau này Socket.IO) và `src/worker.ts` (application context, BullMQ processors, không HTTP). Hạ tầng dùng chung nằm trong `src/core.module.ts`.
 - **api → worker chỉ qua queue** (BullMQ/Redis). **worker → client qua Redis** (socket.io redis-emitter, M7).
-- `src/common/`: lỗi (`AppException`, `ErrorCode`, `AllExceptionsFilter`), phân trang cursor, decorator Swagger.
+- `src/common/`: lỗi (catalog `Errors`, `AppException`, `ErrorCode`, `AllExceptionsFilter`), phân trang cursor, decorator Swagger.
 - `src/infra/`: database (Drizzle + `pg`), redis, queue, logger. Sau này thêm storage, speech, llm.
 - `src/modules/<domain>/`: controller → service → repository, cùng policy thuần.
 - `migrations/`: SQL (drizzle-kit + viết tay). Chạy bằng service `migrate`, **không** chạy lúc app khởi động.
@@ -58,7 +58,7 @@ Không có pnpm global thì dùng `npx -y pnpm@12.11.2 <lệnh>`. Kiểm tra tr�
 - **ESM:** import tương đối phải có đuôi `.js`. Dùng `import.meta.dirname`, không dùng `__dirname`.
 - **DI:** class được inject theo kiểu constructor phải import **giá trị**, không được `import type`. Token Symbol (`DRIZZLE`, `REDIS`) đi kèm `@Inject()`.
 - **DTO:** là `class` trong file `*.dto.ts`, mô tả bằng JSDoc (Swagger CLI plugin đọc). Không trả row DB ra API, luôn map sang `*ResponseDto`. Method controller khai báo kiểu trả về tường minh.
-- **Lỗi:** ném `AppException(ErrorCode.X, HttpStatus.Y, msg)`. Tài nguyên ẩn trả **404**, không trả 403.
+- **Lỗi:** ném lỗi lấy từ catalog `src/common/errors/errors.ts` (`throw Errors.channel.archived()`). Lỗi mới thì thêm mục vào catalog. **Không** tự `new AppException(...)` ở module (test kiến trúc chặn). Tài nguyên ẩn trả **404**, không trả 403.
 - **Danh sách:** phân trang cursor `{ data, nextCursor }`, dùng `CursorQueryDto` + `toPage`. Timestamp trong cursor lấy dạng text từ DB.
 - **Transaction:** thay đổi quyền/sở hữu thì khoá dòng cha trước, khoá theo thứ tự id, **kiểm tra lại sau khi khoá**, audit trong cùng transaction, publish/enqueue **sau commit**.
 - **BullMQ:** payload chỉ chứa ID. `jobId = <tên-job>.<id>[.<lần>]`, **không có `:`**. Processor phải idempotent, và chỉ được đăng ký trong `WorkerModule`.

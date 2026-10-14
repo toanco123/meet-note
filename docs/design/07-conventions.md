@@ -27,7 +27,7 @@ Mọi lỗi trả về cùng một dạng:
 {
   "error": {
     "code": "CHANNEL_ARCHIVED",
-    "message": "Kênh đã được lưu trữ, không thể thay đổi.",
+    "message": "Kênh đã được lưu trữ (chỉ đọc).",
     "details": [
       { "field": "name", "message": "name must be shorter than or equal to 80 characters" }
     ],
@@ -50,13 +50,19 @@ Mọi lỗi trả về cùng một dạng:
 
 Hiện thực:
 
-- `AppException(code, httpStatus, message?, details?)`: service ném lỗi nghiệp vụ bằng class này.
+- **Catalog lỗi `src/common/errors/errors.ts` (từ M4 B4b):** mọi lỗi trả về client được tạo ở đây, chia nhóm theo domain: `throw Errors.channel.archived()`. Module **không** tự `new AppException(...)` hay `throw new NotFoundException(...)`. Test kiến trúc `test/unit/architecture/errors-catalog.spec.ts` quét `src/` và đỏ nếu có.
+  - Mỗi mục là một **hàm**, vì mỗi lần ném cần instance mới để stack trace đúng chỗ, và có lỗi nhận tham số (`details`).
+  - Tra theo **tình huống**, không theo `code`: một `NOT_FOUND` có nhiều câu (không tìm thấy kênh / tổ chức…). Cùng ý thì dùng chung một mục (vd `Errors.role.cannotGrant()` cho tạo link, duyệt yêu cầu, thêm vào kênh).
+  - Thêm lỗi mới: thêm mục vào catalog, cộng thêm `ErrorCode` nếu cần mã riêng (tiền tố domain).
+  - Client dựa vào `code`. `message` dành cho người đọc, sửa câu chữ không làm vỡ client.
+- `AppException(code, httpStatus, message?, details?)`: class lỗi nghiệp vụ, chỉ được khởi tạo trong catalog.
+- Policy trả về **quyết định** (`'ok' | 'forbidden' | …`), không ném lỗi. Hàm `assert…Decision` trong module đổi quyết định thành `Errors.*` (vd `channels/channel-decisions.ts`).
 - `AllExceptionsFilter` (global) map các loại lỗi:
   - `AppException`: giữ nguyên.
-  - `HttpException` của Nest: map status sang code mặc định.
-  - Lỗi Postgres `23505` (unique violation): 409 `CONFLICT`. Không có ngữ cảnh thì service nên tự bắt để trả mã cụ thể.
-  - Lỗi Postgres `23503` (FK violation): 409.
-  - Lỗi khác: 500 và log `error`.
+  - `HttpException` của Nest (vd sai route, body-parser): map status sang code mặc định.
+  - Lỗi Postgres `23505` (unique violation): `Errors.common.duplicate()` → 409 `CONFLICT`. Không có ngữ cảnh thì service nên tự bắt để trả mã cụ thể.
+  - Lỗi Postgres `23503` (FK violation): `Errors.common.referenceInvalid()` → 409.
+  - Lỗi khác: `Errors.common.internal()` → 500 và log `error`.
 - `requestId` lấy từ pino-http (`req.id`), đồng thời trả header `x-request-id`.
 
 ## 3. Định dạng response

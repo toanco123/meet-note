@@ -69,7 +69,7 @@ meetnote/
 │  │  └─ swagger.ts              #   DocumentBuilder, /docs, /docs-json
 │  ├─ config/                    # schema env (class-validator) + typed config
 │  ├─ common/                    # cross-cutting, không phụ thuộc domain
-│  │  ├─ errors/                 #   AppException, ErrorCode, exception filter
+│  │  ├─ errors/                 #   AppException, ErrorCode, catalog Errors, exception filter
 │  │  ├─ pagination/             #   cursor codec, CursorQueryDto, PaginatedDto
 │  │  ├─ swagger/                #   ApiErrorResponses, ApiPaginatedResponse
 │  │  ├─ auth/                   #   (M1) @Public, @CurrentUser, guards

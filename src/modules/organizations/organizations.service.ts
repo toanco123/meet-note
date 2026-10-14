@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AppException } from '../../common/errors/app.exception.js';
+import { Errors } from '../../common/errors/errors.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import { diffForAudit, isEmptyDiff } from '../audit/audit-diff.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -50,7 +50,7 @@ export class OrganizationsService {
   async getDetail(orgId: string): Promise<OrganizationDetailRow> {
     const detail = await this.repo.findDetail(orgId);
     // Guard đã xác nhận membership; tới đây mà không thấy nghĩa là org vừa bị xoá giữa chừng.
-    if (!detail) throw AppException.notFound('Không tìm thấy tổ chức.');
+    if (!detail) throw Errors.org.notFound();
     return detail;
   }
 
@@ -62,7 +62,7 @@ export class OrganizationsService {
   ): Promise<OrganizationDetailRow> {
     await this.db.transaction(async (tx) => {
       const current = await this.repo.lockForUpdate(orgId, tx);
-      if (!current) throw AppException.notFound('Không tìm thấy tổ chức.');
+      if (!current) throw Errors.org.notFound();
 
       const changed = diffForAudit(current, patch);
       if (isEmptyDiff(changed)) return; // không đổi gì → không ghi, không log

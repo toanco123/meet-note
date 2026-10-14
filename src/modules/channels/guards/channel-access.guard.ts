@@ -1,7 +1,7 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 import { isUuid } from '../../../common/validation/uuid.js';
-import { channelNotFound } from '../channel.errors.js';
+import { Errors } from '../../../common/errors/errors.js';
 import { channelPolicy } from '../channel.policy.js';
 import { ChannelsRepository } from '../channels.repository.js';
 import type { ChannelAccess } from './channel-access.js';
@@ -26,10 +26,10 @@ export class ChannelAccessGuard implements CanActivate {
     }
 
     const channelId = request.params['channelId'];
-    if (!isUuid(channelId)) throw channelNotFound();
+    if (!isUuid(channelId)) throw Errors.channel.notFound();
 
     const row = await this.repo.findAccess(orgMembership.orgId, channelId, user.id);
-    if (!row) throw channelNotFound();
+    if (!row) throw Errors.channel.notFound();
 
     const access: ChannelAccess = {
       orgId: orgMembership.orgId,
@@ -38,7 +38,7 @@ export class ChannelAccessGuard implements CanActivate {
       channelRole: row.channelRole,
       channel: { id: row.id, visibility: row.visibility, archivedAt: row.archivedAt },
     };
-    if (!channelPolicy['channel.read'](access)) throw channelNotFound();
+    if (!channelPolicy['channel.read'](access)) throw Errors.channel.notFound();
 
     request.channelAccess = access;
     return true;

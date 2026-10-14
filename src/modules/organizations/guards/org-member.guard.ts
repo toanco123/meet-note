@@ -1,6 +1,6 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
-import { AppException } from '../../../common/errors/app.exception.js';
+import { Errors } from '../../../common/errors/errors.js';
 import { isUuid } from '../../../common/validation/uuid.js';
 import { OrganizationsRepository } from '../organizations.repository.js';
 
@@ -22,16 +22,12 @@ export class OrgMemberGuard implements CanActivate {
     if (!user) throw new Error('OrgMemberGuard cần JwtAuthGuard chạy trước (route @Public?)');
 
     const orgId = request.params['orgId'];
-    if (!isUuid(orgId)) throw notFound();
+    if (!isUuid(orgId)) throw Errors.org.notFound();
 
     const membership = await this.repo.findMembership(orgId, user.id);
-    if (!membership) throw notFound();
+    if (!membership) throw Errors.org.notFound();
 
     request.orgMembership = { orgId, role: membership.role };
     return true;
   }
-}
-
-function notFound(): AppException {
-  return AppException.notFound('Không tìm thấy tổ chức.');
 }

@@ -3,12 +3,12 @@ import {
   Catch,
   type ExceptionFilter,
   HttpException,
-  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { AppException, type ErrorDetail } from './app.exception.js';
-import { defaultCodeForStatus, ErrorCode } from './error-code.js';
+import { defaultCodeForStatus } from './error-code.js';
+import { Errors } from './errors.js';
 import type { ErrorResponseDto } from './error-response.dto.js';
 import { findPgError, PG_FOREIGN_KEY_VIOLATION, PG_UNIQUE_VIOLATION } from './pg-error.js';
 
@@ -31,15 +31,7 @@ function asExposedClientError(error: unknown): { status: number; message: string
 
 /** Hàm thuần — tách khỏi filter để unit test không cần HTTP. */
 export function mapException(exception: unknown): MappedError {
-  if (exception instanceof AppException) {
-    const body = exception.getResponse() as { message: string };
-    return {
-      status: exception.getStatus(),
-      code: exception.code,
-      message: body.message,
-      details: exception.details,
-    };
-  }
+  if (exception instanceof AppException) return fromAppException(exception);
 
   if (exception instanceof HttpException) {
     const status = exception.getStatus();
@@ -53,19 +45,9 @@ export function mapException(exception: unknown): MappedError {
   }
 
   const pgError = findPgError(exception);
-  if (pgError?.code === PG_UNIQUE_VIOLATION) {
-    return {
-      status: HttpStatus.CONFLICT,
-      code: ErrorCode.Conflict,
-      message: 'Dữ liệu đã tồn tại.',
-    };
-  }
+  if (pgError?.code === PG_UNIQUE_VIOLATION) return fromAppException(Errors.common.duplicate());
   if (pgError?.code === PG_FOREIGN_KEY_VIOLATION) {
-    return {
-      status: HttpStatus.CONFLICT,
-      code: ErrorCode.Conflict,
-      message: 'Dữ liệu tham chiếu không hợp lệ hoặc đang được sử dụng.',
-    };
+    return fromAppException(Errors.common.referenceInvalid());
   }
 
   const clientError = asExposedClientError(exception);
@@ -77,10 +59,16 @@ export function mapException(exception: unknown): MappedError {
     };
   }
 
+  return fromAppException(Errors.common.internal());
+}
+
+function fromAppException(exception: AppException): MappedError {
+  const body = exception.getResponse() as { message: string };
   return {
-    status: HttpStatus.INTERNAL_SERVER_ERROR,
-    code: ErrorCode.InternalError,
-    message: 'Đã có lỗi xảy ra. Vui lòng thử lại sau.',
+    status: exception.getStatus(),
+    code: exception.code,
+    message: body.message,
+    details: exception.details,
   };
 }
 

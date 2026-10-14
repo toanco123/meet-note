@@ -13,7 +13,8 @@ import {
   type OrgMembershipContext,
   OrgRole,
 } from '../organizations/organization.policy.js';
-import { assertChannelDecision, channelNameTaken, channelNotFound } from './channel.errors.js';
+import { Errors } from '../../common/errors/errors.js';
+import { assertChannelDecision } from './channel-decisions.js';
 import { ChannelRole, type ChannelPermission, decideChannelPermission } from './channel.policy.js';
 import {
   type ChannelDetailRow,
@@ -106,7 +107,7 @@ export class ChannelsService {
   async getDetail(channelId: string, userId: string): Promise<ChannelDetailRow> {
     const detail = await this.repo.findDetail(channelId, userId);
     // Guard đã thấy kênh; không còn nghĩa là kênh vừa bị xoá giữa chừng.
-    if (!detail) throw channelNotFound();
+    if (!detail) throw Errors.channel.notFound();
     return detail;
   }
 
@@ -124,7 +125,7 @@ export class ChannelsService {
     tx: Transaction,
   ): Promise<{ channel: LockedChannel; actorRole: ChannelRole | null }> {
     const channel = await this.repo.lockForUpdate(access.channel.id, tx);
-    if (!channel) throw channelNotFound();
+    if (!channel) throw Errors.channel.notFound();
     const actorRole = await this.repo.findMemberRole(access.channel.id, access.userId, tx);
     assertChannelDecision(
       decideChannelPermission(permission, {
@@ -168,6 +169,6 @@ export class ChannelsService {
  * rồi chạy tiếp được. Bắt ở NGOÀI, sau khi Drizzle đã rollback.
  */
 function mapNameTaken(error: unknown): never {
-  if (isUniqueViolation(error, CHANNELS_ORG_NAME_UNIQUE)) throw channelNameTaken();
+  if (isUniqueViolation(error, CHANNELS_ORG_NAME_UNIQUE)) throw Errors.channel.nameTaken();
   throw error;
 }

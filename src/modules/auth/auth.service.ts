@@ -1,6 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { AppException } from '../../common/errors/app.exception.js';
-import { ErrorCode } from '../../common/errors/error-code.js';
+import { Injectable } from '@nestjs/common';
 import { isUniqueViolation } from '../../common/errors/pg-error.js';
 import { USERS_EMAIL_UNIQUE, UsersRepository } from '../users/users.repository.js';
 import type { LoginDto } from './dto/login.dto.js';
@@ -8,6 +6,7 @@ import type { RegisterDto } from './dto/register.dto.js';
 import { PasswordHasher } from './password-hasher.js';
 import type { SessionMeta } from './sessions.repository.js';
 import { type AuthTokens, SessionsService } from './sessions.service.js';
+import { Errors } from '../../common/errors/errors.js';
 
 @Injectable()
 export class AuthService {
@@ -26,7 +25,7 @@ export class AuthService {
       .insert({ email: dto.email, passwordHash, displayName: dto.displayName })
       .catch((error: unknown) => {
         if (isUniqueViolation(error, USERS_EMAIL_UNIQUE)) {
-          throw AppException.conflict(ErrorCode.AuthEmailTaken, 'Email này đã được sử dụng.');
+          throw Errors.auth.emailTaken();
         }
         throw error;
       });
@@ -40,11 +39,11 @@ export class AuthService {
     if (!user) {
       // Vẫn chạy argon2 để thời gian phản hồi giống "sai mật khẩu" → không dò được email nào tồn tại.
       await this.hasher.verifyDummy(dto.password);
-      throw invalidCredentials();
+      throw Errors.auth.invalidCredentials();
     }
 
     if (!(await this.hasher.verify(user.passwordHash, dto.password))) {
-      throw invalidCredentials();
+      throw Errors.auth.invalidCredentials();
     }
 
     // Chỉ lúc này ta có mật khẩu gốc trong tay → cơ hội duy nhất để nâng tham số băm.
@@ -57,10 +56,3 @@ export class AuthService {
 }
 
 /** Cùng mã + cùng thông điệp cho "không có email" và "sai mật khẩu". */
-function invalidCredentials(): AppException {
-  return new AppException(
-    ErrorCode.AuthInvalidCredentials,
-    HttpStatus.UNAUTHORIZED,
-    'Email hoặc mật khẩu không đúng.',
-  );
-}

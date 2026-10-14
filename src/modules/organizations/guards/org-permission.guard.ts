@@ -1,7 +1,7 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { AppException } from '../../../common/errors/app.exception.js';
+import { Errors } from '../../../common/errors/errors.js';
 import { type OrgPermission, orgPolicy } from '../organization.policy.js';
 
 export const ORG_PERMISSION_KEY = 'meetnote:orgPermission';
@@ -28,7 +28,7 @@ export class OrgPermissionGuard implements CanActivate {
     }
 
     if (!orgPolicy[permission](membership)) {
-      throw AppException.forbidden('Vai trò của bạn trong tổ chức không được phép làm việc này.');
+      throw Errors.org.forbidden();
     }
     return true;
   }

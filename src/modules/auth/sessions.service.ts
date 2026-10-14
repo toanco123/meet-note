@@ -1,13 +1,12 @@
-import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AppException } from '../../common/errors/app.exception.js';
-import { ErrorCode } from '../../common/errors/error-code.js';
 import type { EnvironmentVariables } from '../../config/env.validation.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database } from '../../infra/database/database.types.js';
 import type { SessionRevokedReason, SessionRow } from '../../infra/database/schema/index.js';
 import { type SessionMeta, SessionsRepository } from './sessions.repository.js';
 import { hashRefreshToken, type IssuedToken, TokenService } from './token.service.js';
+import { Errors } from '../../common/errors/errors.js';
 
 export interface AuthTokens {
   userId: string;
@@ -116,23 +115,14 @@ export class SessionsService {
         return { ...outcome, accessToken };
       }
       case 'rotated':
-        throw unauthorized(
-          ErrorCode.AuthRefreshTokenRotated,
-          'Refresh token vừa được đổi. Hãy dùng token mới nhất.',
-        );
+        throw Errors.auth.refreshTokenRotated();
       case 'reused':
         this.logger.warn(
           `Phát hiện refresh token bị dùng lại → thu hồi phiên ${outcome.sessionId}`,
         );
-        throw unauthorized(
-          ErrorCode.AuthRefreshTokenReused,
-          'Refresh token đã bị dùng lại. Phiên đăng nhập đã bị thu hồi, vui lòng đăng nhập lại.',
-        );
+        throw Errors.auth.refreshTokenReused();
       case 'invalid':
-        throw unauthorized(
-          ErrorCode.AuthRefreshTokenInvalid,
-          'Refresh token không hợp lệ hoặc đã hết hạn.',
-        );
+        throw Errors.auth.refreshTokenInvalid();
     }
   }
 
@@ -153,8 +143,4 @@ export class SessionsService {
   isActive(sessionId: string, userId: string): Promise<boolean> {
     return this.repo.isActive(sessionId, userId);
   }
-}
-
-function unauthorized(code: ErrorCode, message: string): AppException {
-  return new AppException(code, HttpStatus.UNAUTHORIZED, message);
 }

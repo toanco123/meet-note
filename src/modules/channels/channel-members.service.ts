@@ -1,6 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AppException } from '../../common/errors/app.exception.js';
-import { ErrorCode } from '../../common/errors/error-code.js';
 import { decodeCursor, type Page, toPage } from '../../common/pagination/cursor.js';
 import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
@@ -8,7 +6,7 @@ import type { Database } from '../../infra/database/database.types.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { UserAuditContext } from '../audit/audit.types.js';
 import { OrganizationMembersRepository } from '../organizations/organization-members.repository.js';
-import { assertChannelTargetDecision, channelMemberNotFound } from './channel.errors.js';
+import { assertChannelTargetDecision } from './channel-decisions.js';
 import {
   canChangeChannelRole,
   canGrantChannelRole,
@@ -22,6 +20,7 @@ import {
   type ListChannelMembersQueryDto,
 } from './dto/channel-member.dto.js';
 import type { ChannelAccess } from './guards/channel-access.js';
+import { Errors } from '../../common/errors/errors.js';
 
 /**
  * Mọi thao tác ghi đi theo THỨ TỰ KHOÁ CHUNG (03-database §7):
@@ -73,11 +72,11 @@ export class ChannelMembersService {
     const channelId = access.channel.id;
     await this.db.transaction(async (tx) => {
       const orgRole = await this.orgMembers.lockRoleForShare(access.orgId, userId, tx);
-      if (!orgRole) throw AppException.notFound('Người này không phải thành viên tổ chức.');
+      if (!orgRole) throw Errors.org.memberNotFound();
 
       const { actorRole } = await this.channels.lockForAction(access, 'channel.member.add', tx);
       if (!canGrantChannelRole(actorRole, role)) {
-        throw AppException.forbidden('QTV kênh chỉ thêm được thành viên hoặc khách.');
+        throw Errors.role.cannotGrant();
       }
 
       const inserted = await this.repo.insertIfAbsent(
@@ -85,7 +84,7 @@ export class ChannelMembersService {
         tx,
       );
       if (!inserted) {
-        throw AppException.conflict(ErrorCode.ChannelAlreadyMember, 'Người này đã ở trong kênh.');
+        throw Errors.channel.alreadyMember();
       }
       await this.audit.record(tx, ctx, {
         orgId: access.orgId,
@@ -113,7 +112,7 @@ export class ChannelMembersService {
         tx,
       );
       const target = await this.repo.lockMember(channelId, userId, tx);
-      if (!target) throw channelMemberNotFound();
+      if (!target) throw Errors.channel.memberNotFound();
       assertChannelTargetDecision(canChangeChannelRole(actorRole, target, newRole));
       if (target === newRole) return; // không đổi gì → không ghi audit
 
@@ -134,7 +133,7 @@ export class ChannelMembersService {
     await this.db.transaction(async (tx) => {
       const { actorRole } = await this.channels.lockForAction(access, 'channel.member.remove', tx);
       const target = await this.repo.lockMember(channelId, userId, tx);
-      if (!target) throw channelMemberNotFound();
+      if (!target) throw Errors.channel.memberNotFound();
       assertChannelTargetDecision(canRemoveChannelMember(actorRole, target));
 
       await this.repo.deleteMember(channelId, userId, tx);
@@ -151,7 +150,7 @@ export class ChannelMembersService {
   /** Đọc lại sau commit để trả response; người đó vừa bị gỡ ngay sau đó thì 404 là đúng sự thật. */
   private async findOrFail(channelId: string, userId: string): Promise<ChannelMemberRow> {
     const row = await this.repo.findMember(channelId, userId);
-    if (!row) throw channelMemberNotFound();
+    if (!row) throw Errors.channel.memberNotFound();
     return row;
   }
 }

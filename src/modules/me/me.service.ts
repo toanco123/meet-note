@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { AuthUser } from '../../common/auth/auth-user.js';
-import { AppException } from '../../common/errors/app.exception.js';
+import { Errors } from '../../common/errors/errors.js';
 import type { UserRow } from '../../infra/database/schema/index.js';
 import { SessionsService } from '../auth/sessions.service.js';
 import { OrganizationsService } from '../organizations/organizations.service.js';
@@ -30,13 +30,13 @@ export class MeService {
   async get(user: AuthUser): Promise<UserRow> {
     const row = await this.users.findById(user.id);
     // Guard đã kiểm tra phiên còn sống, nên trường hợp này chỉ xảy ra khi user vừa bị xoá.
-    if (!row) throw AppException.notFound('Không tìm thấy người dùng.');
+    if (!row) throw Errors.user.notFound();
     return row;
   }
 
   async updateDisplayName(user: AuthUser, displayName: string): Promise<UserRow> {
     const row = await this.users.updateDisplayName(user.id, displayName);
-    if (!row) throw AppException.notFound('Không tìm thấy người dùng.');
+    if (!row) throw Errors.user.notFound();
     return row;
   }
 
@@ -51,6 +51,6 @@ export class MeService {
    */
   async revokeSession(user: AuthUser, sessionId: string): Promise<void> {
     const revoked = await this.sessions.revoke(sessionId, user.id, 'revoked_by_user');
-    if (!revoked) throw AppException.notFound('Không tìm thấy phiên đăng nhập.');
+    if (!revoked) throw Errors.user.sessionNotFound();
   }
 }

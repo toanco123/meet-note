@@ -1,6 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AppException } from '../../common/errors/app.exception.js';
-import { ErrorCode } from '../../common/errors/error-code.js';
 import { decodeCursor, type Page, toPage } from '../../common/pagination/cursor.js';
 import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
@@ -15,6 +13,7 @@ import {
   type ListJoinRequestsQueryDto,
 } from './dto/join-request.dto.js';
 import { JoinRequestsRepository } from './join-requests.repository.js';
+import { Errors } from '../../common/errors/errors.js';
 
 @Injectable()
 export class JoinRequestsService {
@@ -50,11 +49,9 @@ export class JoinRequestsService {
     return this.db.transaction(async (tx) => {
       const request = await this.lockPending(orgId, requestId, tx);
       const actorRole = await this.members.lockRoleForShare(orgId, ctx.actorId, tx);
-      if (!actorRole) throw AppException.notFound('Không tìm thấy tổ chức.');
+      if (!actorRole) throw Errors.org.notFound();
       if (!canGrantRole(actorRole, request.role)) {
-        throw AppException.forbidden(
-          'Bạn không thể duyệt yêu cầu vào với vai trò ngang hoặc cao hơn mình.',
-        );
+        throw Errors.role.cannotGrant();
       }
 
       // Người này có thể đã vào bằng đường khác trong lúc chờ → không lỗi, vẫn đánh dấu đã duyệt.
@@ -100,9 +97,9 @@ export class JoinRequestsService {
 
   private async lockPending(orgId: string, requestId: string, tx: Transaction) {
     const request = await this.repo.lockInOrg(orgId, requestId, tx);
-    if (!request) throw AppException.notFound('Không tìm thấy yêu cầu tham gia.');
+    if (!request) throw Errors.joinRequest.notFound();
     if (request.status !== 'pending') {
-      throw AppException.conflict(ErrorCode.JoinRequestNotPending, 'Yêu cầu này đã được xử lý.');
+      throw Errors.joinRequest.notPending();
     }
     return request;
   }

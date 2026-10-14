@@ -1,7 +1,7 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { assertChannelDecision } from '../channel.errors.js';
+import { assertChannelDecision } from '../channel-decisions.js';
 import { type ChannelPermission, decideChannelPermission } from '../channel.policy.js';
 
 export const CHANNEL_PERMISSION_KEY = 'meetnote:channelPermission';

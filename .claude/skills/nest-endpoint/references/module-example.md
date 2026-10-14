@@ -2,7 +2,7 @@
 
 Ví dụ minh hoạ cách các lớp ghép với nhau, dùng đúng các helper có sẵn trong repo:
 
-- `AppException`, `ErrorCode`
+- `Errors` (catalog lỗi, `src/common/errors/errors.ts`), `ErrorCode`
 - `CursorQueryDto`, `toPage`, `decodeCursor`
 - `ApiErrorResponses`, `ApiPaginatedResponse`
 - `DRIZZLE`, `DbExecutor`

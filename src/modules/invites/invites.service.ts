@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { generateOpaqueToken } from '../../common/crypto/opaque-token.js';
-import { AppException } from '../../common/errors/app.exception.js';
 import { decodeCursor, type Page, toPage } from '../../common/pagination/cursor.js';
 import type { CursorQueryDto } from '../../common/pagination/cursor-query.dto.js';
 import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
@@ -13,6 +12,7 @@ import { OrganizationMembersRepository } from '../organizations/organization-mem
 import type { CreateInviteDto } from './dto/create-invite.dto.js';
 import { CreatedInviteResponseDto, InviteResponseDto } from './dto/invite-response.dto.js';
 import { InvitesRepository } from './invites.repository.js';
+import { Errors } from '../../common/errors/errors.js';
 
 @Injectable()
 export class InvitesService {
@@ -37,9 +37,9 @@ export class InvitesService {
 
     const row = await this.db.transaction(async (tx) => {
       const actorRole = await this.members.lockRoleForShare(orgId, ctx.actorId, tx);
-      if (!actorRole) throw AppException.notFound('Không tìm thấy tổ chức.');
+      if (!actorRole) throw Errors.org.notFound();
       if (!canGrantRole(actorRole, dto.role)) {
-        throw AppException.forbidden('Bạn không thể tạo link cấp vai trò ngang hoặc cao hơn mình.');
+        throw Errors.role.cannotGrant();
       }
 
       const invite = await this.repo.insert(
@@ -81,7 +81,7 @@ export class InvitesService {
   async revoke(orgId: string, inviteId: string, ctx: UserAuditContext): Promise<void> {
     await this.db.transaction(async (tx) => {
       const invite = await this.repo.lockInOrg(orgId, inviteId, tx);
-      if (!invite) throw AppException.notFound('Không tìm thấy link mời.');
+      if (!invite) throw Errors.invite.notFound();
       if (invite.revokedAt) return;
 
       await this.repo.markRevoked(inviteId, new Date(), tx);

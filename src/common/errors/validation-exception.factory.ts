@@ -1,6 +1,6 @@
-import { HttpStatus, type ValidationError } from '@nestjs/common';
-import { AppException, type ErrorDetail } from './app.exception.js';
-import { ErrorCode } from './error-code.js';
+import type { ValidationError } from '@nestjs/common';
+import type { AppException, ErrorDetail } from './app.exception.js';
+import { Errors } from './errors.js';
 
 /** Biến cây ValidationError (có lồng `children`) thành danh sách phẳng `{ field, message }`. */
 export function flattenValidationErrors(errors: ValidationError[], parent?: string): ErrorDetail[] {
@@ -12,10 +12,5 @@ export function flattenValidationErrors(errors: ValidationError[], parent?: stri
 }
 
 export function validationExceptionFactory(errors: ValidationError[]): AppException {
-  return new AppException(
-    ErrorCode.ValidationFailed,
-    HttpStatus.BAD_REQUEST,
-    'Dữ liệu gửi lên không hợp lệ.',
-    flattenValidationErrors(errors),
-  );
+  return Errors.common.validationFailed(flattenValidationErrors(errors));
 }

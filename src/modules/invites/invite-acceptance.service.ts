@@ -1,7 +1,5 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { hashOpaqueToken, OPAQUE_TOKEN_PATTERN } from '../../common/crypto/opaque-token.js';
-import { AppException } from '../../common/errors/app.exception.js';
-import { ErrorCode } from '../../common/errors/error-code.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -14,6 +12,7 @@ import type {
 import { inviteStatus } from './dto/invite-response.dto.js';
 import { InvitesRepository } from './invites.repository.js';
 import { JoinRequestsRepository } from './join-requests.repository.js';
+import { Errors } from '../../common/errors/errors.js';
 
 @Injectable()
 export class InviteAcceptanceService {
@@ -47,18 +46,18 @@ export class InviteAcceptanceService {
       const invite = await this.invites.consumeUse(hash, tx);
       if (!invite) {
         await this.findUsable(token, tx); // ném 404/410 đúng lý do
-        throw inviteNotFound(); // phòng hờ: dòng vừa đổi trạng thái giữa hai câu lệnh
+        throw Errors.invite.tokenNotFound(); // phòng hờ: dòng vừa đổi trạng thái giữa hai câu lệnh
       }
 
       const found = await this.invites.findByHash(hash, tx);
-      if (!found) throw inviteNotFound();
+      if (!found) throw Errors.invite.tokenNotFound();
 
       if (!found.requireJoinApproval) {
         const joined = await this.members.insertIfAbsent(
           { orgId: invite.orgId, userId: ctx.actorId, role: invite.role },
           tx,
         );
-        if (!joined) throw alreadyMember();
+        if (!joined) throw Errors.org.alreadyMember();
         await this.audit.record(tx, ctx, {
           orgId: invite.orgId,
           action: 'org.member.joined',
@@ -78,17 +77,15 @@ export class InviteAcceptanceService {
     ctx: UserAuditContext,
     tx: DbExecutor,
   ): Promise<AcceptInviteResponseDto> {
-    if (await this.members.isMember(invite.orgId, ctx.actorId, tx)) throw alreadyMember();
+    if (await this.members.isMember(invite.orgId, ctx.actorId, tx))
+      throw Errors.org.alreadyMember();
 
     const request = await this.joinRequests.insertPending(
       { orgId: invite.orgId, userId: ctx.actorId, inviteId: invite.id, role: invite.role },
       tx,
     );
     if (!request) {
-      throw AppException.conflict(
-        ErrorCode.OrgJoinRequestPending,
-        'Bạn đã có một yêu cầu tham gia đang chờ duyệt.',
-      );
+      throw Errors.joinRequest.pending();
     }
     await this.audit.record(tx, ctx, {
       orgId: invite.orgId,
@@ -103,15 +100,15 @@ export class InviteAcceptanceService {
   /** Link dùng được → trả về; không → ném 404 (không có / đã thu hồi) hoặc 410 (hết hạn / hết lượt). */
   private async findUsable(token: string, executor: DbExecutor) {
     const found = await this.invites.findByHash(hashOrNotFound(token), executor);
-    if (!found) throw inviteNotFound();
+    if (!found) throw Errors.invite.tokenNotFound();
 
     switch (inviteStatus(found.invite)) {
       case 'revoked':
-        throw inviteNotFound(); // với người nhận, link bị thu hồi = link không tồn tại
+        throw Errors.invite.tokenNotFound(); // với người nhận, link bị thu hồi = link không tồn tại
       case 'expired':
-        throw new AppException(ErrorCode.InviteExpired, HttpStatus.GONE, 'Link mời đã hết hạn.');
+        throw Errors.invite.expired();
       case 'exhausted':
-        throw new AppException(ErrorCode.InviteExhausted, HttpStatus.GONE, 'Link mời đã hết lượt.');
+        throw Errors.invite.exhausted();
       case 'active':
         return found;
     }
@@ -120,18 +117,6 @@ export class InviteAcceptanceService {
 
 /** Token sai định dạng → 404 ngay, không tốn một lần tra DB. */
 function hashOrNotFound(token: string): Buffer {
-  if (!OPAQUE_TOKEN_PATTERN.test(token)) throw inviteNotFound();
+  if (!OPAQUE_TOKEN_PATTERN.test(token)) throw Errors.invite.tokenNotFound();
   return hashOpaqueToken(token);
-}
-
-function inviteNotFound(): AppException {
-  return new AppException(
-    ErrorCode.InviteNotFound,
-    HttpStatus.NOT_FOUND,
-    'Không tìm thấy link mời.',
-  );
-}
-
-function alreadyMember(): AppException {
-  return AppException.conflict(ErrorCode.OrgAlreadyMember, 'Bạn đã là thành viên của tổ chức này.');
 }

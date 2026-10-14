@@ -1,6 +1,5 @@
-import { HttpStatus } from '@nestjs/common';
-import { AppException } from '../errors/app.exception.js';
-import { ErrorCode } from '../errors/error-code.js';
+import type { AppException } from '../errors/app.exception.js';
+import { Errors } from '../errors/errors.js';
 
 const CURSOR_VERSION = 1;
 
@@ -46,8 +45,9 @@ function isCursorPayload(value: unknown): value is CursorPayload {
   );
 }
 
+/** Giữ tên cũ cho các hàm khoá cursor; thông điệp nằm trong catalog. */
 export function invalidCursor(): AppException {
-  return new AppException(ErrorCode.InvalidCursor, HttpStatus.BAD_REQUEST, 'Cursor không hợp lệ.');
+  return Errors.common.invalidCursor();
 }
 
 export interface Page<T> {

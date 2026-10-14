@@ -1,6 +1,5 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { AppException } from '../../common/errors/app.exception.js';
-import { ErrorCode } from '../../common/errors/error-code.js';
+import { Inject, Injectable } from '@nestjs/common';
+import { Errors } from '../../common/errors/errors.js';
 import { decodeCursor, type Page, toPage } from '../../common/pagination/cursor.js';
 import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
@@ -68,7 +67,7 @@ export class OrganizationMembersService {
     });
 
     const updated = await this.repo.findMember(orgId, targetId);
-    if (!updated) throw memberNotFound(); // bị gỡ ngay sau khi commit — hiếm, nhưng đừng trả 500
+    if (!updated) throw Errors.org.memberNotFound(); // bị gỡ ngay sau khi commit — hiếm, nhưng đừng trả 500
     return MemberResponseDto.from(updated);
   }
 
@@ -105,16 +104,13 @@ export class OrganizationMembersService {
     ctx: UserAuditContext,
   ): Promise<{ orgId: string; ownerId: string }> {
     if (newOwnerId === ctx.actorId) {
-      throw AppException.conflict(
-        ErrorCode.OrgTransferInvalidTarget,
-        'Bạn đã là Owner của tổ chức này.',
-      );
+      throw Errors.org.transferToSelf();
     }
 
     await this.db.transaction(async (tx) => {
       const { actor, target } = await this.lockActorAndTarget(orgId, ctx.actorId, newOwnerId, tx);
       if (actor !== OrgRole.Owner) {
-        throw AppException.forbidden('Bạn không còn là Owner của tổ chức này.');
+        throw Errors.org.noLongerOwner();
       }
 
       await this.repo.updateRole(orgId, ctx.actorId, OrgRole.Admin, tx); // 1. hạ
@@ -140,12 +136,9 @@ export class OrganizationMembersService {
   async leave(orgId: string, ctx: UserAuditContext): Promise<void> {
     await this.db.transaction(async (tx) => {
       const [self] = await this.repo.lockMembers(orgId, [ctx.actorId], tx);
-      if (!self) throw AppException.notFound('Không tìm thấy tổ chức.');
+      if (!self) throw Errors.org.notFound();
       if (self.role === OrgRole.Owner) {
-        throw AppException.conflict(
-          ErrorCode.OrgOwnerMustTransfer,
-          'Owner phải chuyển quyền sở hữu trước khi rời tổ chức.',
-        );
+        throw Errors.org.ownerMustTransfer();
       }
       await this.repo.deleteMember(orgId, ctx.actorId, tx);
       await this.audit.record(tx, ctx, {
@@ -168,27 +161,19 @@ export class OrganizationMembersService {
     const actor = rows.find((r) => r.userId === actorId)?.role;
     const target = rows.find((r) => r.userId === targetId)?.role;
     // Actor vừa bị gỡ bởi request khác (sau khi guard đã cho qua) → coi như không còn là thành viên.
-    if (!actor) throw AppException.notFound('Không tìm thấy tổ chức.');
-    if (!target) throw memberNotFound();
+    if (!actor) throw Errors.org.notFound();
+    if (!target) throw Errors.org.memberNotFound();
     return { actor, target };
   }
 }
 
 function assertAllowed(decision: TargetDecision): void {
   if (decision === 'owner_immutable') {
-    throw new AppException(
-      ErrorCode.OrgOwnerImmutable,
-      HttpStatus.CONFLICT,
-      'Không thể đổi vai trò hoặc gỡ Owner. Hãy chuyển quyền sở hữu trước.',
-    );
+    throw Errors.org.ownerImmutable();
   }
   if (decision === 'forbidden') {
-    throw AppException.forbidden('Vai trò của bạn không được tác động lên thành viên này.');
+    throw Errors.role.cannotActOn();
   }
-}
-
-function memberNotFound(): AppException {
-  return AppException.notFound('Không tìm thấy thành viên trong tổ chức.');
 }
 
 /** Kiểm tra từng khoá trước khi chạm SQL — cursor bị sửa tay → 400, không phải 500. */
