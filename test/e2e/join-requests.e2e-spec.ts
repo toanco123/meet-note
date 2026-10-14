@@ -27,7 +27,7 @@ describe('Yêu cầu tham gia: bật duyệt → chấp nhận link → duyệt 
       registerUser(app),
     ]);
     orgId = (await http().post('/v1/orgs').set(as(owner)).send({ name: 'Duyệt' }).expect(201)).body
-      .id;
+      .data.id;
     await addMember(db, orgId, admin.id, 'admin');
     await addMember(db, orgId, member.id, 'member');
   });
@@ -38,15 +38,13 @@ describe('Yêu cầu tham gia: bật duyệt → chấp nhận link → duyệt 
 
   /** Người mới chấp nhận một link (vai trò tuỳ chọn) → trả requestId đang chờ. */
   async function pendingRequest(role: 'admin' | 'member' = 'member') {
-    const { body: invite } = await http()
-      .post(`/v1/orgs/${orgId}/invites`)
-      .set(as(owner))
-      .send({ role })
-      .expect(201);
+    const {
+      body: { data: invite },
+    } = await http().post(`/v1/orgs/${orgId}/invites`).set(as(owner)).send({ role }).expect(201);
     const guest = await registerUser(app, { displayName: `Khách ${role}` });
     const res = await http().post(`/v1/invites/${invite.token}/accept`).set(as(guest)).expect(200);
-    expect(res.body.status).toBe('pending');
-    return { guest, requestId: res.body.requestId as string };
+    expect(res.body.data.status).toBe('pending');
+    return { guest, requestId: res.body.data.requestId as string };
   }
 
   it('bật requireJoinApproval: Admin được (200), Member bị 403', async () => {
@@ -60,7 +58,7 @@ describe('Yêu cầu tham gia: bật duyệt → chấp nhận link → duyệt 
       .set(as(admin))
       .send({ requireJoinApproval: true })
       .expect(200);
-    expect(res.body.requireJoinApproval).toBe(true);
+    expect(res.body.data.requireJoinApproval).toBe(true);
   });
 
   it('Admin thấy yêu cầu đang chờ (kèm tên/email người xin), duyệt → người đó vào org', async () => {
@@ -80,9 +78,9 @@ describe('Yêu cầu tham gia: bật duyệt → chấp nhận link → duyệt 
       .post(`/v1/orgs/${orgId}/join-requests/${requestId}/approve`)
       .set(as(admin))
       .expect(200);
-    expect(approved.body).toEqual({ id: requestId, status: 'approved' });
+    expect(approved.body.data).toEqual({ id: requestId, status: 'approved' });
     const org = await http().get(`/v1/orgs/${orgId}`).set(as(guest)).expect(200);
-    expect(org.body.myRole).toBe('member');
+    expect(org.body.data.myRole).toBe('member');
   });
 
   it('duyệt lần hai → 409 JOIN_REQUEST_NOT_PENDING', async () => {
@@ -108,7 +106,7 @@ describe('Yêu cầu tham gia: bật duyệt → chấp nhận link → duyệt 
       .set(as(owner))
       .expect(200);
     const org = await http().get(`/v1/orgs/${orgId}`).set(as(guest)).expect(200);
-    expect(org.body.myRole).toBe('admin');
+    expect(org.body.data.myRole).toBe('admin');
   });
 
   it('từ chối → người đó KHÔNG vào org, và có thể gửi yêu cầu mới bằng link khác', async () => {
@@ -118,19 +116,17 @@ describe('Yêu cầu tham gia: bật duyệt → chấp nhận link → duyệt 
       .post(`/v1/orgs/${orgId}/join-requests/${requestId}/reject`)
       .set(as(admin))
       .expect(200);
-    expect(rejected.body.status).toBe('rejected');
+    expect(rejected.body.data.status).toBe('rejected');
     await http().get(`/v1/orgs/${orgId}`).set(as(guest)).expect(404);
 
-    const { body: invite } = await http()
-      .post(`/v1/orgs/${orgId}/invites`)
-      .set(as(owner))
-      .send({})
-      .expect(201);
+    const {
+      body: { data: invite },
+    } = await http().post(`/v1/orgs/${orgId}/invites`).set(as(owner)).send({}).expect(201);
     const retry = await http()
       .post(`/v1/invites/${invite.token}/accept`)
       .set(as(guest))
       .expect(200);
-    expect(retry.body.status).toBe('pending');
+    expect(retry.body.data.status).toBe('pending');
   });
 
   it('lọc status=rejected chỉ trả yêu cầu đã từ chối', async () => {

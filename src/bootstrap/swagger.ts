@@ -1,5 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, type OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import { applyResponseEnvelope } from '../common/response/openapi-envelope.js';
+import { PaginatedMetaDto, ResponseMetaDto } from '../common/response/response-meta.dto.js';
 
 export const SWAGGER_PATH = 'docs';
 export const SWAGGER_JSON_PATH = 'docs-json';
@@ -22,9 +24,10 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       [
         'API biên bản họp theo nhóm.',
         '',
-        '- Lỗi luôn có dạng `{ error: { code, message, details?, requestId } }`.',
-        '- Danh sách phân trang cursor: `{ data, nextCursor }`, query `cursor` + `limit`.',
-        '- Mọi response có header `x-request-id`.',
+        '- Thành công: `{ data, meta: { statusCode, requestId } }`. Danh sách: `data` là mảng, `meta.nextCursor` để lấy trang sau (query `cursor` + `limit`).',
+        '- Lỗi luôn có dạng `{ error: { code, statusCode, message, details?, requestId } }`.',
+        '- `204` không có body. `/health/*` trả thẳng body (không bọc).',
+        '- Mọi response có header `x-request-id` (trùng `meta.requestId` / `error.requestId`).',
       ].join('\n'),
     )
     .setVersion('1.0.0')
@@ -42,11 +45,13 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     builder.addTag(name, description);
   }
 
-  return SwaggerModule.createDocument(app, builder.build(), {
+  const document = SwaggerModule.createDocument(app, builder.build(), {
     // operationId ổn định → tên hàm trong client sinh ra ổn định: `Health_live`, `Channels_create`…
     operationIdFactory: (controllerKey, methodKey) =>
       `${controllerKey.replace(/Controller$/, '')}_${methodKey}`,
+    extraModels: [ResponseMetaDto, PaginatedMetaDto],
   });
+  return applyResponseEnvelope(document);
 }
 
 export function setupSwagger(app: INestApplication, document: OpenAPIObject): void {

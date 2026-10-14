@@ -37,7 +37,7 @@ describe('Kênh: tham gia / rời / chuyển chủ kênh (e2e)', () => {
       .set(bearer(alice.tokens.accessToken))
       .send({ name: `kênh-${randomUUID()}`, visibility })
       .expect(201);
-    const channel = { id: res.body.id as string };
+    const channel = { id: res.body.data.id as string };
     await addChannelMember(db, channel, orgId, bob.id, 'admin');
     await addChannelMember(db, channel, orgId, carol.id, 'member');
     await addChannelMember(db, channel, orgId, gina.id, 'guest');
@@ -79,7 +79,7 @@ describe('Kênh: tham gia / rời / chuyển chủ kênh (e2e)', () => {
         .set(bearer(owner.tokens.accessToken))
         .send({ name: 'Tham gia & chuyển chủ' })
         .expect(201)
-    ).body.id;
+    ).body.data.id;
     await addMember(db, orgId, orgAdmin.id, 'admin');
     for (const u of [alice, bob, carol, gina, outsider]) await addMember(db, orgId, u.id, 'member');
   });
@@ -93,7 +93,7 @@ describe('Kênh: tham gia / rời / chuyển chủ kênh (e2e)', () => {
       const ch = await freshChannel('public');
 
       const res = await post(outsider, ch.id, 'join').expect(200);
-      expect(res.body).toMatchObject({ id: ch.id, myRole: 'member', memberCount: 5 });
+      expect(res.body.data).toMatchObject({ id: ch.id, myRole: 'member', memberCount: 5 });
 
       const again = await post(outsider, ch.id, 'join').expect(409);
       expect(again.body.error.code).toBe('CHANNEL_ALREADY_MEMBER');
@@ -180,7 +180,7 @@ describe('Kênh: tham gia / rời / chuyển chủ kênh (e2e)', () => {
         200,
       );
 
-      expect(res.body).toEqual({ channelId: ch.id, ownerId: bob.id });
+      expect(res.body.data).toEqual({ channelId: ch.id, ownerId: bob.id });
       expect([await roleOf(ch.id, alice.id), await roleOf(ch.id, bob.id)]).toEqual([
         'admin',
         'owner',

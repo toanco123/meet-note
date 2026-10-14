@@ -157,6 +157,28 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá đều
   - Test (e2e): CO rời → 409; chuyển cho Khách → 409; OrgAdm chuyển hộ được.
   - **Race (đổi khi làm B5, xem bài học 15):** gỡ X khỏi org ‖ chuyển chủ kênh cho X, ép thứ tự "gỡ khoá dòng org của X trước". Đúng thứ tự khoá → không deadlock, chuyển nhận 404. **Đột biến đảo thứ tự khoá (kênh → thành viên kênh → org) → `40P01`.** Kịch bản ban đầu "OrgAdm chuyển ‖ Owner gỡ chính OrgAdm" không thể tạo vòng chờ, nên không chứng minh được gì.
   - **Race:** CO chuyển cho X ‖ X rời kênh → không bao giờ "X rời mà vẫn thành chủ" (kênh mất chủ). Hai transfer song song tới 2 người → đúng 1 chủ.
+- [x] **B4e — Envelope `{ data, meta }` cho mọi response thành công** (theo yêu cầu người dùng sau B5; Q5–Q7 đã chốt ★, thêm `statusCode` theo yêu cầu)
+  - Hình dạng (đề xuất ★, xem câu hỏi Q5–Q7 bên dưới):
+    - Một tài nguyên: `{ "data": { … }, "meta": { "statusCode": 200, "requestId": "…" } }`
+    - Danh sách: `{ "data": [ … ], "meta": { "statusCode": 200, "requestId": "…", "nextCursor": "…" | null } }`
+    - Lỗi: giữ vỏ `{ "error": { code, statusCode, message, details, requestId } }` (thêm `statusCode`)
+    - `204` vẫn không có body. `/health/*` giữ dạng thô (probe của Docker/K8s, quy ước chung).
+  - Cách làm:
+    - **Một interceptor toàn cục** `ResponseEnvelopeInterceptor` (đăng ký trong `configureApp`, e2e dùng chung) bọc kết quả của handler. Service và controller **không đổi**: vẫn trả DTO / `Page<T>`. Envelope chỉ là việc của ranh giới HTTP.
+    - Danh sách được nhận biết bằng metadata do `@ApiPaginatedResponse` gắn (đã có trên mọi route danh sách), không đoán theo shape. `@RawResponse()` để thoát envelope (health).
+    - **Swagger:** biến đổi document một chỗ trong `buildOpenApiDocument`. Mọi response 2xx JSON được bọc thành `{ data: <schema cũ>, meta: ResponseMetaDto | PaginatedMetaDto }`, dựa trên đúng các đánh dấu interceptor dùng (`x-paginated`, `x-raw-response`). Runtime và tài liệu cùng một nguồn quyết định.
+  - Test:
+    - e2e: một tài nguyên, danh sách, `meta.requestId` = header `x-request-id`; health giữ dạng thô; 204 không body; lỗi giữ nguyên.
+    - test kiến trúc trên `openapi.json`: mọi response 2xx JSON (trừ raw) có `data` + `meta`.
+    - Cập nhật toàn bộ e2e cũ (`res.body.x` → `res.body.data.x`, `nextCursor` → `meta.nextCursor`).
+  - Tài liệu: 07 §3, 05-api (ghi chú chung), README, `openapi.json`.
+
+| #   | Câu hỏi (B4e)                         | Đề xuất ★                                                                              | Phương án khác                                |
+| --- | ------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Q5  | `meta` của một tài nguyên chứa gì?    | ★ `{ requestId }`: đối xứng với lỗi (lỗi đã có `requestId`), `meta` không bao giờ rỗng | `meta: {}`                                    |
+| Q6  | `nextCursor` của danh sách đặt ở đâu? | ★ Trong `meta`: `meta.nextCursor`. `data` luôn là dữ liệu thuần                        | Giữ `nextCursor` ở cấp ngoài cùng cạnh `data` |
+| Q7  | Lỗi có đổi theo không?                | ★ Giữ `{ error }`: có `data` là thành công, có `error` là lỗi, không cần cờ `success`  | `{ error, meta }` cho đối xứng hoàn toàn      |
+
 - [ ] **B6 — Lưu trữ / bỏ lưu trữ / xoá mềm + logic dọn dẹp**
   - Việc: lưu trữ chặn ghi (409); xoá mềm thì 404 với mọi người, tên dùng lại được; `purgeBatch` dùng `FOR UPDATE SKIP LOCKED`.
   - **Test xác định (không phụ thuộc thời gian):** transaction A giữ khoá 5 kênh, transaction B (đặt `lock_timeout`) phải lấy ngay 5 kênh **khác**. Đột biến bỏ `SKIP LOCKED` → B lỗi `55P03` (hết thời gian chờ khoá).
@@ -209,3 +231,5 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá đều
 16. **Race "CO chuyển cho X ‖ X rời kênh"**: T1 giữ khoá kênh, hạ CO, nâng X. Đúng → X rời nhận 409 `CHANNEL_OWNER_MUST_TRANSFER`, X vẫn là chủ. Đột biến `leave` đọc vai trò không khoá → `OK/`: X rời thành công **và kênh không còn chủ nào**. Lý do: DELETE đợi khoá dòng rồi vẫn xoá, vì `WHERE (channel_id, user_id)` không xét vai trò mới.
 17. **`outcomeOf` giờ trả `pg:<SQLSTATE>` cho lỗi Postgres lọt ra** (trước đó trả nguyên câu "Failed query: …"). Nhờ vậy assert đỏ đọc ra ngay `pg:40P01` / `pg:23503`. Lint `unicorn/no-thenable` bắt được key `then` trong object truyền cho helper: object như vậy bị coi là thenable, lỡ `await` thì JS tự gọi `then`. Đã đổi tên thành `afterWait`.
 18. **`channel.join` cho thành viên gọi được (service trả 409)**, giống `channel.leave` với Chủ kênh. Nếu giữ policy "chỉ người ngoài", thành viên gọi join sẽ nhận 403 khó hiểu thay vì 409 "đã ở trong kênh" như 05-api ghi. Ma trận 04 §2 và bảng unit test đã đổi theo.
+19. **Envelope `{ data, meta }` (B4e): bọc ở MỘT chỗ cho runtime, MỘT chỗ cho Swagger, cùng dựa trên một bộ đánh dấu.** `ResponseEnvelopeInterceptor` đọc metadata (`@ApiPaginatedResponse` → danh sách, `@RawResponse()` → bỏ qua), còn `applyResponseEnvelope` đọc extension tương ứng (`x-paginated`, `x-raw-response`) trên document. Danh sách được nhận biết bằng **đánh dấu**, không đoán theo shape: DTO nào tình cờ có field `data` sẽ bị hiểu nhầm. Service và controller không đổi dòng nào. `statusCode` trong body **đọc từ `res.statusCode`**, không gán cứng, vì Nest đặt status (`@HttpCode`, POST mặc định 201) TRƯỚC khi interceptor chạy. e2e kiểm tra tạo mới → `meta.statusCode` = 201, lỗi 409 → `error.statusCode` = 409. Đổi cũ sang mới trong e2e có **hai bẫy codemod**: (1) Prettier ngắt `.body` và `.id` ra hai dòng nên regex theo dòng bỏ sót (2 file lỗi ngay ở `beforeAll`, org id `undefined` → 23502); (2) `.expect(200, { ok: true })` của supertest so **toàn bộ body**. Ngoài ra `/docs-json` do Swagger phục vụ bằng route Express, không qua interceptor, nên giữ dạng thô.
+20. **Tham số mặc định nuốt `undefined`.** Test "thiếu `req.id`" gọi `run(…, undefined)` vào tham số có mặc định `'req-1'`, nên JS lấy luôn mặc định và test chỉ xanh nhờ may mắn, không kiểm tra gì. Đổi sang `{ requestId: null }`.

@@ -24,7 +24,8 @@
         "summary": "Liveness — tiến trình còn sống.",
         "tags": [
           "Health"
-        ]
+        ],
+        "x-raw-response": true
       }
     },
     "/health/ready": {
@@ -60,7 +61,8 @@
         "summary": "Readiness — sẵn sàng nhận traffic.",
         "tags": [
           "Health"
-        ]
+        ],
+        "x-raw-response": true
       }
     },
     "/v1/auth/register": {
@@ -84,7 +86,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthTokensResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AuthTokensResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -140,7 +154,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthTokensResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AuthTokensResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -196,7 +222,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthTokensResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AuthTokensResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -292,7 +330,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MeResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MeResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -332,7 +382,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MeResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MeResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -375,9 +437,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SessionResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SessionResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
                   }
                 }
               }
@@ -475,7 +549,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MyOrganizationResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MyOrganizationResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -516,9 +602,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MyOrganizationResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MyOrganizationResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
                   }
                 }
               }
@@ -563,7 +661,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OrganizationResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrganizationResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -634,7 +744,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OrganizationResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrganizationResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -718,7 +840,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OwnershipTransferResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OwnershipTransferResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -912,25 +1046,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/PaginatedResponseDto"
-                    },
-                    {
-                      "type": "object",
-                      "required": [
-                        "data"
-                      ],
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/MemberResponseDto"
-                          }
-                        }
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MemberResponseDto"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
                     }
-                  ]
+                  }
                 }
               }
             }
@@ -979,7 +1110,8 @@
         "summary": "Danh sách thành viên.",
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-paginated": true
       }
     },
     "/v1/orgs/{orgId}/members/{userId}": {
@@ -1022,7 +1154,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MemberResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MemberResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1199,7 +1343,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreatedInviteResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CreatedInviteResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1292,25 +1448,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/PaginatedResponseDto"
-                    },
-                    {
-                      "type": "object",
-                      "required": [
-                        "data"
-                      ],
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/InviteResponseDto"
-                          }
-                        }
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InviteResponseDto"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
                     }
-                  ]
+                  }
                 }
               }
             }
@@ -1359,7 +1512,8 @@
         "summary": "Danh sách link mời, mới nhất trước. Không chứa token.",
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-paginated": true
       }
     },
     "/v1/orgs/{orgId}/invites/{inviteId}": {
@@ -1456,7 +1610,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvitePreviewResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/InvitePreviewResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1511,7 +1677,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AcceptInviteResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AcceptInviteResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1615,25 +1793,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/PaginatedResponseDto"
-                    },
-                    {
-                      "type": "object",
-                      "required": [
-                        "data"
-                      ],
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/JoinRequestResponseDto"
-                          }
-                        }
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/JoinRequestResponseDto"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
                     }
-                  ]
+                  }
                 }
               }
             }
@@ -1682,7 +1857,8 @@
         "summary": "Yêu cầu tham gia (mặc định đang chờ), mới nhất trước.",
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-paginated": true
       }
     },
     "/v1/orgs/{orgId}/join-requests/{requestId}/approve": {
@@ -1715,7 +1891,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JoinRequestDecisionResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JoinRequestDecisionResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1806,7 +1994,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JoinRequestDecisionResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/JoinRequestDecisionResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -1900,7 +2100,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChannelResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -2033,25 +2245,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/PaginatedResponseDto"
-                    },
-                    {
-                      "type": "object",
-                      "required": [
-                        "data"
-                      ],
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/ChannelResponseDto"
-                          }
-                        }
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChannelResponseDto"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
                     }
-                  ]
+                  }
                 }
               }
             }
@@ -2100,7 +2309,8 @@
         "summary": "Danh sách kênh tôi thấy được.",
         "tags": [
           "Channels"
-        ]
+        ],
+        "x-paginated": true
       }
     },
     "/v1/orgs/{orgId}/channels/{channelId}": {
@@ -2133,7 +2343,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChannelResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -2213,7 +2435,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChannelResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -2305,7 +2539,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChannelResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -2472,7 +2718,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChannelOwnershipTransferResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelOwnershipTransferResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -2606,25 +2864,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/PaginatedResponseDto"
-                    },
-                    {
-                      "type": "object",
-                      "required": [
-                        "data"
-                      ],
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/ChannelMemberResponseDto"
-                          }
-                        }
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChannelMemberResponseDto"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
                     }
-                  ]
+                  }
                 }
               }
             }
@@ -2673,7 +2928,8 @@
         "summary": "Danh sách thành viên kênh.",
         "tags": [
           "Channels"
-        ]
+        ],
+        "x-paginated": true
       },
       "post": {
         "description": "QTV chỉ thêm được `member` / `guest`. Người không thuộc tổ chức → 404; đã ở trong\nkênh → 409 `CHANNEL_ALREADY_MEMBER`.",
@@ -2714,7 +2970,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChannelMemberResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelMemberResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -2824,7 +3092,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChannelMemberResponseDto"
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChannelMemberResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
                 }
               }
             }
@@ -3040,25 +3320,22 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/PaginatedResponseDto"
-                    },
-                    {
-                      "type": "object",
-                      "required": [
-                        "data"
-                      ],
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/AuditLogResponseDto"
-                          }
-                        }
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AuditLogResponseDto"
                       }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
                     }
-                  ]
+                  }
                 }
               }
             }
@@ -3107,13 +3384,14 @@
         "summary": "Nhật ký thao tác quản trị của tổ chức, mới nhất trước (Admin trở lên).",
         "tags": [
           "Organizations"
-        ]
+        ],
+        "x-paginated": true
       }
     }
   },
   "info": {
     "title": "MeetNote API",
-    "description": "API biên bản họp theo nhóm.\n\n- Lỗi luôn có dạng `{ error: { code, message, details?, requestId } }`.\n- Danh sách phân trang cursor: `{ data, nextCursor }`, query `cursor` + `limit`.\n- Mọi response có header `x-request-id`.",
+    "description": "API biên bản họp theo nhóm.\n\n- Thành công: `{ data, meta: { statusCode, requestId } }`. Danh sách: `data` là mảng, `meta.nextCursor` để lấy trang sau (query `cursor` + `limit`).\n- Lỗi luôn có dạng `{ error: { code, statusCode, message, details?, requestId } }`.\n- `204` không có body. `/health/*` trả thẳng body (không bọc).\n- Mọi response có header `x-request-id` (trùng `meta.requestId` / `error.requestId`).",
     "version": "1.0.0",
     "contact": {}
   },
@@ -3312,6 +3590,11 @@
             "description": "Mã lỗi máy đọc được — client rẽ nhánh theo mã này, không theo `message`.",
             "example": "VALIDATION_FAILED"
           },
+          "statusCode": {
+            "type": "number",
+            "description": "HTTP status của response lỗi này (trùng status thật).",
+            "example": 400
+          },
           "message": {
             "type": "string",
             "description": "Mô tả cho người đọc. Có thể thay đổi bất kỳ lúc nào."
@@ -3331,6 +3614,7 @@
         },
         "required": [
           "code",
+          "statusCode",
           "message"
         ]
       },
@@ -3625,20 +3909,6 @@
         "required": [
           "orgId",
           "ownerId"
-        ]
-      },
-      "PaginatedResponseDto": {
-        "type": "object",
-        "properties": {
-          "nextCursor": {
-            "type": "string",
-            "nullable": true,
-            "description": "Cursor để lấy trang sau. `null` nghĩa là đã hết dữ liệu.",
-            "example": "eyJ2IjoxLCJrIjpbIjIwMjYtMTAtMTMiLCIwMTk5Il19"
-          }
-        },
-        "required": [
-          "nextCursor"
         ]
       },
       "MemberResponseDto": {
@@ -4323,6 +4593,51 @@
           "targetType",
           "targetId",
           "createdAt"
+        ]
+      },
+      "ResponseMetaDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "description": "HTTP status của chính response này (đọc từ status thật, không gán cứng).",
+            "example": 200
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Trùng header `x-request-id` (và `error.requestId` khi lỗi). Gửi kèm khi báo lỗi để đối chiếu log.",
+            "example": "01J9Z6K3W8Q2V5T7Y9B1N4M6P0"
+          }
+        },
+        "required": [
+          "statusCode",
+          "requestId"
+        ]
+      },
+      "PaginatedMetaDto": {
+        "type": "object",
+        "properties": {
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Cursor để lấy trang sau (query `cursor`). `null` nghĩa là đã hết dữ liệu.",
+            "example": "eyJ2IjoxLCJrIjpbIjIwMjYtMTAtMTMiLCIwMTk5Il19"
+          },
+          "statusCode": {
+            "type": "number",
+            "description": "HTTP status của chính response này (đọc từ status thật, không gán cứng).",
+            "example": 200
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Trùng header `x-request-id` (và `error.requestId` khi lỗi). Gửi kèm khi báo lỗi để đối chiếu log.",
+            "example": "01J9Z6K3W8Q2V5T7Y9B1N4M6P0"
+          }
+        },
+        "required": [
+          "nextCursor",
+          "statusCode",
+          "requestId"
         ]
       }
     }

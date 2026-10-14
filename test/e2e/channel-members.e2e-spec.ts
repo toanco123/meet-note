@@ -50,7 +50,7 @@ describe('Thành viên kênh (e2e)', () => {
       .set(bearer(alice.tokens.accessToken))
       .send({ name: `kênh-${randomUUID()}`, visibility })
       .expect(201);
-    const channel = { id: res.body.id as string };
+    const channel = { id: res.body.data.id as string };
     await addChannelMember(db, channel, orgId, bob.id, 'admin');
     await addChannelMember(db, channel, orgId, carol.id, 'member');
     await addChannelMember(db, channel, orgId, gina.id, 'guest');
@@ -92,7 +92,7 @@ describe('Thành viên kênh (e2e)', () => {
         .set(bearer(owner.tokens.accessToken))
         .send({ name: 'Thành viên kênh' })
         .expect(201)
-    ).body.id;
+    ).body.data.id;
     await addMember(db, orgId, orgAdmin.id, 'admin');
     for (const u of [alice, bob, carol, gina, outsider]) await addMember(db, orgId, u.id, 'member');
   });
@@ -142,13 +142,14 @@ describe('Thành viên kênh (e2e)', () => {
       const seen: MemberBody[] = [];
       let cursor: string | null = null;
       do {
-        const res: { body: { data: MemberBody[]; nextCursor: string | null } } = await http()
-          .get(membersUrl(ch.id))
-          .query(cursor ? { limit: 5, cursor } : { limit: 5 })
-          .set(bearer(alice.tokens.accessToken))
-          .expect(200);
+        const res: { body: { data: MemberBody[]; meta: { nextCursor: string | null } } } =
+          await http()
+            .get(membersUrl(ch.id))
+            .query(cursor ? { limit: 5, cursor } : { limit: 5 })
+            .set(bearer(alice.tokens.accessToken))
+            .expect(200);
         seen.push(...res.body.data);
-        cursor = res.body.nextCursor;
+        cursor = res.body.meta.nextCursor;
       } while (cursor);
 
       expect(seen).toHaveLength(16);
@@ -216,7 +217,7 @@ describe('Thành viên kênh (e2e)', () => {
 
       const res = await add(alice, ch.id, { userId: target.id, role: 'member' }).expect(201);
 
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         userId: target.id,
         displayName: 'Lê Văn Cường',
         role: 'member',
@@ -320,7 +321,7 @@ describe('Thành viên kênh (e2e)', () => {
       await change(alice, ch.id, target.id, 'guest').expect(200);
       const same = await change(alice, ch.id, target.id, 'guest').expect(200);
 
-      expect(same.body.role).toBe('guest');
+      expect(same.body.data.role).toBe('guest');
       const logs = await db
         .select()
         .from(auditLogs)

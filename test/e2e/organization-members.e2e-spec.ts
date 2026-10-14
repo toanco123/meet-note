@@ -16,7 +16,7 @@ interface MemberBody {
 }
 interface PageBody {
   data: MemberBody[];
-  nextCursor: string | null;
+  meta: { nextCursor: string | null };
 }
 
 describe('GET /v1/orgs/:orgId/members — cursor + tìm không dấu (e2e)', () => {
@@ -40,7 +40,7 @@ describe('GET /v1/orgs/:orgId/members — cursor + tìm không dấu (e2e)', () 
         .set(bearer(owner.tokens.accessToken))
         .send({ name: 'Phân trang' })
         .expect(201)
-    ).body.id;
+    ).body.data.id;
 
     // 24 thành viên + owner = 25. 6 người đầu tham gia CÙNG một thời điểm → buộc phải có tie-breaker.
     const sameInstant = new Date('2026-01-01T00:00:00.123456Z');
@@ -76,7 +76,7 @@ describe('GET /v1/orgs/:orgId/members — cursor + tìm không dấu (e2e)', () 
       const res = await list(cursor ? { limit, cursor } : { limit }).expect(200);
       const body = res.body as PageBody;
       ids.push(...body.data.map((m) => m.userId));
-      cursor = body.nextCursor;
+      cursor = body.meta.nextCursor;
       pages++;
     } while (cursor && pages < 20);
     return { pages, ids };

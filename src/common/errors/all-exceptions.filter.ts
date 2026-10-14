@@ -67,7 +67,7 @@ function fromAppException(exception: AppException): MappedError {
 }
 
 /**
- * Bắt MỌI exception của HTTP request và trả về `{ error: { code, message, details, requestId } }`.
+ * Bắt MỌI exception của HTTP request và trả về `{ error: { code, statusCode, message, details, requestId } }`.
  * Lỗi 5xx được log đầy đủ ở server, client chỉ nhận thông điệp chung (không lộ stack/SQL).
  */
 @Catch()
@@ -94,6 +94,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const body: ErrorResponseDto = {
       error: {
         code: mapped.code,
+        statusCode: mapped.status,
         message: mapped.message,
         ...(mapped.details?.length ? { details: mapped.details } : {}),
         ...(requestId ? { requestId } : {}),

@@ -3,7 +3,7 @@
 - Base: `/v1`, trừ health (`VERSION_NEUTRAL`).
 - Mọi route mặc định yêu cầu `Authorization: Bearer <access>`. Route `@Public()` được đánh dấu **Public**.
 - Ký hiệu quyền: xem [04-authorization.md](04-authorization.md). "Member+" = Member trở lên.
-- Danh sách trả `{ data, nextCursor }`, query `?cursor=&limit=`. Xem [07-conventions.md](07-conventions.md).
+- Response thành công: `{ data, meta: { statusCode, requestId } }`; danh sách: `data` là mảng, `meta.nextCursor`, query `?cursor=&limit=`. Lỗi: `{ error: { code, statusCode, message, details?, requestId } }`. `204` không có body; `/health/*` trả body thô. Xem [07-conventions.md](07-conventions.md) §2–3.
 
 ## Health (tag `Health`)
 

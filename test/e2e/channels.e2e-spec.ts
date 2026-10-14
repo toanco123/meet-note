@@ -52,7 +52,7 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
     http().patch(`${base()}/${channelId}`).set(bearer(who.tokens.accessToken)).send(body);
   const newOrg = async (who: TestUser, name: string): Promise<string> =>
     (await http().post('/v1/orgs').set(bearer(who.tokens.accessToken)).send({ name }).expect(201))
-      .body.id;
+      .body.data.id;
 
   beforeAll(async () => {
     app = await createTestApp();
@@ -72,11 +72,11 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
     for (const u of [alice, bob, carol, gina, outsider]) await addMember(db, orgId, u.id, 'member');
 
     privateCh = (await create(alice, { name: 'Ban giám đốc', visibility: 'private' }).expect(201))
-      .body;
+      .body.data;
     await addChannelMember(db, privateCh, orgId, bob.id, 'admin');
     await addChannelMember(db, privateCh, orgId, carol.id, 'member');
     await addChannelMember(db, privateCh, orgId, gina.id, 'guest');
-    publicCh = (await create(alice, { name: 'Toàn công ty' }).expect(201)).body;
+    publicCh = (await create(alice, { name: 'Toàn công ty' }).expect(201)).body.data;
   });
 
   afterAll(async () => {
@@ -88,7 +88,7 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
       const res = await create(alice, { name: '  Kỹ thuật  ', description: '  Backend  ' });
 
       expect(res.status).toBe(201);
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         name: 'Kỹ thuật',
         description: 'Backend',
         visibility: 'public',
@@ -97,7 +97,10 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
         myRole: 'owner',
         memberCount: 1,
       });
-      const [log] = await db.select().from(auditLogs).where(eq(auditLogs.targetId, res.body.id));
+      const [log] = await db
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.targetId, res.body.data.id));
       expect(log).toMatchObject({ action: 'channel.created', actorId: alice.id, orgId });
     });
 
@@ -149,7 +152,8 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
     ] as const)('%s → %i', async (_label, status, who, myRole) => {
       const res = await get(who(), privateCh.id);
       expect(res.status).toBe(status);
-      expect(res.body.myRole).toBe(myRole);
+      // 404 không có `data` (body là `{ error }`) → `myRole` undefined, khớp cột mong đợi.
+      expect(res.body.data?.myRole).toBe(myRole);
     });
 
     it('404 của kênh riêng tư giống hệt 404 của kênh không tồn tại (không lộ thông tin)', async () => {
@@ -163,7 +167,7 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
 
     it('kênh công khai: thành viên org chưa join xem được, myRole = null', async () => {
       const res = await get(outsider, publicCh.id).expect(200);
-      expect(res.body).toMatchObject({ id: publicCh.id, myRole: null, visibility: 'public' });
+      expect(res.body.data).toMatchObject({ id: publicCh.id, myRole: null, visibility: 'public' });
     });
 
     it.each([
@@ -176,7 +180,7 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
 
     it('kênh của org khác gắn vào path org này → 404', async () => {
       const other = await newOrg(alice, 'Org thứ hai');
-      const foreign = (await create(alice, { name: 'Kênh org 2' }, other).expect(201)).body;
+      const foreign = (await create(alice, { name: 'Kênh org 2' }, other).expect(201)).body.data;
       const res = await get(alice, foreign.id);
       expect(res.status).toBe(404);
     });
@@ -184,7 +188,8 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
 
   describe('PATCH /v1/orgs/:orgId/channels/:channelId', () => {
     it('Chủ kênh sửa → 200; audit chỉ ghi field thực sự đổi', async () => {
-      const ch = (await create(alice, { name: 'Sửa tôi', description: 'cũ' }).expect(201)).body;
+      const ch = (await create(alice, { name: 'Sửa tôi', description: 'cũ' }).expect(201)).body
+        .data;
 
       const res = await patch(alice, ch.id, {
         name: 'Đã sửa',
@@ -192,7 +197,7 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
         weeklyReportEnabled: false,
       }).expect(200);
 
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         name: 'Đã sửa',
         description: 'cũ',
         weeklyReportEnabled: false,
@@ -208,11 +213,11 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
     });
 
     it('mô tả null / chuỗi rỗng → xoá mô tả; body rỗng → 200, không ghi audit', async () => {
-      const ch = (await create(alice, { name: 'Mô tả', description: 'có' }).expect(201)).body;
+      const ch = (await create(alice, { name: 'Mô tả', description: 'có' }).expect(201)).body.data;
 
-      expect((await patch(alice, ch.id, { description: '  ' }).expect(200)).body.description).toBe(
-        null,
-      );
+      expect(
+        (await patch(alice, ch.id, { description: '  ' }).expect(200)).body.data.description,
+      ).toBe(null);
       await patch(alice, ch.id, {}).expect(200);
       await patch(alice, ch.id, { description: null }).expect(200);
 
@@ -240,7 +245,7 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
     });
 
     it('kênh đã lưu trữ: QTV → 409 CHANNEL_ARCHIVED; thành viên vẫn 403 (xét quyền trước)', async () => {
-      const ch = (await create(alice, { name: 'Lưu trữ' }).expect(201)).body;
+      const ch = (await create(alice, { name: 'Lưu trữ' }).expect(201)).body.data;
       await addChannelMember(db, ch, orgId, bob.id, 'admin');
       await addChannelMember(db, ch, orgId, carol.id, 'member');
       await db.update(channels).set({ archivedAt: new Date() }).where(eq(channels.id, ch.id));
@@ -280,7 +285,7 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
       await create(m1, { name: 'Bảng tin' }, listOrg).expect(201);
       await create(m1, { name: 'Riêng của m1', visibility: 'private' }, listOrg).expect(201);
       await create(m2, { name: 'Riêng của m2', visibility: 'private' }, listOrg).expect(201);
-      const old = (await create(m2, { name: 'Cũ' }, listOrg).expect(201)).body;
+      const old = (await create(m2, { name: 'Cũ' }, listOrg).expect(201)).body.data;
       await db.update(channels).set({ archivedAt: new Date() }).where(eq(channels.id, old.id));
     });
 
@@ -331,13 +336,14 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
       const seen: string[] = [];
       let cursor: string | null = null;
       do {
-        const res: { body: { data: ChannelBody[]; nextCursor: string | null } } = await http()
-          .get(base(pagOrg))
-          .query(cursor ? { limit: 5, cursor } : { limit: 5 })
-          .set(bearer(m1.tokens.accessToken))
-          .expect(200);
+        const res: { body: { data: ChannelBody[]; meta: { nextCursor: string | null } } } =
+          await http()
+            .get(base(pagOrg))
+            .query(cursor ? { limit: 5, cursor } : { limit: 5 })
+            .set(bearer(m1.tokens.accessToken))
+            .expect(200);
         seen.push(...res.body.data.map((c) => c.name));
-        cursor = res.body.nextCursor;
+        cursor = res.body.meta.nextCursor;
       } while (cursor);
 
       expect(seen).toEqual(

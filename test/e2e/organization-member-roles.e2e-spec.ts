@@ -34,7 +34,7 @@ describe('PATCH /v1/orgs/:orgId/members/:userId — đổi vai trò (e2e)', () =
         .set(bearer(owner.tokens.accessToken))
         .send({ name: 'Vai trò' })
         .expect(201)
-    ).body.id;
+    ).body.data.id;
     await addMember(db, orgId, admin.id, 'admin');
     await addMember(db, orgId, member.id, 'member');
   });
@@ -62,7 +62,7 @@ describe('PATCH /v1/orgs/:orgId/members/:userId — đổi vai trò (e2e)', () =
   ] as const)('%s → 200', async (_label, from, to) => {
     const target = await newTarget(from);
     const res = await patch(owner, target, to).expect(200);
-    expect(res.body).toMatchObject({ userId: target, role: to });
+    expect(res.body.data).toMatchObject({ userId: target, role: to });
   });
 
   it.each([

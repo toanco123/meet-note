@@ -38,6 +38,7 @@ Mọi lỗi trả về cùng một dạng:
 {
   "error": {
     "code": "CHANNEL_ARCHIVED",
+    "statusCode": 409,
     "message": "Kênh đã được lưu trữ (chỉ đọc).",
     "details": [
       { "field": "name", "message": "name must be shorter than or equal to 80 characters" }
@@ -78,10 +79,25 @@ Hiện thực:
 
 ## 3. Định dạng response
 
-- **Một tài nguyên:** trả thẳng object, không bọc `{ data }`.
-- **Danh sách:** `{ "data": [...], "nextCursor": "eyJ2IjoxLC..." | null }`. Không trả `total`, vì `COUNT(*)` trên bảng lớn tốn kém và không đi cùng keyset pagination.
-- **Hành động không trả gì:** `204 No Content`.
-- **Tạo mới:** `201` + object.
+Mọi response **thành công** có cùng một vỏ `{ data, meta }` (từ M4 B4e):
+
+```json
+{ "data": { "id": "…", "name": "Kỹ thuật" }, "meta": { "statusCode": 200, "requestId": "01J9Z6…" } }
+```
+
+```json
+{
+  "data": [{ "id": "…" }, { "id": "…" }],
+  "meta": { "statusCode": 200, "requestId": "01J9Z6…", "nextCursor": "eyJ2IjoxLC…" }
+}
+```
+
+- **Một tài nguyên:** `data` là object. **Danh sách:** `data` là mảng thuần, `meta.nextCursor` để lấy trang sau (`null` = hết). Không trả `total`, vì `COUNT(*)` trên bảng lớn tốn kém và không đi cùng keyset pagination.
+- **`meta.statusCode`** luôn trùng HTTP status thật (đọc từ response, không gán cứng): tạo mới → `201`. **`meta.requestId`** trùng header `x-request-id` và `error.requestId`.
+- **Lỗi** giữ vỏ riêng `{ error: { code, statusCode, message, details?, requestId } }` (§2): có `data` là thành công, có `error` là lỗi, không cần cờ `success`.
+- **Hành động không trả gì:** `204 No Content`, không có body (không bọc).
+- **Ngoại lệ:** `/health/*` trả body thô (`@RawResponse()`), vì probe của Docker / K8s đọc thẳng `{ status }`.
+- **Hiện thực:** controller / service KHÔNG tự bọc. Chúng vẫn trả DTO hoặc `Page<T>`. `ResponseEnvelopeInterceptor` (global, đăng ký trong `configureApp`) bọc ở ranh giới HTTP; danh sách được nhận biết bằng metadata của `@ApiPaginatedResponse`. Swagger được bọc tương ứng trong `buildOpenApiDocument` (`applyResponseEnvelope`), dựa trên cùng các đánh dấu (`x-paginated`, `x-raw-response`). Test kiến trúc `openapi-envelope.spec.ts` kiểm tra mọi response 2xx JSON trong `openapi.json`.
 - Thời gian dạng ISO 8601 UTC (`2026-10-13T01:00:00.000Z`). `weekStart` dạng `YYYY-MM-DD`.
 - Không trả row DB trực tiếp. Luôn map sang `*ResponseDto` để tránh lộ `password_hash` và để Swagger đọc được kiểu.
 
