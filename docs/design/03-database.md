@@ -225,12 +225,19 @@ Trigram index giúp `LIKE '%…%'`. Lấy `limit + 1` dòng để biết còn tr
 
 ### `uploads`
 
-id, org_id, user_id, filename, mime_type, size_bytes bigint, sha256 (hex, client gửi lúc init), chunk_size int, total_parts int, object_key, s3_upload_id, status (`initiated|completed|aborted|expired`), meeting_id NULL, expires_at, created_at, completed_at.
-Index: `(status, expires_at) WHERE status = 'initiated'` cho job dọn dẹp.
+id, org_id, user_id, filename, mime_type, size_bytes bigint, sha256 (hex, client gửi lúc init), chunk_size int, total_parts int, title, recorded_at (khai lúc init để `complete` tạo được meeting), object_key (`orgs/{orgId}/uploads/{uploadId}/source`, không chứa dữ liệu người dùng), s3_upload_id, status (`initiated|completed|aborted|expired`), meeting_id NULL, expires_at, storage_aborted_at NULL, created_at, completed_at.
+
+- FK `user_id → users` (**không** trỏ thành viên org, M5 Q1): người tạo rời org thì cascade không xoá dòng trong khi S3 còn giữ các phần; job dọn dẹp abort khi hết hạn. FK `(meeting_id, org_id) → meetings(id, org_id)`.
+- CHECK (M5): size 1 B – 2 GiB; sha256 `^[0-9a-f]{64}$`; chunk_size ≥ 5 MiB (S3); `total_parts = ceil(size / chunk)` và ≤ 10 000; mime trong danh sách cho phép; `status = 'completed'` ⇔ có `meeting_id` + `completed_at`.
+- `storage_aborted_at`: huỷ / hết hạn đánh dấu status TRƯỚC (trong DB), gọi `AbortMultipartUpload` SAU (ngoài transaction). S3 lỗi → cột này NULL → lần dọn sau thử lại.
+- Index: `uploads_expiry_idx (expires_at) WHERE status = 'initiated'` (job dọn dẹp), `uploads_abort_retry_idx (id) WHERE status IN ('aborted','expired') AND storage_aborted_at IS NULL`.
+- **Dọn dẹp (M5 B7, `UploadsCleanupService`, lên lịch ở M6):**
+  - `expireBatch`: transaction ngắn, một câu `UPDATE uploads SET status = 'expired' WHERE id IN (SELECT … WHERE status = 'initiated' AND expires_at <= now() - 10 phút ORDER BY expires_at LIMIT n FOR UPDATE SKIP LOCKED) RETURNING …` + `lock_timeout`; commit xong mới abort từng multipart. **Ân hạn 10 phút** > `requestTimeout` 5 phút của Node: không còn PUT phần nào đang gửi lúc abort (S3 có thể vẫn lưu phần đang gửi dở sau abort).
+  - `retryStorageAbortBatch`: lấy upload `aborted` / `expired` còn `storage_aborted_at IS NULL`, **không khoá** (abort + đánh dấu đều idempotent, hai worker trùng việc chỉ tốn một lời gọi S3). Mỗi lần chạy job một lô, không lặp tới rỗng (S3 sập thì lặp mãi).
 
 ### `upload_parts`
 
-upload_id FK ON DELETE CASCADE, part_number int, size_bytes int, etag text, created_at. PK `(upload_id, part_number)`.
+upload_id FK ON DELETE CASCADE, part_number int (CHECK 1–10 000), size_bytes int, etag text, created_at. PK `(upload_id, part_number)`. Không mang `org_id`: chỉ có một bảng cha nên không có đường ghép chéo tổ chức (composite FK theo org chỉ cần khi dòng tham chiếu từ hai phía, như `channel_members`).
 PUT part là **idempotent**: `INSERT … ON CONFLICT (upload_id, part_number) DO UPDATE SET etag = EXCLUDED.etag`.
 
 **Complete:** `SELECT uploads … FOR UPDATE`. Nếu status đã là `completed` thì trả lại meeting đã tạo (idempotent). Nếu chưa:
@@ -242,22 +249,22 @@ PUT part là **idempotent**: `INSERT … ON CONFLICT (upload_id, part_number) DO
 
 ### `meetings`
 
-| Cột                                 | Kiểu                                                                                       | Ghi chú                                                                                                                      |
-| ----------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| id                                  | uuid PK                                                                                    |                                                                                                                              |
-| org_id                              | uuid                                                                                       | `UNIQUE (id, org_id)`                                                                                                        |
-| owner_id                            | uuid                                                                                       | FK `(org_id, owner_id)` → organization_members. Nếu owner rời org thì chặn (RESTRICT): service chuyển chủ hoặc xoá mềm trước |
-| title                               | text                                                                                       |                                                                                                                              |
-| recorded_at                         | timestamptz NOT NULL                                                                       | thời điểm họp, dùng cho báo cáo tuần                                                                                         |
-| duration_ms                         | int NULL                                                                                   | điền sau khi ffprobe                                                                                                         |
-| language                            | text NULL                                                                                  | Whisper phát hiện                                                                                                            |
-| status                              | text CHECK IN ('queued','preprocessing','transcribing','summarizing','completed','failed') |                                                                                                                              |
-| failure_code, failure_message       | text NULL                                                                                  |                                                                                                                              |
-| attempt                             | int DEFAULT 0                                                                              |                                                                                                                              |
-| source_object_key, audio_object_key | text                                                                                       |                                                                                                                              |
-| created_at, updated_at, deleted_at  | timestamptz                                                                                |                                                                                                                              |
+| Cột                                 | Kiểu                                                                                       | Ghi chú                                                                                                                                                                                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| id                                  | uuid PK                                                                                    |                                                                                                                                                                                                                                                  |
+| org_id                              | uuid                                                                                       | `UNIQUE (id, org_id)`                                                                                                                                                                                                                            |
+| owner_id                            | uuid NULL                                                                                  | FK `meetings_owner_fk (org_id, owner_id)` → organization_members **ON DELETE SET NULL (owner_id)** (M5 Q1, PG 15+, migration viết tay `0007`): chủ rời org thì meeting ở lại, `org_id` giữ nguyên. `SET NULL` thường sẽ null cả `org_id` → 23502 |
+| title                               | text                                                                                       |                                                                                                                                                                                                                                                  |
+| recorded_at                         | timestamptz NOT NULL                                                                       | thời điểm họp, dùng cho báo cáo tuần                                                                                                                                                                                                             |
+| duration_ms                         | int NULL                                                                                   | điền sau khi ffprobe                                                                                                                                                                                                                             |
+| language                            | text NULL                                                                                  | Whisper phát hiện                                                                                                                                                                                                                                |
+| status                              | text CHECK IN ('queued','preprocessing','transcribing','summarizing','completed','failed') |                                                                                                                                                                                                                                                  |
+| failure_code, failure_message       | text NULL                                                                                  |                                                                                                                                                                                                                                                  |
+| attempt                             | int DEFAULT 1                                                                              | lần chạy pipeline, đếm từ 1 cho khớp `jobId …a1`; CHECK ≥ 1                                                                                                                                                                                      |
+| source_object_key, audio_object_key | text                                                                                       |                                                                                                                                                                                                                                                  |
+| created_at, updated_at, deleted_at  | timestamptz                                                                                |                                                                                                                                                                                                                                                  |
 
-Index: `(org_id, owner_id, created_at DESC, id) WHERE deleted_at IS NULL`, `(org_id, recorded_at)`.
+Index: `meetings_org_owner_created_idx (org_id, owner_id, created_at DESC NULLS FIRST, id DESC NULLS FIRST)` — **không partial**, vì còn phục vụ khoá ngoại `meetings_owner_fk` (xoá một thành viên phải tìm mọi meeting của họ, kể cả đã xoá mềm; Postgres không tự tạo index cho phía tham chiếu); `meetings_org_recorded_idx (org_id, recorded_at)` (báo cáo tuần).
 
 **Chuyển trạng thái = UPDATE có điều kiện** (optimistic, không giữ khoá lâu):
 
@@ -359,8 +366,14 @@ id bigint identity, org_id, actor_id NULL (NULL = hệ thống), action text (vd
 
 ### `idempotency_keys` (M5)
 
-key text, user_id, method, path, request_hash, status_code, response jsonb, created_at, expires_at. PK `(user_id, key)`.
-Dùng cho các POST không tự idempotent, theo header `Idempotency-Key`.
+user_id, key, method, path, request_hash (sha256 hex của method + path + body JSON chuẩn hoá), status (`processing|completed`), response_status, response_body jsonb, created_at, expires_at. PK `(user_id, key)`, CHECK `completed` ⇔ có `response_status`, index `idempotency_keys_expiry_idx (expires_at)` để dọn.
+Dùng cho các POST không tự idempotent, theo header `Idempotency-Key` (`@Idempotent()`, M5 B6).
+
+- **Giữ chỗ bằng MỘT câu lệnh:** `INSERT … ON CONFLICT (user_id, key) DO UPDATE … WHERE <được chiếm> RETURNING created_at::text`. Có dòng trả về = mình được chạy handler. "SELECT trước rồi INSERT" để hở khe: 20 request song song → handler chạy 20 lần (đột biến đã chứng minh).
+- **Được chiếm dòng cũ khi:** `expires_at <= now()` (hết 24 giờ, như key mới) **hoặc** `processing` quá **lease 60 giây** và cùng `request_hash` (request đầu đã chết giữa chừng). Không có lease → crash giữa chừng làm key kẹt 409 suốt 24 giờ.
+- **`created_at` = lúc giữ chỗ gần nhất, dùng làm fencing token:** lưu response / xoá chỗ giữ đều có `WHERE status = 'processing' AND created_at = <token>`. Request cũ "sống dậy" sau khi bị chiếm chỗ không ghi đè được. Token đi dạng text (đủ micro giây), không qua JS `Date`.
+- Handler lỗi → **xoá** chỗ giữ (lỗi không được ghi nhớ, client sửa rồi gửi lại cùng key). Lưu `data` thô (trước envelope); trả lại thì bọc với `requestId` mới.
+- Dọn dòng hết hạn: `IdempotencyRepository.deleteExpiredBatch` theo lô (`SKIP LOCKED`), lên lịch cùng job dọn upload ở M6.
 
 ## 7. Thứ tự khoá chung (M4) và tóm tắt chỗ cần transaction / khoá
 
@@ -387,21 +400,23 @@ Hai thao tác chạm cùng người X luôn tuần tự, không deadlock.
 
 ### Tóm tắt
 
-| Thao tác                           | Kỹ thuật                                                               | Lý do                                           |
-| ---------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------- |
-| Refresh token                      | tx + `FOR UPDATE` refresh_token rồi session                            | Chặn 2 refresh song song, phát hiện reuse       |
-| Chuyển quyền sở hữu org            | tx + `FOR UPDATE` 2 dòng member (sắp theo user_id) + hạ trước nâng sau | Partial unique index, chống deadlock            |
-| Đổi vai trò / gỡ thành viên org    | tx + `FOR UPDATE` dòng member mục tiêu + kiểm tra không gỡ owner       | Owner không bị gỡ nhầm                          |
-| Rời / bị gỡ khỏi org               | tx + `FOR UPDATE` member → còn làm chủ kênh thì 409 → xoá member       | Cascade không để lại kênh mồ côi (M4 Q3)        |
-| Dùng link mời                      | UPDATE có điều kiện                                                    | Nguyên tử, không cần khoá                       |
-| Duyệt yêu cầu vào org              | tx + `FOR UPDATE` request                                              | Chặn duyệt 2 lần                                |
-| Thêm thành viên kênh               | tx + `FOR SHARE` org member của X → `FOR UPDATE` kênh → ON CONFLICT    | X không bị gỡ khỏi org giữa chừng; 404 rõ       |
-| Đổi vai trò / gỡ / chuyển chủ kênh | tx + `FOR UPDATE` dòng `channels` trước, rồi dòng `channel_members`    | Một mutex cho mỗi kênh, thứ tự khoá cố định     |
-| Complete upload                    | tx + `FOR UPDATE` upload                                               | Idempotent, chặn tạo 2 meeting                  |
-| Chuyển trạng thái meeting          | UPDATE … WHERE status = expected                                       | Optimistic, không giữ khoá trong lúc chạy lâu   |
-| Ghi transcript                     | tx delete + insert                                                     | Idempotent khi chạy lại                         |
-| Cron báo cáo                       | INSERT … ON CONFLICT DO NOTHING                                        | Idempotent theo (kênh, tuần)                    |
-| Tạo lại báo cáo                    | tx + `FOR UPDATE` report                                               | Quota 3 lần chính xác                           |
-| Job purge / dọn upload             | `FOR UPDATE SKIP LOCKED` theo lô + `lock_timeout` (`set_config`)       | Nhiều worker chạy song song không giẫm nhau     |
-| Lưu trữ / xoá kênh                 | tx + `FOR SHARE` org member người gọi → `FOR UPDATE` kênh              | Quyền override của OrgAdm giữ nguyên tới commit |
-| Audit log                          | INSERT trong tx của thao tác                                           | Nhất quán                                       |
+| Thao tác                           | Kỹ thuật                                                                                              | Lý do                                                                         |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Refresh token                      | tx + `FOR UPDATE` refresh_token rồi session                                                           | Chặn 2 refresh song song, phát hiện reuse                                     |
+| Chuyển quyền sở hữu org            | tx + `FOR UPDATE` 2 dòng member (sắp theo user_id) + hạ trước nâng sau                                | Partial unique index, chống deadlock                                          |
+| Đổi vai trò / gỡ thành viên org    | tx + `FOR UPDATE` dòng member mục tiêu + kiểm tra không gỡ owner                                      | Owner không bị gỡ nhầm                                                        |
+| Rời / bị gỡ khỏi org               | tx + `FOR UPDATE` member → còn làm chủ kênh thì 409 → xoá member                                      | Cascade không để lại kênh mồ côi (M4 Q3)                                      |
+| Dùng link mời                      | UPDATE có điều kiện                                                                                   | Nguyên tử, không cần khoá                                                     |
+| Duyệt yêu cầu vào org              | tx + `FOR UPDATE` request                                                                             | Chặn duyệt 2 lần                                                              |
+| Thêm thành viên kênh               | tx + `FOR SHARE` org member của X → `FOR UPDATE` kênh → ON CONFLICT                                   | X không bị gỡ khỏi org giữa chừng; 404 rõ                                     |
+| Đổi vai trò / gỡ / chuyển chủ kênh | tx + `FOR UPDATE` dòng `channels` trước, rồi dòng `channel_members`                                   | Một mutex cho mỗi kênh, thứ tự khoá cố định                                   |
+| Complete upload                    | tx + `FOR UPDATE` upload, gọi S3 Complete **trong** khoá (timeout 30 s, M5 Q2); enqueue sau commit    | Idempotent, chặn tạo 2 meeting; S3 xong mà DB lỗi → gọi lại tự gỡ bằng `HEAD` |
+| Giữ chỗ `Idempotency-Key`          | `INSERT … ON CONFLICT DO UPDATE … WHERE` (hết hạn / quá lease) + fencing token `created_at`           | Một câu nguyên tử, không khoá tường minh; crash giữa chừng không kẹt key      |
+| Chuyển trạng thái meeting          | UPDATE … WHERE status = expected                                                                      | Optimistic, không giữ khoá trong lúc chạy lâu                                 |
+| Ghi transcript                     | tx delete + insert                                                                                    | Idempotent khi chạy lại                                                       |
+| Cron báo cáo                       | INSERT … ON CONFLICT DO NOTHING                                                                       | Idempotent theo (kênh, tuần)                                                  |
+| Tạo lại báo cáo                    | tx + `FOR UPDATE` report                                                                              | Quota 3 lần chính xác                                                         |
+| Job purge / dọn upload             | `FOR UPDATE SKIP LOCKED` theo lô + `lock_timeout` (`set_config`); dọn upload: abort S3 **sau** commit | Nhiều worker chạy song song không giẫm nhau; không giữ khoá lúc gọi S3        |
+| Dọn `idempotency_keys` hết hạn     | `DELETE … WHERE (user_id, key) IN (SELECT … FOR UPDATE SKIP LOCKED)` theo lô                          | `claim` cùng key chờ rồi INSERT như mới, không lỗi trùng khoá                 |
+| Lưu trữ / xoá kênh                 | tx + `FOR SHARE` org member người gọi → `FOR UPDATE` kênh                                             | Quyền override của OrgAdm giữ nguyên tới commit                               |
+| Audit log                          | INSERT trong tx của thao tác                                                                          | Nhất quán                                                                     |

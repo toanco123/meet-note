@@ -7,3 +7,6 @@ export * from './organizations.js';
 export * from './invites.js';
 export * from './audit.js';
 export * from './channels.js';
+export * from './meetings.js';
+export * from './uploads.js';
+export * from './idempotency.js';

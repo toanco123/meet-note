@@ -15,6 +15,12 @@ process.env.LOG_LEVEL = 'silent';
 process.env.DATABASE_URL = database.url;
 process.env.REDIS_URL = inject('redisUrl');
 process.env.JWT_ACCESS_SECRET = randomBytes(32).toString('hex');
+const s3 = inject('s3');
+process.env.S3_ENDPOINT = s3.endpoint;
+process.env.S3_BUCKET = s3.bucket;
+process.env.S3_ACCESS_KEY_ID = s3.accessKeyId;
+process.env.S3_SECRET_ACCESS_KEY = s3.secretAccessKey;
+process.env.S3_FORCE_PATH_STYLE = 'true';
 
 afterAll(async () => {
   await database.drop();

@@ -5,6 +5,9 @@ const REQUIRED = {
   DATABASE_URL: 'postgres://u:p@localhost:5432/db',
   REDIS_URL: 'redis://localhost:6379',
   JWT_ACCESS_SECRET: 'x'.repeat(32),
+  S3_BUCKET: 'meetnote',
+  S3_ACCESS_KEY_ID: 'access',
+  S3_SECRET_ACCESS_KEY: 'secret-key',
 };
 
 describe('validateEnv', () => {

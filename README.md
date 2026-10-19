@@ -23,6 +23,7 @@ Trạng thái hiện tại:
 | M2 — Tổ chức                   | Xong (PR #2)                                                                                                                                                                           |
 | M3 — Mời, duyệt, sở hữu, audit | Xong (PR #3)                                                                                                                                                                           |
 | M4 — Kênh                      | Xong (PR #4). Kênh công khai / riêng tư, 4 vai trò, thành viên, tham gia / rời / chuyển chủ kênh, lưu trữ, xoá mềm + dọn dẹp, xoá tổ chức. Kèm: catalog lỗi, envelope `{ data, meta }` |
+| M5 — Upload                    | Xong (chưa PR). Upload chunked 8 MiB tới 2 GiB stream thẳng lên S3 (RustFS), resume, complete → meeting `queued` + job sau commit, `Idempotency-Key`, dọn upload hết hạn               |
 
 Chi tiết từng mốc (các bước, quyết định, bài học) trong [docs/plans/](docs/plans/).
 

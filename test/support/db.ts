@@ -15,6 +15,32 @@ export interface TestDb {
  */
 export function createTestDb(max = 10): TestDb {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, max });
+  // Lưới an toàn: teardown (`DROP DATABASE … WITH (FORCE)`) cắt connection pool đang đóng dở →
+  // `FATAL 57P01` → pool phát 'error'; không ai nghe = uncaught exception, CẢ lượt test bị tính
+  // là thất bại dù mọi test xanh. Chỉ bỏ qua đúng ca đó; lỗi khác vẫn ném ra cho lộ.
+  pool.on('error', (error) => {
+    if ((error as { code?: string }).code === '57P01' && pool.ending) return;
+    throw error;
+  });
   const db = drizzle({ client: pool, schema, casing: 'snake_case' });
-  return { db, pool, close: () => pool.end() };
+  return { db, pool, close: () => endPool(pool) };
+}
+
+/**
+ * BẪY (pg-pool 3.14): `pool.end()` resolve NGAY khi đã ra lệnh đóng cho các client, CHƯA đợi socket
+ * đóng hẳn (`_remove` gỡ client khỏi danh sách đồng bộ, `client.end()` chạy sau). Teardown chạy
+ * ngay sau đó sẽ cắt những connection còn sống. Đợi đủ sự kiện 'remove' (phát khi từng
+ * `client.end()` xong) mới coi là đóng.
+ */
+async function endPool(pool: Pool): Promise<void> {
+  const open = pool.totalCount;
+  let removed = 0;
+  const allClosed = new Promise<void>((resolve) => {
+    if (open === 0) resolve();
+    pool.on('remove', () => {
+      if (++removed >= open) resolve();
+    });
+  });
+  await pool.end();
+  await allClosed;
 }

@@ -148,6 +148,80 @@ export const Errors = {
     notPending: () => conflict(ErrorCode.JoinRequestNotPending, 'Yêu cầu này đã được xử lý.'),
   },
 
+  upload: {
+    /** Không tồn tại, của người khác, hoặc khác tổ chức — một câu cho cả ba (tài nguyên ẩn). */
+    notFound: () => notFound('Không tìm thấy upload.'),
+    expired: () => gone(ErrorCode.UploadExpired, 'Upload đã hết hạn. Hãy bắt đầu upload mới.'),
+    partOutOfRange: (totalParts: number) =>
+      badRequest(ErrorCode.UploadPartOutOfRange, `Số phần phải từ 1 đến ${totalParts}.`),
+    partSizeMismatch: (expected: number, actual: number) =>
+      badRequest(
+        ErrorCode.UploadPartSizeMismatch,
+        `Phần này phải đúng ${expected} byte, nhận Content-Length ${actual}.`,
+      ),
+    /** Trả TRƯỚC khi đọc body: không tốn băng thông nhận một phần quá cỡ rồi mới từ chối. */
+    partTooLarge: (expected: number) =>
+      new AppException(
+        ErrorCode.PayloadTooLarge,
+        HttpStatus.PAYLOAD_TOO_LARGE,
+        `Phần này tối đa ${expected} byte.`,
+      ),
+    lengthRequired: () =>
+      new AppException(
+        ErrorCode.LengthRequired,
+        HttpStatus.LENGTH_REQUIRED,
+        'Cần header Content-Length đúng kích thước phần (không nhận Transfer-Encoding: chunked).',
+      ),
+    unsupportedMediaType: () =>
+      new AppException(
+        ErrorCode.UnsupportedMediaType,
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+        'Body của phần phải là application/octet-stream.',
+      ),
+    /** Complete khi còn thiếu phần; `details` liệt kê số phần thiếu để client gửi tiếp. */
+    incomplete: (missing: number[]) =>
+      conflict(
+        ErrorCode.UploadIncomplete,
+        `Còn thiếu ${missing.length} phần. Hãy gửi đủ rồi complete lại.`,
+        missing.map((n) => ({ field: `parts.${n}`, message: 'chưa nhận' })),
+      ),
+    /** Client ngắt giữa chừng. Client không nhận được câu này; mục đích là log 4xx thay vì 5xx. */
+    partAborted: () =>
+      badRequest(ErrorCode.UploadPartAborted, 'Kết nối bị ngắt giữa chừng. Hãy gửi lại phần này.'),
+    /** Upload đã xong / đã huỷ / đã hết hạn nên không làm thao tác này được nữa. */
+    notActive: () =>
+      conflict(ErrorCode.UploadNotActive, 'Upload không còn ở trạng thái nhận dữ liệu.'),
+  },
+
+  /** Header `Idempotency-Key` (`@Idempotent()`), dùng chung cho mọi route. */
+  idempotency: {
+    invalidKey: () =>
+      badRequest(ErrorCode.ValidationFailed, 'Header Idempotency-Key không hợp lệ.', [
+        {
+          field: 'headers.idempotency-key',
+          message: '1–255 ký tự ASCII in được, không có khoảng trắng',
+        },
+      ]),
+    /** Cùng key nhưng method / path / body khác lần đầu — lỗi của client, gửi lại cũng vô ích. */
+    reused: () =>
+      new AppException(
+        ErrorCode.IdempotencyKeyReused,
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'Idempotency-Key này đã dùng cho một request khác. Mỗi thao tác mới cần một key mới.',
+      ),
+    /** Request đầu với key này chưa xong — thử lại sau sẽ nhận đúng response của nó. */
+    inProgress: () =>
+      conflict(
+        ErrorCode.IdempotencyInProgress,
+        'Request trước với Idempotency-Key này đang được xử lý. Hãy thử lại sau giây lát.',
+      ),
+  },
+
+  meeting: {
+    /** Không tồn tại / không có quyền xem / khác tổ chức — một câu (tài nguyên ẩn). */
+    notFound: () => notFound('Không tìm thấy cuộc họp.'),
+  },
+
   channel: {
     /** Không tồn tại, đã xoá, HOẶC riêng tư mà người gọi không được thấy — không lộ khác biệt. */
     notFound: () => notFound('Không tìm thấy kênh.'),
