@@ -4,22 +4,23 @@
 
 O = Owner, A = Admin, M = Member. ✓ = được, ✗ = không, ghi chú = có điều kiện.
 
-| Hành động                                              |                         O                          |       A       |                           M                           |
-| ------------------------------------------------------ | :------------------------------------------------: | :-----------: | :---------------------------------------------------: |
-| Xem thông tin org, danh sách thành viên                |                         ✓                          |       ✓       |                           ✓                           |
-| Sửa thông tin org, bật/tắt `require_join_approval`     |                         ✓                          |       ✓       |                           ✗                           |
-| Xoá org                                                |                         ✓                          |       ✗       |                           ✗                           |
-| Tạo / thu hồi link mời (role member)                   |                         ✓                          |       ✓       |                           ✗                           |
-| Tạo link mời với role admin                            |                         ✓                          |       ✗       |                           ✗                           |
-| Duyệt / từ chối yêu cầu vào org                        |                         ✓                          |       ✓       |                           ✗                           |
-| Đổi vai trò member ↔ admin                             |                         ✓                          |       ✗       |                           ✗                           |
-| Gỡ thành viên                                          |                 ✓ (trừ chính mình)                 | chỉ gỡ Member |                           ✗                           |
-| Chuyển quyền sở hữu                                    | ✓ (cho member/admin hiện có; owner cũ thành admin) |       ✗       |                           ✗                           |
-| Rời org                                                |              phải chuyển sở hữu trước              |       ✓       |                           ✓                           |
-| Tạo kênh                                               |                         ✓                          |       ✓       |                           ✓                           |
-| Xem danh sách mọi kênh, kể cả riêng tư (chỉ metadata)  |                         ✓                          |       ✓       | chỉ kênh công khai + kênh riêng tư mình là thành viên |
-| Quản trị bất kỳ kênh (lưu trữ, xoá, chỉ định chủ kênh) |                         ✓                          |       ✓       |                           ✗                           |
-| Xem audit log                                          |                         ✓                          |       ✓       |                           ✗                           |
+| Hành động                                                 |                         O                          |       A       |                           M                           |
+| --------------------------------------------------------- | :------------------------------------------------: | :-----------: | :---------------------------------------------------: |
+| Xem thông tin org, danh sách thành viên                   |                         ✓                          |       ✓       |                           ✓                           |
+| Sửa thông tin org, bật/tắt `require_join_approval`        |                         ✓                          |       ✓       |                           ✗                           |
+| Xoá org                                                   |                         ✓                          |       ✗       |                           ✗                           |
+| Tạo / thu hồi link mời (role member)                      |                         ✓                          |       ✓       |                           ✗                           |
+| Tạo link mời với role admin                               |                         ✓                          |       ✗       |                           ✗                           |
+| Duyệt / từ chối yêu cầu vào org                           |                         ✓                          |       ✓       |                           ✗                           |
+| Đổi vai trò member ↔ admin                                |                         ✓                          |       ✗       |                           ✗                           |
+| Gỡ thành viên                                             |                 ✓ (trừ chính mình)                 | chỉ gỡ Member |                           ✗                           |
+| Chuyển quyền sở hữu                                       | ✓ (cho member/admin hiện có; owner cũ thành admin) |       ✗       |                           ✗                           |
+| Rời org                                                   |              phải chuyển sở hữu trước              |       ✓       |                           ✓                           |
+| Tạo kênh                                                  |                         ✓                          |       ✓       |                           ✓                           |
+| Upload cuộc họp (thao tác trên một upload: chỉ người tạo) |                         ✓                          |       ✓       |                           ✓                           |
+| Xem danh sách mọi kênh, kể cả riêng tư (chỉ metadata)     |                         ✓                          |       ✓       | chỉ kênh công khai + kênh riêng tư mình là thành viên |
+| Quản trị bất kỳ kênh (lưu trữ, xoá, chỉ định chủ kênh)    |                         ✓                          |       ✓       |                           ✗                           |
+| Xem audit log                                             |                         ✓                          |       ✓       |                           ✗                           |
 
 Quy tắc chung: **không ai được tác động lên người có vai trò ≥ mình**, trừ Owner.
 

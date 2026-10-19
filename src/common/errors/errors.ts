@@ -148,6 +148,14 @@ export const Errors = {
     notPending: () => conflict(ErrorCode.JoinRequestNotPending, 'Yêu cầu này đã được xử lý.'),
   },
 
+  upload: {
+    /** Không tồn tại, của người khác, hoặc khác tổ chức — một câu cho cả ba (tài nguyên ẩn). */
+    notFound: () => notFound('Không tìm thấy upload.'),
+    /** Upload đã xong / đã huỷ / đã hết hạn nên không làm thao tác này được nữa. */
+    notActive: () =>
+      conflict(ErrorCode.UploadNotActive, 'Upload không còn ở trạng thái nhận dữ liệu.'),
+  },
+
   channel: {
     /** Không tồn tại, đã xoá, HOẶC riêng tư mà người gọi không được thấy — không lộ khác biệt. */
     notFound: () => notFound('Không tìm thấy kênh.'),

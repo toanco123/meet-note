@@ -3542,6 +3542,279 @@
         ]
       }
     },
+    "/v1/orgs/{orgId}/uploads": {
+      "post": {
+        "description": "Trả `chunkSize` (8 MiB) và `totalParts`. Gửi từng phần bằng\n`PUT …/uploads/:uploadId/parts/:partNumber` (có thể song song), rồi `POST …/complete`.\nUpload hết hạn sau 24 giờ nếu chưa complete.",
+        "operationId": "Uploads_init",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UploadResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Bắt đầu upload một file ghi âm (tối đa 2 GiB).",
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/uploads/{uploadId}": {
+      "get": {
+        "description": "Chỉ người tạo xem được; người khác nhận 404.",
+        "operationId": "Uploads_get",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "uploadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UploadResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Trạng thái upload + các phần đã nhận (dùng để resume).",
+        "tags": [
+          "Meetings"
+        ]
+      },
+      "delete": {
+        "description": "Gọi lại khi đã huỷ / đã hết hạn → vẫn 204. Upload đã complete → 409 `UPLOAD_NOT_ACTIVE`.",
+        "operationId": "Uploads_cancel",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "uploadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Đã huỷ upload."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Huỷ upload.",
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
     "/v1/orgs/{orgId}/audit-logs": {
       "get": {
         "description": "Lọc theo `action`, `actorId`. Log chỉ ghi thêm, không sửa/xoá được.",
@@ -4792,6 +5065,187 @@
         },
         "required": [
           "role"
+        ]
+      },
+      "UploadMimeType": {
+        "type": "string",
+        "enum": [
+          "audio/mpeg",
+          "audio/mp4",
+          "audio/x-m4a",
+          "audio/wav",
+          "audio/x-wav",
+          "audio/webm",
+          "audio/ogg",
+          "audio/flac",
+          "video/mp4",
+          "video/webm"
+        ],
+        "description": "Định dạng client khai. Định dạng thật do ffprobe kiểm khi xử lý (M6)."
+      },
+      "InitUploadDto": {
+        "type": "object",
+        "properties": {
+          "mimeType": {
+            "description": "Định dạng client khai. Định dạng thật do ffprobe kiểm khi xử lý (M6).",
+            "example": "audio/mp4",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UploadMimeType"
+              }
+            ]
+          },
+          "filename": {
+            "type": "string",
+            "description": "Tên file gốc — chỉ để hiển thị, KHÔNG dùng làm object key trên S3.",
+            "example": "giao-ban-2026-10-19.m4a",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "sizeBytes": {
+            "type": "number",
+            "description": "Kích thước cả file (byte), 1 B – 2 GiB.",
+            "example": 52428800,
+            "minimum": 1,
+            "maximum": 2147483648
+          },
+          "sha256": {
+            "type": "string",
+            "description": "sha256 của cả file (hex, không phân biệt hoa thường). Worker kiểm tra lại khi xử lý (M6).",
+            "example": "9f2c4a…64 ký tự hex",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "title": {
+            "type": "string",
+            "description": "Tiêu đề cuộc họp.",
+            "example": "Giao ban kỹ thuật tuần 42",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "recordedAt": {
+            "type": "string",
+            "description": "Thời điểm họp (ISO 8601) — dùng để xếp vào báo cáo tuần.",
+            "example": "2026-10-19T02:00:00.000Z"
+          }
+        },
+        "required": [
+          "mimeType",
+          "filename",
+          "sizeBytes",
+          "sha256",
+          "title",
+          "recordedAt"
+        ]
+      },
+      "UploadStatus": {
+        "type": "string",
+        "enum": [
+          "initiated",
+          "completed",
+          "aborted",
+          "expired"
+        ],
+        "description": "`initiated` → đang nhận phần; `expired` → quá 24 giờ chưa complete."
+      },
+      "UploadPartResponseDto": {
+        "type": "object",
+        "properties": {
+          "partNumber": {
+            "type": "number",
+            "example": 1
+          },
+          "sizeBytes": {
+            "type": "number",
+            "example": 8388608
+          }
+        },
+        "required": [
+          "partNumber",
+          "sizeBytes"
+        ]
+      },
+      "UploadResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "`initiated` → đang nhận phần; `expired` → quá 24 giờ chưa complete.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UploadStatus"
+              }
+            ]
+          },
+          "mimeType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UploadMimeType"
+              }
+            ]
+          },
+          "meetingId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Meeting tạo ra khi complete."
+          },
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string",
+            "example": "giao-ban-2026-10-19.m4a"
+          },
+          "sizeBytes": {
+            "type": "number",
+            "example": 52428800
+          },
+          "chunkSize": {
+            "type": "number",
+            "description": "Mỗi phần (trừ phần cuối) phải đúng bằng số byte này.",
+            "example": 8388608
+          },
+          "totalParts": {
+            "type": "number",
+            "example": 7
+          },
+          "receivedParts": {
+            "description": "Phần đã nhận, tăng dần theo `partNumber`. Mất mạng thì gửi tiếp những phần còn thiếu.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UploadPartResponseDto"
+            }
+          },
+          "title": {
+            "type": "string",
+            "example": "Giao ban kỹ thuật tuần 42"
+          },
+          "recordedAt": {
+            "type": "string",
+            "example": "2026-10-19T02:00:00.000Z"
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "Quá thời điểm này mà chưa complete thì upload hết hạn.",
+            "example": "2026-10-20T02:00:00.000Z"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-19T02:00:00.000Z"
+          }
+        },
+        "required": [
+          "status",
+          "mimeType",
+          "meetingId",
+          "id",
+          "filename",
+          "sizeBytes",
+          "chunkSize",
+          "totalParts",
+          "receivedParts",
+          "title",
+          "recordedAt",
+          "expiresAt",
+          "createdAt"
         ]
       },
       "AuditAction": {

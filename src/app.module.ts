@@ -8,6 +8,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { InvitesModule } from './modules/invites/invites.module.js';
 import { MeModule } from './modules/me/me.module.js';
 import { OrganizationsModule } from './modules/organizations/organizations.module.js';
+import { UploadsModule } from './modules/uploads/uploads.module.js';
 
 /** Root module của tiến trình api (HTTP + WebSocket). */
 @Module({
@@ -20,6 +21,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
     OrganizationsModule,
     InvitesModule,
     ChannelsModule,
+    UploadsModule,
     AuditLogsModule,
   ],
 })

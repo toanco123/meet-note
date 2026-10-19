@@ -1,4 +1,5 @@
 import {
+  Global,
   Inject,
   Injectable,
   Logger,
@@ -39,7 +40,9 @@ class StorageLifecycle implements OnApplicationBootstrap, OnModuleDestroy {
 
 /**
  * Lưu file trên S3 / RustFS (M5). Nằm trong `CoreModule`: api upload, worker (M6) đọc lại file.
+ * `@Global()` như `DatabaseModule` / `RedisModule`: module domain inject `OBJECT_STORAGE` không cần import.
  */
+@Global()
 @Module({
   providers: [
     {

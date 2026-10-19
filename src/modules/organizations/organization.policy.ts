@@ -36,6 +36,8 @@ export const orgPolicy = {
   // M4 — kênh chưa tồn tại nên là quyền cấp org. Danh sách tự lọc theo quyền thấy (service).
   'org.channel.create': () => true,
   'org.channel.list': () => true,
+  // M5 — mọi thành viên upload được; thao tác trên MỘT upload chỉ người tạo (service kiểm).
+  'org.upload': () => true,
 } satisfies Record<string, (ctx: OrgMembershipContext) => boolean>;
 
 export type OrgPermission = keyof typeof orgPolicy;

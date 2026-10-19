@@ -40,6 +40,9 @@ export const ErrorCode = {
   OrgTransferInvalidTarget: 'ORG_TRANSFER_INVALID_TARGET',
   OrgMemberOwnsChannels: 'ORG_MEMBER_OWNS_CHANNELS',
 
+  // M5 — Upload
+  UploadNotActive: 'UPLOAD_NOT_ACTIVE',
+
   // M4 — Kênh
   ChannelNameTaken: 'CHANNEL_NAME_TAKEN',
   ChannelArchived: 'CHANNEL_ARCHIVED',
