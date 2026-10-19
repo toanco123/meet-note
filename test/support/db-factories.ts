@@ -5,9 +5,12 @@ import {
   type ChannelVisibility,
   channelMembers,
   channels,
+  meetings,
   type OrgRoleValue,
   organizationMembers,
   organizations,
+  type UploadRow,
+  uploads,
   users,
 } from '../../src/infra/database/schema/index.js';
 
@@ -94,4 +97,57 @@ export async function addChannelMember(
   role: Exclude<ChannelRoleValue, 'owner'> = 'member',
 ): Promise<void> {
   await db.insert(channelMembers).values({ channelId: channel.id, orgId, userId, role });
+}
+
+export async function insertMeeting(
+  db: Database,
+  orgId: string,
+  ownerId: string | null,
+  overrides: Partial<typeof meetings.$inferInsert> = {},
+): Promise<{ id: string }> {
+  const [row] = await db
+    .insert(meetings)
+    .values({
+      orgId,
+      ownerId,
+      title: 'Họp giao ban',
+      recordedAt: new Date(),
+      sourceObjectKey: `orgs/${orgId}/uploads/${randomBytes(4).toString('hex')}/source`,
+      ...overrides,
+    })
+    .returning({ id: meetings.id });
+  if (!row) throw new Error('insertMeeting thất bại');
+  return row;
+}
+
+const MiB = 1024 * 1024;
+
+/** Upload `initiated` hợp lệ (mặc định 20 MiB → 3 phần 8 MiB). Ghi đè từng cột khi cần. */
+export async function insertUpload(
+  db: Database,
+  orgId: string,
+  userId: string,
+  overrides: Partial<typeof uploads.$inferInsert> = {},
+): Promise<UploadRow> {
+  const [row] = await db
+    .insert(uploads)
+    .values({
+      orgId,
+      userId,
+      filename: 'giao-ban.m4a',
+      mimeType: 'audio/mp4',
+      sizeBytes: 20 * MiB,
+      sha256: randomBytes(32).toString('hex'),
+      chunkSize: 8 * MiB,
+      totalParts: 3,
+      title: 'Họp giao ban',
+      recordedAt: new Date(),
+      objectKey: `orgs/${orgId}/uploads/${randomBytes(4).toString('hex')}/source`,
+      s3UploadId: randomBytes(8).toString('hex'),
+      expiresAt: new Date(Date.now() + 24 * 3600 * 1000),
+      ...overrides,
+    })
+    .returning();
+  if (!row) throw new Error('insertUpload thất bại');
+  return row;
 }

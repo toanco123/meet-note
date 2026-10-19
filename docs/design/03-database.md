@@ -225,12 +225,16 @@ Trigram index giúp `LIKE '%…%'`. Lấy `limit + 1` dòng để biết còn tr
 
 ### `uploads`
 
-id, org_id, user_id, filename, mime_type, size_bytes bigint, sha256 (hex, client gửi lúc init), chunk_size int, total_parts int, object_key, s3_upload_id, status (`initiated|completed|aborted|expired`), meeting_id NULL, expires_at, created_at, completed_at.
-Index: `(status, expires_at) WHERE status = 'initiated'` cho job dọn dẹp.
+id, org_id, user_id, filename, mime_type, size_bytes bigint, sha256 (hex, client gửi lúc init), chunk_size int, total_parts int, title, recorded_at (khai lúc init để `complete` tạo được meeting), object_key (`orgs/{orgId}/uploads/{uploadId}/source`, không chứa dữ liệu người dùng), s3_upload_id, status (`initiated|completed|aborted|expired`), meeting_id NULL, expires_at, storage_aborted_at NULL, created_at, completed_at.
+
+- FK `user_id → users` (**không** trỏ thành viên org, M5 Q1): người tạo rời org thì cascade không xoá dòng trong khi S3 còn giữ các phần; job dọn dẹp abort khi hết hạn. FK `(meeting_id, org_id) → meetings(id, org_id)`.
+- CHECK (M5): size 1 B – 2 GiB; sha256 `^[0-9a-f]{64}$`; chunk_size ≥ 5 MiB (S3); `total_parts = ceil(size / chunk)` và ≤ 10 000; mime trong danh sách cho phép; `status = 'completed'` ⇔ có `meeting_id` + `completed_at`.
+- `storage_aborted_at`: huỷ / hết hạn đánh dấu status TRƯỚC (trong DB), gọi `AbortMultipartUpload` SAU (ngoài transaction). S3 lỗi → cột này NULL → lần dọn sau thử lại.
+- Index: `uploads_expiry_idx (expires_at) WHERE status = 'initiated'` (job dọn dẹp), `uploads_abort_retry_idx (id) WHERE status IN ('aborted','expired') AND storage_aborted_at IS NULL`.
 
 ### `upload_parts`
 
-upload_id FK ON DELETE CASCADE, part_number int, size_bytes int, etag text, created_at. PK `(upload_id, part_number)`.
+upload_id FK ON DELETE CASCADE, part_number int (CHECK 1–10 000), size_bytes int, etag text, created_at. PK `(upload_id, part_number)`. Không mang `org_id`: chỉ có một bảng cha nên không có đường ghép chéo tổ chức (composite FK theo org chỉ cần khi dòng tham chiếu từ hai phía, như `channel_members`).
 PUT part là **idempotent**: `INSERT … ON CONFLICT (upload_id, part_number) DO UPDATE SET etag = EXCLUDED.etag`.
 
 **Complete:** `SELECT uploads … FOR UPDATE`. Nếu status đã là `completed` thì trả lại meeting đã tạo (idempotent). Nếu chưa:
@@ -242,22 +246,22 @@ PUT part là **idempotent**: `INSERT … ON CONFLICT (upload_id, part_number) DO
 
 ### `meetings`
 
-| Cột                                 | Kiểu                                                                                       | Ghi chú                                                                                                                      |
-| ----------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| id                                  | uuid PK                                                                                    |                                                                                                                              |
-| org_id                              | uuid                                                                                       | `UNIQUE (id, org_id)`                                                                                                        |
-| owner_id                            | uuid                                                                                       | FK `(org_id, owner_id)` → organization_members. Nếu owner rời org thì chặn (RESTRICT): service chuyển chủ hoặc xoá mềm trước |
-| title                               | text                                                                                       |                                                                                                                              |
-| recorded_at                         | timestamptz NOT NULL                                                                       | thời điểm họp, dùng cho báo cáo tuần                                                                                         |
-| duration_ms                         | int NULL                                                                                   | điền sau khi ffprobe                                                                                                         |
-| language                            | text NULL                                                                                  | Whisper phát hiện                                                                                                            |
-| status                              | text CHECK IN ('queued','preprocessing','transcribing','summarizing','completed','failed') |                                                                                                                              |
-| failure_code, failure_message       | text NULL                                                                                  |                                                                                                                              |
-| attempt                             | int DEFAULT 0                                                                              |                                                                                                                              |
-| source_object_key, audio_object_key | text                                                                                       |                                                                                                                              |
-| created_at, updated_at, deleted_at  | timestamptz                                                                                |                                                                                                                              |
+| Cột                                 | Kiểu                                                                                       | Ghi chú                                                                                                                                                                                                                                          |
+| ----------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| id                                  | uuid PK                                                                                    |                                                                                                                                                                                                                                                  |
+| org_id                              | uuid                                                                                       | `UNIQUE (id, org_id)`                                                                                                                                                                                                                            |
+| owner_id                            | uuid NULL                                                                                  | FK `meetings_owner_fk (org_id, owner_id)` → organization_members **ON DELETE SET NULL (owner_id)** (M5 Q1, PG 15+, migration viết tay `0007`): chủ rời org thì meeting ở lại, `org_id` giữ nguyên. `SET NULL` thường sẽ null cả `org_id` → 23502 |
+| title                               | text                                                                                       |                                                                                                                                                                                                                                                  |
+| recorded_at                         | timestamptz NOT NULL                                                                       | thời điểm họp, dùng cho báo cáo tuần                                                                                                                                                                                                             |
+| duration_ms                         | int NULL                                                                                   | điền sau khi ffprobe                                                                                                                                                                                                                             |
+| language                            | text NULL                                                                                  | Whisper phát hiện                                                                                                                                                                                                                                |
+| status                              | text CHECK IN ('queued','preprocessing','transcribing','summarizing','completed','failed') |                                                                                                                                                                                                                                                  |
+| failure_code, failure_message       | text NULL                                                                                  |                                                                                                                                                                                                                                                  |
+| attempt                             | int DEFAULT 1                                                                              | lần chạy pipeline, đếm từ 1 cho khớp `jobId …a1`; CHECK ≥ 1                                                                                                                                                                                      |
+| source_object_key, audio_object_key | text                                                                                       |                                                                                                                                                                                                                                                  |
+| created_at, updated_at, deleted_at  | timestamptz                                                                                |                                                                                                                                                                                                                                                  |
 
-Index: `(org_id, owner_id, created_at DESC, id) WHERE deleted_at IS NULL`, `(org_id, recorded_at)`.
+Index: `meetings_org_owner_created_idx (org_id, owner_id, created_at DESC NULLS FIRST, id DESC NULLS FIRST)` — **không partial**, vì còn phục vụ khoá ngoại `meetings_owner_fk` (xoá một thành viên phải tìm mọi meeting của họ, kể cả đã xoá mềm; Postgres không tự tạo index cho phía tham chiếu); `(org_id, recorded_at)`.
 
 **Chuyển trạng thái = UPDATE có điều kiện** (optimistic, không giữ khoá lâu):
 
@@ -359,7 +363,7 @@ id bigint identity, org_id, actor_id NULL (NULL = hệ thống), action text (vd
 
 ### `idempotency_keys` (M5)
 
-key text, user_id, method, path, request_hash, status_code, response jsonb, created_at, expires_at. PK `(user_id, key)`.
+user_id, key, method, path, request_hash (sha256 hex của method + path + body), status (`processing|completed`), response_status, response_body jsonb, created_at, expires_at. PK `(user_id, key)`, CHECK `completed` ⇔ có `response_status`, index `(expires_at)` để dọn.
 Dùng cho các POST không tự idempotent, theo header `Idempotency-Key`.
 
 ## 7. Thứ tự khoá chung (M4) và tóm tắt chỗ cần transaction / khoá
