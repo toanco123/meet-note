@@ -178,12 +178,24 @@ export const Errors = {
         HttpStatus.UNSUPPORTED_MEDIA_TYPE,
         'Body của phần phải là application/octet-stream.',
       ),
+    /** Complete khi còn thiếu phần; `details` liệt kê số phần thiếu để client gửi tiếp. */
+    incomplete: (missing: number[]) =>
+      conflict(
+        ErrorCode.UploadIncomplete,
+        `Còn thiếu ${missing.length} phần. Hãy gửi đủ rồi complete lại.`,
+        missing.map((n) => ({ field: `parts.${n}`, message: 'chưa nhận' })),
+      ),
     /** Client ngắt giữa chừng. Client không nhận được câu này; mục đích là log 4xx thay vì 5xx. */
     partAborted: () =>
       badRequest(ErrorCode.UploadPartAborted, 'Kết nối bị ngắt giữa chừng. Hãy gửi lại phần này.'),
     /** Upload đã xong / đã huỷ / đã hết hạn nên không làm thao tác này được nữa. */
     notActive: () =>
       conflict(ErrorCode.UploadNotActive, 'Upload không còn ở trạng thái nhận dữ liệu.'),
+  },
+
+  meeting: {
+    /** Không tồn tại / không có quyền xem / khác tổ chức — một câu (tài nguyên ẩn). */
+    notFound: () => notFound('Không tìm thấy cuộc họp.'),
   },
 
   channel: {

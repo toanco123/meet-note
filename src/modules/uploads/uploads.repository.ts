@@ -84,6 +84,24 @@ export class UploadsRepository {
     return result.rows.length > 0;
   }
 
+  listPartsForComplete(
+    uploadId: string,
+    executor: DbExecutor,
+  ): Promise<Array<{ partNumber: number; etag: string }>> {
+    return executor
+      .select({ partNumber: uploadParts.partNumber, etag: uploadParts.etag })
+      .from(uploadParts)
+      .where(eq(uploadParts.uploadId, uploadId))
+      .orderBy(asc(uploadParts.partNumber));
+  }
+
+  async markCompleted(uploadId: string, meetingId: string, executor: DbExecutor): Promise<void> {
+    await executor
+      .update(uploads)
+      .set({ status: 'completed', meetingId, completedAt: sql`now()` })
+      .where(eq(uploads.id, uploadId));
+  }
+
   async markAborted(uploadId: string, executor: DbExecutor): Promise<void> {
     await executor.update(uploads).set({ status: 'aborted' }).where(eq(uploads.id, uploadId));
   }

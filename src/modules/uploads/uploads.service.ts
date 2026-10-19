@@ -3,10 +3,12 @@ import { sql } from 'drizzle-orm';
 import { Errors } from '../../common/errors/errors.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database } from '../../infra/database/database.types.js';
-import type { UploadRow, UploadStatus } from '../../infra/database/schema/index.js';
+import type { MeetingRow, UploadRow, UploadStatus } from '../../infra/database/schema/index.js';
 import { MultipartUploadNotFoundError } from '../../infra/storage/storage.errors.js';
 import { OBJECT_STORAGE } from '../../infra/storage/storage.module.js';
 import type { ObjectStorage } from '../../infra/storage/storage.types.js';
+import { MeetingsRepository } from '../meetings/meetings.repository.js';
+import { MeetingsService } from '../meetings/meetings.service.js';
 import type { InitUploadDto } from './dto/init-upload.dto.js';
 import { UploadsRepository } from './uploads.repository.js';
 import type { PartUploadInput, SavedPart, UploadView } from './uploads.types.js';
@@ -23,6 +25,8 @@ export class UploadsService {
     @Inject(DRIZZLE) private readonly db: Database,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly repo: UploadsRepository,
+    private readonly meetingsRepo: MeetingsRepository,
+    private readonly meetings: MeetingsService,
   ) {}
 
   /**
@@ -129,6 +133,82 @@ export class UploadsService {
     });
     if (!saved) throw Errors.upload.notActive();
     return { partNumber, sizeBytes: length };
+  }
+
+  /**
+   * Ghép file trên S3 → tạo meeting `queued` → COMMIT → enqueue `meeting.preprocess`.
+   *
+   * - Khoá `FOR UPDATE` dòng upload suốt transaction, kể cả lúc gọi S3 (M5 Q2, timeout 30 s): hai
+   *   complete song song xếp hàng → đúng MỘT meeting. Khoá chỉ chặn chính upload này.
+   * - Gọi lại khi đã `completed` → trả meeting cũ (`created: false`, 200), không tạo thêm.
+   * - Enqueue SAU commit (xem `MeetingsService.enqueuePreprocess`).
+   */
+  async complete(
+    orgId: string,
+    userId: string,
+    uploadId: string,
+    requestId: string | null,
+  ): Promise<{ meeting: MeetingRow; created: boolean }> {
+    const outcome = await this.db.transaction(async (tx) => {
+      const upload = await this.repo.lockOwned(orgId, userId, uploadId, tx);
+      if (!upload) throw Errors.upload.notFound();
+      if (upload.status === 'completed' && upload.meetingId) {
+        return { meetingId: upload.meetingId, created: false };
+      }
+      assertAcceptingParts(upload);
+
+      const parts = await this.repo.listPartsForComplete(upload.id, tx);
+      const received = new Set(parts.map((p) => p.partNumber));
+      const missing = Array.from({ length: upload.totalParts }, (_, i) => i + 1).filter(
+        (n) => !received.has(n),
+      );
+      if (missing.length > 0) throw Errors.upload.incomplete(missing);
+
+      await this.completeInStorage(upload, parts);
+      const meeting = await this.meetingsRepo.insert(
+        {
+          orgId: upload.orgId,
+          ownerId: upload.userId,
+          title: upload.title,
+          recordedAt: upload.recordedAt,
+          sourceObjectKey: upload.objectKey,
+        },
+        tx,
+      );
+      await this.repo.markCompleted(upload.id, meeting.id, tx);
+      return { meetingId: meeting.id, created: true };
+    });
+
+    const meeting = await this.meetingsRepo.findById(outcome.meetingId);
+    if (!meeting) throw Errors.meeting.notFound();
+    // Cả lần đầu lẫn lần gọi lại: meeting còn `queued` thì enqueue (jobId trùng → BullMQ bỏ qua).
+    // Lần đầu enqueue lỗi (Redis sập) thì client gọi lại complete là tự sửa được.
+    await this.meetings.enqueuePreprocess(meeting, requestId);
+    return { meeting, created: outcome.created };
+  }
+
+  /**
+   * `NoSuchUpload` lúc complete = multipart KHÔNG còn. Một khả năng hợp lệ: lần complete trước đã
+   * ghép xong trên S3 nhưng ghi DB lỗi → transaction rollback → DB vẫn `initiated`. Không gỡ thì
+   * upload KẸT MÃI (mọi lần complete sau đều nhận NoSuchUpload). Gỡ: object đã có và đúng kích
+   * thước → coi như S3 xong, đi tiếp phần ghi DB. Không có object → multipart đã bị huỷ → 409.
+   */
+  private async completeInStorage(
+    upload: UploadRow,
+    parts: Array<{ partNumber: number; etag: string }>,
+  ): Promise<void> {
+    try {
+      await this.storage.completeMultipartUpload(
+        upload.objectKey,
+        upload.s3UploadId,
+        parts,
+        AbortSignal.timeout(30_000),
+      );
+    } catch (error) {
+      if (!(error instanceof MultipartUploadNotFoundError)) throw error;
+      const object = await this.storage.headObject(upload.objectKey);
+      if (object?.sizeBytes !== upload.sizeBytes) throw Errors.upload.notActive();
+    }
   }
 
   /**

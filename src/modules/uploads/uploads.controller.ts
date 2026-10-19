@@ -13,11 +13,20 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiBody, ApiConsumes, ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { AuthUser } from '../../common/auth/auth.types.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
+import { UserAuditCtx } from '../audit/audit-context.decorator.js';
+import type { UserAuditContext } from '../audit/audit.types.js';
+import { MeetingResponseDto } from '../meetings/dto/meeting-response.dto.js';
 import { RequireOrgPermission } from '../organizations/guards/require-org-permission.decorator.js';
 import { InitUploadDto } from './dto/init-upload.dto.js';
 import { UploadPartResponseDto, UploadResponseDto } from './dto/upload-response.dto.js';
@@ -101,6 +110,36 @@ export class UploadsController {
       if (!req.complete) res.setHeader('Connection', 'close');
       throw error;
     }
+  }
+
+  /**
+   * Hoàn tất upload → tạo cuộc họp (trạng thái `queued`, chờ xử lý).
+   *
+   * @remarks Còn thiếu phần → 409 `UPLOAD_INCOMPLETE` (`details` liệt kê phần thiếu). Gọi lại khi
+   * đã hoàn tất → 200 với đúng cuộc họp đã tạo (không tạo thêm).
+   */
+  @Post(':uploadId/complete')
+  @RequireOrgPermission('org.upload')
+  @ApiOkResponse({
+    type: MeetingResponseDto,
+    description: 'Đã hoàn tất từ trước: trả lại cuộc họp đó.',
+  })
+  @ApiErrorResponses(400, 409, 410)
+  async complete(
+    @Param('orgId') orgId: string,
+    @Param('uploadId', new ParseUUIDPipe()) uploadId: string,
+    @UserAuditCtx() ctx: UserAuditContext,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<MeetingResponseDto> {
+    const { meeting, created } = await this.uploads.complete(
+      orgId,
+      ctx.actorId,
+      uploadId,
+      ctx.requestId ?? null,
+    );
+    // 201 lần đầu, 200 khi gọi lại. Envelope đọc `res.statusCode` nên `meta.statusCode` khớp theo.
+    if (!created) res.status(HttpStatus.OK);
+    return MeetingResponseDto.from(meeting);
   }
 
   /**

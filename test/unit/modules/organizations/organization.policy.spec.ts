@@ -32,6 +32,7 @@ describe('orgPolicy — loại hành động theo vai trò', () => {
     ['org.channel.create', true, true, true],
     ['org.channel.list', true, true, true],
     ['org.upload', true, true, true],
+    ['org.meeting.read', true, true, true],
   ];
 
   it.each(

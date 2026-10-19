@@ -48,6 +48,7 @@ export const ErrorCode = {
   UploadPartOutOfRange: 'UPLOAD_PART_OUT_OF_RANGE',
   UploadPartSizeMismatch: 'UPLOAD_PART_SIZE_MISMATCH',
   UploadPartAborted: 'UPLOAD_PART_ABORTED',
+  UploadIncomplete: 'UPLOAD_INCOMPLETE',
 
   // M4 — Kênh
   ChannelNameTaken: 'CHANNEL_NAME_TAKEN',
