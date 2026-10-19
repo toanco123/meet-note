@@ -3544,7 +3544,7 @@
     },
     "/v1/orgs/{orgId}/uploads": {
       "post": {
-        "description": "Trả `chunkSize` (8 MiB) và `totalParts`. Gửi từng phần bằng\n`PUT …/uploads/:uploadId/parts/:partNumber` (có thể song song), rồi `POST …/complete`.\nUpload hết hạn sau 24 giờ nếu chưa complete.",
+        "description": "Trả `chunkSize` (8 MiB) và `totalParts`. Gửi từng phần bằng\n`PUT …/uploads/:uploadId/parts/:partNumber` (có thể song song), rồi `POST …/complete`.\nUpload hết hạn sau 24 giờ nếu chưa complete. Gửi kèm `Idempotency-Key` để gọi lại an toàn khi\nmất kết nối (gọi lại không kèm key sẽ mở thêm một upload mới).",
         "operationId": "Uploads_init",
         "parameters": [
           {
@@ -3555,6 +3555,17 @@
             "schema": {
               "format": "uuid",
               "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Tuỳ chọn, 1–255 ký tự ASCII in được, theo từng người dùng, giữ 24 giờ. Gửi lại cùng key + cùng nội dung → nhận lại đúng response lần đầu (header `Idempotent-Replayed: true`). Request đầu chưa xong → 409 `IDEMPOTENCY_IN_PROGRESS`; nội dung khác → 422 `IDEMPOTENCY_KEY_REUSED`. Request lỗi không được ghi nhớ.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
             }
           }
         ],
@@ -3623,6 +3634,26 @@
           },
           "404": {
             "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Dùng lại `Idempotency-Key` cho một request khác (`IDEMPOTENCY_KEY_REUSED`).",
             "content": {
               "application/json": {
                 "schema": {

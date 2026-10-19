@@ -50,6 +50,10 @@ export const ErrorCode = {
   UploadPartAborted: 'UPLOAD_PART_ABORTED',
   UploadIncomplete: 'UPLOAD_INCOMPLETE',
 
+  // M5 — Idempotency-Key (dùng chung cho mọi route `@Idempotent()`)
+  IdempotencyKeyReused: 'IDEMPOTENCY_KEY_REUSED',
+  IdempotencyInProgress: 'IDEMPOTENCY_IN_PROGRESS',
+
   // M4 — Kênh
   ChannelNameTaken: 'CHANNEL_NAME_TAKEN',
   ChannelArchived: 'CHANNEL_ARCHIVED',

@@ -193,6 +193,30 @@ export const Errors = {
       conflict(ErrorCode.UploadNotActive, 'Upload không còn ở trạng thái nhận dữ liệu.'),
   },
 
+  /** Header `Idempotency-Key` (`@Idempotent()`), dùng chung cho mọi route. */
+  idempotency: {
+    invalidKey: () =>
+      badRequest(ErrorCode.ValidationFailed, 'Header Idempotency-Key không hợp lệ.', [
+        {
+          field: 'headers.idempotency-key',
+          message: '1–255 ký tự ASCII in được, không có khoảng trắng',
+        },
+      ]),
+    /** Cùng key nhưng method / path / body khác lần đầu — lỗi của client, gửi lại cũng vô ích. */
+    reused: () =>
+      new AppException(
+        ErrorCode.IdempotencyKeyReused,
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'Idempotency-Key này đã dùng cho một request khác. Mỗi thao tác mới cần một key mới.',
+      ),
+    /** Request đầu với key này chưa xong — thử lại sau sẽ nhận đúng response của nó. */
+    inProgress: () =>
+      conflict(
+        ErrorCode.IdempotencyInProgress,
+        'Request trước với Idempotency-Key này đang được xử lý. Hãy thử lại sau giây lát.',
+      ),
+  },
+
   meeting: {
     /** Không tồn tại / không có quyền xem / khác tổ chức — một câu (tài nguyên ẩn). */
     notFound: () => notFound('Không tìm thấy cuộc họp.'),

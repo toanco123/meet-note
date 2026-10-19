@@ -13,10 +13,15 @@ sequenceDiagram
   participant S3 as RustFS/S3
   participant Q as Redis (BullMQ)
 
-  C->>A: POST /uploads {filename, sizeBytes, sha256, title, recordedAt}
+  C->>A: POST /uploads {filename, sizeBytes, sha256, title, recordedAt} (Idempotency-Key)
+  A->>DB: giữ chỗ key (INSERT … ON CONFLICT DO UPDATE … WHERE hết hạn / quá lease)
+  alt key đã xong, cùng nội dung
+    A-->>C: 201 upload cũ (Idempotent-Replayed: true)
+  end
   A->>A: validate (≤ 2GB, mime cho phép)
   A->>S3: CreateMultipartUpload
   A->>DB: INSERT uploads (status=initiated, expires_at=+24h)
+  A->>DB: lưu response vào idempotency_keys (completed)
   A-->>C: {uploadId, chunkSize: 8MB, totalParts}
 
   loop mỗi part (có thể song song 3–4)
@@ -28,7 +33,7 @@ sequenceDiagram
 
   Note over C,A: Mất mạng → GET /uploads/:id → nhận danh sách part đã có → gửi tiếp phần thiếu
 
-  C->>A: POST /uploads/:id/complete (Idempotency-Key)
+  C->>A: POST /uploads/:id/complete
   A->>DB: BEGIN; SELECT uploads FOR UPDATE
   alt đã completed
     A-->>C: 200 meeting cũ (idempotent)
@@ -48,6 +53,7 @@ Bẫy & cách xử lý:
 - **S3 xong mà DB lỗi (M5 B5).** S3 `CompleteMultipartUpload` thành công rồi transaction rollback → DB vẫn `initiated` nhưng multipart đã ghép xong. Gọi lại complete: **RustFS** cho complete lại và trả thành công; **AWS S3** có thể trả `NoSuchUpload`. Service xử lý cả hai: gặp `NoSuchUpload` thì `HEAD` object — có và đúng `size_bytes` → coi như S3 xong, đi tiếp phần ghi DB; không có → multipart đã bị huỷ → 409. Không có bước này thì upload kẹt mãi trên server kiểu AWS.
 - **Enqueue sau COMMIT.** Nếu enqueue trước, worker có thể chạy khi meeting chưa tồn tại trong DB. Nếu commit xong mà enqueue lỗi: complete vẫn trả meeting (không ném); gọi lại complete enqueue lại (jobId trùng → BullMQ bỏ qua nếu đã có); từ M6 job quét meeting `queued` quá 5 phút để enqueue lại. Đây là bản "outbox nghèo".
 - `jobId = meeting.preprocess.{meetingId}.a{attempt}`: BullMQ bỏ qua job trùng ID, nên enqueue lại là an toàn. ID phải chứa **tên bước**, vì các bước dùng chung queue mà trùng ID thì bước sau bị bỏ qua. ID cũng phải chứa **lần chạy** (`attempt`), vì job cũ còn giữ trong tập failed/completed thì `POST /retry` sẽ bị bỏ qua. BullMQ **cấm dấu `:`** trong custom jobId (`Custom Id cannot contain :`).
+- **Init lặp lại (M5 B6).** Init không tự idempotent: gọi lại là mở multipart mới. Client mất response (timeout, mất mạng) mà gửi lại không kèm key → hai upload, một cái bỏ dở tới khi hết hạn. Kèm `Idempotency-Key` → lần sau nhận lại đúng upload cũ. Complete thì KHÔNG cần key (tự idempotent theo trạng thái).
 - Upload bỏ dở: job dọn dẹp (`FOR UPDATE SKIP LOCKED`) gọi `AbortMultipartUpload` và set `expired`. Nếu không abort, S3 vẫn tính dung lượng cho các part mồ côi.
 
 ### 1.2 Pipeline xử lý (worker)

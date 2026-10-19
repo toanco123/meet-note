@@ -25,6 +25,7 @@ import type { AuthUser } from '../../common/auth/auth.types.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { UserAuditCtx } from '../audit/audit-context.decorator.js';
+import { Idempotent } from '../idempotency/idempotent.decorator.js';
 import type { UserAuditContext } from '../audit/audit.types.js';
 import { MeetingResponseDto } from '../meetings/dto/meeting-response.dto.js';
 import { RequireOrgPermission } from '../organizations/guards/require-org-permission.decorator.js';
@@ -42,10 +43,12 @@ export class UploadsController {
    *
    * @remarks Trả `chunkSize` (8 MiB) và `totalParts`. Gửi từng phần bằng
    * `PUT …/uploads/:uploadId/parts/:partNumber` (có thể song song), rồi `POST …/complete`.
-   * Upload hết hạn sau 24 giờ nếu chưa complete.
+   * Upload hết hạn sau 24 giờ nếu chưa complete. Gửi kèm `Idempotency-Key` để gọi lại an toàn khi
+   * mất kết nối (gọi lại không kèm key sẽ mở thêm một upload mới).
    */
   @Post()
   @RequireOrgPermission('org.upload')
+  @Idempotent()
   @ApiErrorResponses(400)
   async init(
     @Param('orgId') orgId: string,

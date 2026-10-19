@@ -13,6 +13,7 @@ const DESCRIPTIONS: Record<DocumentedErrorStatus, string> = {
   411: 'Thiếu header `Content-Length` (`LENGTH_REQUIRED`).',
   413: 'Payload quá lớn (`PAYLOAD_TOO_LARGE`).',
   415: 'Sai `Content-Type` cho route này (`UNSUPPORTED_MEDIA_TYPE`).',
+  422: 'Dùng lại `Idempotency-Key` cho một request khác (`IDEMPOTENCY_KEY_REUSED`).',
   429: 'Gửi quá nhiều request (`RATE_LIMITED`).',
 };
 

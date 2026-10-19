@@ -363,8 +363,14 @@ id bigint identity, org_id, actor_id NULL (NULL = hệ thống), action text (vd
 
 ### `idempotency_keys` (M5)
 
-user_id, key, method, path, request_hash (sha256 hex của method + path + body), status (`processing|completed`), response_status, response_body jsonb, created_at, expires_at. PK `(user_id, key)`, CHECK `completed` ⇔ có `response_status`, index `(expires_at)` để dọn.
-Dùng cho các POST không tự idempotent, theo header `Idempotency-Key`.
+user_id, key, method, path, request_hash (sha256 hex của method + path + body JSON chuẩn hoá), status (`processing|completed`), response_status, response_body jsonb, created_at, expires_at. PK `(user_id, key)`, CHECK `completed` ⇔ có `response_status`, index `(expires_at)` để dọn.
+Dùng cho các POST không tự idempotent, theo header `Idempotency-Key` (`@Idempotent()`, M5 B6).
+
+- **Giữ chỗ bằng MỘT câu lệnh:** `INSERT … ON CONFLICT (user_id, key) DO UPDATE … WHERE <được chiếm> RETURNING created_at::text`. Có dòng trả về = mình được chạy handler. "SELECT trước rồi INSERT" để hở khe: 20 request song song → handler chạy 20 lần (đột biến đã chứng minh).
+- **Được chiếm dòng cũ khi:** `expires_at <= now()` (hết 24 giờ, như key mới) **hoặc** `processing` quá **lease 60 giây** và cùng `request_hash` (request đầu đã chết giữa chừng). Không có lease → crash giữa chừng làm key kẹt 409 suốt 24 giờ.
+- **`created_at` = lúc giữ chỗ gần nhất, dùng làm fencing token:** lưu response / xoá chỗ giữ đều có `WHERE status = 'processing' AND created_at = <token>`. Request cũ "sống dậy" sau khi bị chiếm chỗ không ghi đè được. Token đi dạng text (đủ micro giây), không qua JS `Date`.
+- Handler lỗi → **xoá** chỗ giữ (lỗi không được ghi nhớ, client sửa rồi gửi lại cùng key). Lưu `data` thô (trước envelope); trả lại thì bọc với `requestId` mới.
+- Dọn dòng hết hạn: cùng job dọn upload (B7).
 
 ## 7. Thứ tự khoá chung (M4) và tóm tắt chỗ cần transaction / khoá
 
@@ -402,6 +408,7 @@ Hai thao tác chạm cùng người X luôn tuần tự, không deadlock.
 | Thêm thành viên kênh               | tx + `FOR SHARE` org member của X → `FOR UPDATE` kênh → ON CONFLICT                                | X không bị gỡ khỏi org giữa chừng; 404 rõ                                     |
 | Đổi vai trò / gỡ / chuyển chủ kênh | tx + `FOR UPDATE` dòng `channels` trước, rồi dòng `channel_members`                                | Một mutex cho mỗi kênh, thứ tự khoá cố định                                   |
 | Complete upload                    | tx + `FOR UPDATE` upload, gọi S3 Complete **trong** khoá (timeout 30 s, M5 Q2); enqueue sau commit | Idempotent, chặn tạo 2 meeting; S3 xong mà DB lỗi → gọi lại tự gỡ bằng `HEAD` |
+| Giữ chỗ `Idempotency-Key`          | `INSERT … ON CONFLICT DO UPDATE … WHERE` (hết hạn / quá lease) + fencing token `created_at`        | Một câu nguyên tử, không khoá tường minh; crash giữa chừng không kẹt key      |
 | Chuyển trạng thái meeting          | UPDATE … WHERE status = expected                                                                   | Optimistic, không giữ khoá trong lúc chạy lâu                                 |
 | Ghi transcript                     | tx delete + insert                                                                                 | Idempotent khi chạy lại                                                       |
 | Cron báo cáo                       | INSERT … ON CONFLICT DO NOTHING                                                                    | Idempotent theo (kênh, tuần)                                                  |
