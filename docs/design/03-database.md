@@ -264,7 +264,7 @@ PUT part là **idempotent**: `INSERT … ON CONFLICT (upload_id, part_number) DO
 | source_object_key, audio_object_key | text                                                                                       |                                                                                                                                                                                                                                                  |
 | created_at, updated_at, deleted_at  | timestamptz                                                                                |                                                                                                                                                                                                                                                  |
 
-Index: `meetings_org_owner_created_idx (org_id, owner_id, created_at DESC NULLS FIRST, id DESC NULLS FIRST)` — **không partial**, vì còn phục vụ khoá ngoại `meetings_owner_fk` (xoá một thành viên phải tìm mọi meeting của họ, kể cả đã xoá mềm; Postgres không tự tạo index cho phía tham chiếu); `(org_id, recorded_at)`.
+Index: `meetings_org_owner_created_idx (org_id, owner_id, created_at DESC NULLS FIRST, id DESC NULLS FIRST)` — **không partial**, vì còn phục vụ khoá ngoại `meetings_owner_fk` (xoá một thành viên phải tìm mọi meeting của họ, kể cả đã xoá mềm; Postgres không tự tạo index cho phía tham chiếu); `meetings_org_recorded_idx (org_id, recorded_at)` (báo cáo tuần).
 
 **Chuyển trạng thái = UPDATE có điều kiện** (optimistic, không giữ khoá lâu):
 
@@ -366,7 +366,7 @@ id bigint identity, org_id, actor_id NULL (NULL = hệ thống), action text (vd
 
 ### `idempotency_keys` (M5)
 
-user_id, key, method, path, request_hash (sha256 hex của method + path + body JSON chuẩn hoá), status (`processing|completed`), response_status, response_body jsonb, created_at, expires_at. PK `(user_id, key)`, CHECK `completed` ⇔ có `response_status`, index `(expires_at)` để dọn.
+user_id, key, method, path, request_hash (sha256 hex của method + path + body JSON chuẩn hoá), status (`processing|completed`), response_status, response_body jsonb, created_at, expires_at. PK `(user_id, key)`, CHECK `completed` ⇔ có `response_status`, index `idempotency_keys_expiry_idx (expires_at)` để dọn.
 Dùng cho các POST không tự idempotent, theo header `Idempotency-Key` (`@Idempotent()`, M5 B6).
 
 - **Giữ chỗ bằng MỘT câu lệnh:** `INSERT … ON CONFLICT (user_id, key) DO UPDATE … WHERE <được chiếm> RETURNING created_at::text`. Có dòng trả về = mình được chạy handler. "SELECT trước rồi INSERT" để hở khe: 20 request song song → handler chạy 20 lần (đột biến đã chứng minh).
