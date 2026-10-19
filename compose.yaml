@@ -13,6 +13,13 @@ x-app: &app
     DATABASE_URL: postgres://meetnote:meetnote@postgres:5432/meetnote
     REDIS_URL: redis://redis:6379
     JWT_ACCESS_SECRET: dev-only-secret-change-me-0123456789abcdef # chỉ cho local
+    S3_ENDPOINT: http://rustfs:9000
+    S3_REGION: us-east-1
+    S3_BUCKET: meetnote
+    S3_ACCESS_KEY_ID: meetnote # khớp RUSTFS_ACCESS_KEY bên dưới
+    S3_SECRET_ACCESS_KEY: meetnote-secret
+    S3_FORCE_PATH_STYLE: 'true' # RustFS cần path-style
+    S3_CREATE_BUCKET: 'true' # local: tạo bucket lúc khởi động
   restart: unless-stopped
 
 services:
@@ -79,6 +86,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      rustfs:
+        condition: service_started
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/health/live']
       interval: 5s
@@ -93,6 +102,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      rustfs:
+        condition: service_started
     # Thời gian chờ job đang chạy kết thúc khi `docker compose stop`.
     stop_grace_period: 60s
 

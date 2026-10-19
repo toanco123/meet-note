@@ -4,6 +4,8 @@ import { Client, escapeIdentifier } from 'pg';
 
 export const POSTGRES_IMAGE = 'postgres:18.6-alpine';
 export const REDIS_IMAGE = 'redis:8.8.3-alpine';
+/** Giữ cùng phiên bản với `compose.yaml` (09-versions). */
+export const RUSTFS_IMAGE = 'rustfs/rustfs:1.0.1';
 export const TEMPLATE_DATABASE = 'meetnote_template';
 
 /** SQLSTATE 55006: object_in_use — template đang bị phiên khác dùng. */

@@ -107,7 +107,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá / ch�
 - [x] **B1 — Schema + migration**
   - Việc: `uploads`, `upload_parts`, `meetings`, `idempotency_keys` theo bảng trên. Khoá ngoại `ON DELETE SET NULL (owner_id)` có thể phải viết SQL tay (`db:generate --custom`).
   - Test (integration): CHECK kích thước / sha256 / status; part_number ngoài 1–10000 → 23514; xoá thành viên org → meeting còn, `owner_id` NULL nhưng **`org_id` giữ nguyên** (chứng minh khác với `SET NULL` cả hai cột); partial index dọn dẹp được dùng (EXPLAIN).
-- [ ] **B2 — Storage module (S3 / RustFS)**
+- [x] **B2 — Storage module (S3 / RustFS)**
   - Việc: cài `@aws-sdk/client-s3`, `ObjectStorage` (create / uploadPart(stream, length) / complete / abort / head), adapter S3, config env, tạo bucket ở dev / test. Thêm RustFS vào Testcontainers global setup và `compose.yaml` cho app.
   - Test (integration, RustFS thật): multipart 2 phần → complete → `head` đúng kích thước; phần đầu < 5 MiB → S3 từ chối khi complete (ghi lại mã lỗi thật); abort hai lần không lỗi; upload phần bằng **stream** có `ContentLength` (không buffer).
 - [ ] **B3 — Init / trạng thái / huỷ upload**
@@ -155,3 +155,6 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá / ch�
 3. **Ràng buộc "dẫn xuất" để DB tự kiểm**: `total_parts = (size + chunk - 1) / chunk` (ceil bằng số nguyên), `status = 'completed'` ⇔ có `meeting_id` + `completed_at`. Code có bug tính sai số phần thì DB chặn ngay lúc INSERT.
 4. **`upload_parts` không mang `org_id`** dù quy ước "bảng con có composite FK theo org": quy ước đó để chặn ghép chéo tổ chức khi một dòng tham chiếu từ HAI phía (vd `channel_members` → kênh + thành viên org). `upload_parts` chỉ có một cha nên không có đường ghép chéo.
 5. `meetings.attempt` đếm từ **1** (thiết kế cũ ghi DEFAULT 0) để khớp `jobId …a1` không cần cộng thêm.
+6. **Rủi ro checksum của SDK v3 không xảy ra với RustFS 1.0.1** — nhưng phải _chạy thử_ mới biết. Multipart bằng stream (`Readable` sinh dần 64 KiB, không Buffer sẵn) + `ContentLength` chạy với cấu hình mặc định. Mã lỗi thật đã ghi nhận: phần không-phải-cuối < 5 MiB → `EntityTooSmall` **lúc complete** (không phải lúc upload phần); upload phần sau khi abort → `NoSuchUpload`. `HeadObject` lỗi không có body nên chỉ còn mã HTTP 404 (`NotFound`) — `isS3Error` xét cả `name` lẫn mã HTTP.
+7. **RustFS mở cổng trước khi sẵn sàng** → global setup thử `CreateBucket` tới 30 lần, mỗi lần cách 500 ms, thay vì tin vào "cổng đã mở". `S3Client.destroy()` lúc module dừng: SDK giữ socket keep-alive, không đóng thì tiến trình dừng chậm / test treo.
+8. **Chạy app thật với `.env` của máy dev phát hiện hai bẫy ngoài code:** (a) `.env` đặt `PORT=5000` mà trên macOS cổng 5000 bị **ControlCenter (AirPlay Receiver)** giữ → `EADDRINUSE`; (b) app đặt `process.title = 'meetnote-api'` nên `pkill -f dist/main.js` **không bắt được** tiến trình — phải tắt theo PID / theo tên `meetnote-api`.

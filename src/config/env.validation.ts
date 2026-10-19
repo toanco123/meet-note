@@ -4,7 +4,9 @@ import {
   IsEnum,
   IsIn,
   IsInt,
+  IsOptional,
   IsString,
+  IsUrl,
   Matches,
   Max,
   Min,
@@ -82,6 +84,42 @@ export class EnvironmentVariables {
   @Min(0)
   @Max(300)
   REFRESH_REUSE_GRACE_SECONDS = 10;
+
+  // ── Object storage S3 (M5) ──────────────────────────────────────────────────
+
+  /** Endpoint S3 tương thích (RustFS local: http://localhost:9000). Bỏ trống khi dùng AWS S3 thật. */
+  @IsOptional()
+  @IsUrl({ require_tld: false, protocols: ['http', 'https'], require_protocol: true })
+  S3_ENDPOINT?: string;
+
+  @IsString()
+  S3_REGION = 'us-east-1';
+
+  @IsString()
+  @MinLength(3)
+  S3_BUCKET: string;
+
+  @IsString()
+  @MinLength(3)
+  S3_ACCESS_KEY_ID: string;
+
+  @IsString()
+  @MinLength(8)
+  S3_SECRET_ACCESS_KEY: string;
+
+  /** RustFS / MinIO cần path-style (`endpoint/bucket/key`); AWS dùng virtual-host style. */
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase() === 'true' : value,
+  )
+  @IsBoolean()
+  S3_FORCE_PATH_STYLE = false;
+
+  /** Dev / test: tạo bucket lúc khởi động nếu chưa có. Production: hạ tầng tạo sẵn, để false. */
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase() === 'true' : value,
+  )
+  @IsBoolean()
+  S3_CREATE_BUCKET = false;
 }
 
 /** Dùng cho `ConfigModule.forRoot({ validate })`. Ném lỗi → tiến trình dừng ngay khi khởi động. */

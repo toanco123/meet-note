@@ -127,25 +127,29 @@ Mọi response **thành công** có cùng một vỏ `{ data, meta }` (từ M4 B
 
 Validate khi khởi động bằng class `EnvironmentVariables` (class-validator). Thiếu hoặc sai thì **dừng tiến trình** với thông báo rõ ràng. File `.env.example` liệt kê đủ biến.
 
-| Biến                                                                                                       | Mốc | Mặc định                        | Ghi chú                                                                  |
-| ---------------------------------------------------------------------------------------------------------- | --- | ------------------------------- | ------------------------------------------------------------------------ |
-| `NODE_ENV`                                                                                                 | M0  | `development`                   | `development \| test \| staging \| production`                           |
-| `PORT`                                                                                                     | M0  | `3000`                          |                                                                          |
-| `LOG_LEVEL`                                                                                                | M0  | `info`                          |                                                                          |
-| `LOG_PRETTY`                                                                                               | M0  | `false`                         | `true` khi dev local                                                     |
-| `DATABASE_URL`                                                                                             | M0  | –                               | `postgres://user:pass@host:5432/db`                                      |
-| `DATABASE_POOL_MAX`                                                                                        | M0  | `10`                            |                                                                          |
-| `REDIS_URL`                                                                                                | M0  | –                               | `redis://host:6379`                                                      |
-| `JWT_ACCESS_SECRET`                                                                                        | M1  | –                               | ≥ 32 ký tự                                                               |
-| `JWT_ACCESS_TTL_SECONDS`                                                                                   | M1  | `900`                           |                                                                          |
-| `REFRESH_TOKEN_TTL_DAYS`                                                                                   | M1  | `30`                            | Trượt: tính từ lần refresh gần nhất                                      |
-| `REFRESH_REUSE_GRACE_SECONDS`                                                                              | M1  | `10`                            | Token vừa xoay bị dùng lại trong khoảng này thì không coi là bị đánh cắp |
-| `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_FORCE_PATH_STYLE` | M5  |                                 |                                                                          |
-| `UPLOAD_MAX_BYTES`                                                                                         | M5  | `2147483648`                    |                                                                          |
-| `WORKER_QUEUES`                                                                                            | M6  | `default,transcription`         | Queue mà worker này tiêu thụ                                             |
-| `WHISPER_BIN`, `WHISPER_MODEL_PATH`, `WHISPER_THREADS`                                                     | M6  |                                 |                                                                          |
-| `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`                                                                 | M6  | `fake`                          |                                                                          |
-| `REPORT_CRON`, `REPORT_TZ`                                                                                 | M9  | `0 8 * * 1`, `Asia/Ho_Chi_Minh` |                                                                          |
+| Biến                                                   | Mốc | Mặc định                        | Ghi chú                                                                       |
+| ------------------------------------------------------ | --- | ------------------------------- | ----------------------------------------------------------------------------- |
+| `NODE_ENV`                                             | M0  | `development`                   | `development \| test \| staging \| production`                                |
+| `PORT`                                                 | M0  | `3000`                          |                                                                               |
+| `LOG_LEVEL`                                            | M0  | `info`                          |                                                                               |
+| `LOG_PRETTY`                                           | M0  | `false`                         | `true` khi dev local                                                          |
+| `DATABASE_URL`                                         | M0  | –                               | `postgres://user:pass@host:5432/db`                                           |
+| `DATABASE_POOL_MAX`                                    | M0  | `10`                            |                                                                               |
+| `REDIS_URL`                                            | M0  | –                               | `redis://host:6379`                                                           |
+| `JWT_ACCESS_SECRET`                                    | M1  | –                               | ≥ 32 ký tự                                                                    |
+| `JWT_ACCESS_TTL_SECONDS`                               | M1  | `900`                           |                                                                               |
+| `REFRESH_TOKEN_TTL_DAYS`                               | M1  | `30`                            | Trượt: tính từ lần refresh gần nhất                                           |
+| `REFRESH_REUSE_GRACE_SECONDS`                          | M1  | `10`                            | Token vừa xoay bị dùng lại trong khoảng này thì không coi là bị đánh cắp      |
+| `S3_ENDPOINT`                                          | M5  | –                               | S3 tương thích, vd RustFS `http://localhost:9000`. Bỏ trống khi dùng AWS S3   |
+| `S3_REGION`                                            | M5  | `us-east-1`                     |                                                                               |
+| `S3_BUCKET`                                            | M5  | –                               |                                                                               |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`             | M5  | –                               | Local khớp `RUSTFS_ACCESS_KEY` / `RUSTFS_SECRET_KEY` trong `compose.yaml`     |
+| `S3_FORCE_PATH_STYLE`                                  | M5  | `false`                         | `true` cho RustFS / MinIO                                                     |
+| `S3_CREATE_BUCKET`                                     | M5  | `false`                         | `true` ở dev / compose: tạo bucket lúc khởi động. Production: hạ tầng tạo sẵn |
+| `WORKER_QUEUES`                                        | M6  | `default,transcription`         | Queue mà worker này tiêu thụ                                                  |
+| `WHISPER_BIN`, `WHISPER_MODEL_PATH`, `WHISPER_THREADS` | M6  |                                 |                                                                               |
+| `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`             | M6  | `fake`                          |                                                                               |
+| `REPORT_CRON`, `REPORT_TZ`                             | M9  | `0 8 * * 1`, `Asia/Ho_Chi_Minh` |                                                                               |
 
 Swagger **không có biến bật/tắt riêng**. Swagger bật khi `NODE_ENV ∈ {development, test, staging}` và luôn tắt ở `production`, để không thể vô tình bật trên production.
 
