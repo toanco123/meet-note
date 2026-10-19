@@ -1,6 +1,6 @@
 # M5 — Upload
 
-- **Trạng thái:** **Xong** (2026-10-19): B1–B8, PR #5. Lượt CI đầu đỏ ở `openapi:export` (bài học 34), đã sửa. Còn theo dõi: lỗi uncaught chập chờn (bài học 21), không gặp lại trong các lượt e2e đầy đủ của B6, B7, B8. Plan đã duyệt 2026-10-19 (★ cho Q1–Q6)
+- **Trạng thái:** **Xong** (2026-10-19): B1–B8, PR #5, CI xanh. Lượt CI đầu đỏ ở `openapi:export` (bài học 34), đã sửa. Còn theo dõi: lỗi uncaught chập chờn (bài học 21), không gặp lại trong các lượt e2e đầy đủ của B6, B7, B8. Plan đã duyệt 2026-10-19 (★ cho Q1–Q6)
 - **Nhánh:** `m5-upload`
 - **Tài liệu thiết kế liên quan:** [01-overview D3, D4](../design/01-overview.md), [03-database §4, `idempotency_keys`, §7](../design/03-database.md), [05-api Meetings](../design/05-api.md), [06-flows §1.1](../design/06-flows.md), [10-roadmap M5](../design/10-roadmap.md)
 
@@ -137,7 +137,7 @@ Mỗi bước = 1 commit, chạy được và có test. Mỗi chỗ khoá / ch�
 
 - [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 353)
 - [x] `pnpm test:e2e` xanh ở local (459 test, có RustFS trong Testcontainers); mọi race test đã được đột biến (B3–B7)
-- [ ] `pnpm test:e2e` xanh trên CI — chạy khi push / mở PR
+- [x] `pnpm test:e2e` xanh trên CI (PR #5, sau khi sửa `openapi:export` — bài học 34)
 - [x] Upload 500 MB, ngắt, resume, complete → meeting `queued` (chạy tay trên Compose); bộ nhớ `api` không tăng theo kích thước file (50 MiB → +45 MiB đỉnh, 500 MiB → +62 / +73 MiB) và không buffer cả phần (bài học 32)
 - [x] Không có đường nào để lại multipart mồ côi trên S3: init lỗi giữa chừng (bù trừ, B3), huỷ (B3), hết hạn (B7), S3 lỗi lúc abort (thử lại, B7). Khe còn lại — phần đang gửi dở lúc huỷ thủ công trên AWS — ghi lifecycle rule làm lưới an toàn (06-flows)
 - [x] `openapi.json` đã cập nhật; `docs/design/` khớp code (đối chiếu bằng script ở B8)
