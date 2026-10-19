@@ -6,16 +6,21 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Post,
+  Put,
+  Req,
+  Res,
 } from '@nestjs/common';
-import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
+import type { Request, Response } from 'express';
 import type { AuthUser } from '../../common/auth/auth.types.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { RequireOrgPermission } from '../organizations/guards/require-org-permission.decorator.js';
 import { InitUploadDto } from './dto/init-upload.dto.js';
-import { UploadResponseDto } from './dto/upload-response.dto.js';
+import { UploadPartResponseDto, UploadResponseDto } from './dto/upload-response.dto.js';
 import { UploadsService } from './uploads.service.js';
 
 @ApiTags('Meetings')
@@ -55,6 +60,47 @@ export class UploadsController {
     @CurrentUser() user: AuthUser,
   ): Promise<UploadResponseDto> {
     return UploadResponseDto.from(await this.uploads.get(orgId, user.id, uploadId));
+  }
+
+  /**
+   * Gửi một phần của file.
+   *
+   * @remarks Body `application/octet-stream`, `Content-Length` đúng bằng `chunkSize` (phần cuối:
+   * phần còn lại). Gửi lại cùng phần → ghi đè (idempotent). Gửi song song nhiều phần được.
+   * Server stream thẳng sang S3, không giữ cả phần trong bộ nhớ.
+   */
+  @Put(':uploadId/parts/:partNumber')
+  @RequireOrgPermission('org.upload')
+  @ApiConsumes('application/octet-stream')
+  @ApiBody({ schema: { type: 'string', format: 'binary' } })
+  @ApiErrorResponses(400, 409, 410, 411, 413, 415)
+  async uploadPart(
+    @Param('orgId') orgId: string,
+    @Param('uploadId', new ParseUUIDPipe()) uploadId: string,
+    @Param('partNumber', new ParseIntPipe()) partNumber: number,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<UploadPartResponseDto> {
+    // Response đóng mà chưa gửi xong = client đã đi. SDK đẩy body lên S3 bằng `pipe()`, mà `pipe()`
+    // KHÔNG truyền lỗi của nguồn sang đích → request S3 sẽ treo chờ byte không bao giờ tới. Huỷ chủ động.
+    const abort = new AbortController();
+    res.once('close', () => {
+      if (!res.writableEnded) abort.abort();
+    });
+    try {
+      return await this.uploads.uploadPart(orgId, user.id, uploadId, partNumber, {
+        body: req,
+        contentType: req.headers['content-type'],
+        contentLength: req.headers['content-length'],
+        signal: abort.signal,
+      });
+    } catch (error) {
+      // Từ chối khi body CHƯA đọc hết (vd 413 trước khi đọc): đóng kết nối sau response. Không thì
+      // Node đọc-rồi-bỏ phần body còn lại để giữ keep-alive (`req._dump()`) — tốn băng thông vô ích.
+      if (!req.complete) res.setHeader('Connection', 'close');
+      throw error;
+    }
   }
 
   /**

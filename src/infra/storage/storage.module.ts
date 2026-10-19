@@ -53,6 +53,12 @@ class StorageLifecycle implements OnApplicationBootstrap, OnModuleDestroy {
           region: config.get('S3_REGION', { infer: true }),
           endpoint: config.get('S3_ENDPOINT', { infer: true }),
           forcePathStyle: config.get('S3_FORCE_PATH_STYLE', { infer: true }),
+          // BẪY (M5 B4): mặc định `WHEN_SUPPORTED` → SDK bọc body vào stream tính CRC32 (aws-chunked).
+          // Client ngắt giữa chừng → `req` lỗi → stream bọc của SDK phát lại CÙNG lỗi đó mà không ai
+          // nghe → uncaught exception → CẢ TIẾN TRÌNH API CRASH. Không bọc thì không có stream mồ côi.
+          // Đánh đổi: mỗi phần không có checksum riêng phía S3; toàn vẹn: TCP/TLS + sha256 toàn file
+          // do worker kiểm ở M6.
+          requestChecksumCalculation: 'WHEN_REQUIRED',
           credentials: {
             accessKeyId: config.get('S3_ACCESS_KEY_ID', { infer: true }),
             secretAccessKey: config.get('S3_SECRET_ACCESS_KEY', { infer: true }),

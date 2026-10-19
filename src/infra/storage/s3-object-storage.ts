@@ -9,6 +9,7 @@ import {
   S3ServiceException,
   UploadPartCommand,
 } from '@aws-sdk/client-s3';
+import { MultipartUploadNotFoundError } from './storage.errors.js';
 import type { CompletedPart, ObjectStorage, UploadPartInput } from './storage.types.js';
 
 /** Adapter `ObjectStorage` cho mọi server tương thích S3 (AWS, RustFS). */
@@ -27,17 +28,19 @@ export class S3ObjectStorage implements ObjectStorage {
   }
 
   async uploadPart(input: UploadPartInput): Promise<{ etag: string }> {
-    const out = await this.client.send(
-      new UploadPartCommand({
-        Bucket: this.bucket,
-        Key: input.key,
-        UploadId: input.uploadId,
-        PartNumber: input.partNumber,
-        Body: input.body,
-        ContentLength: input.contentLength,
-      }),
-      { abortSignal: input.signal },
-    );
+    const out = await this.client
+      .send(
+        new UploadPartCommand({
+          Bucket: this.bucket,
+          Key: input.key,
+          UploadId: input.uploadId,
+          PartNumber: input.partNumber,
+          Body: input.body,
+          ContentLength: input.contentLength,
+        }),
+        { abortSignal: input.signal },
+      )
+      .catch(rethrowMultipartNotFound);
     if (!out.ETag) throw new Error('S3 UploadPart không trả ETag');
     return { etag: out.ETag };
   }
@@ -48,19 +51,21 @@ export class S3ObjectStorage implements ObjectStorage {
     parts: CompletedPart[],
     signal?: AbortSignal,
   ): Promise<void> {
-    await this.client.send(
-      new CompleteMultipartUploadCommand({
-        Bucket: this.bucket,
-        Key: key,
-        UploadId: uploadId,
-        MultipartUpload: {
-          Parts: [...parts]
-            .sort((a, b) => a.partNumber - b.partNumber)
-            .map((p) => ({ PartNumber: p.partNumber, ETag: p.etag })),
-        },
-      }),
-      { abortSignal: signal },
-    );
+    await this.client
+      .send(
+        new CompleteMultipartUploadCommand({
+          Bucket: this.bucket,
+          Key: key,
+          UploadId: uploadId,
+          MultipartUpload: {
+            Parts: [...parts]
+              .sort((a, b) => a.partNumber - b.partNumber)
+              .map((p) => ({ PartNumber: p.partNumber, ETag: p.etag })),
+          },
+        }),
+        { abortSignal: signal },
+      )
+      .catch(rethrowMultipartNotFound);
   }
 
   async abortMultipartUpload(key: string, uploadId: string): Promise<void> {
@@ -107,4 +112,14 @@ function isS3Error(error: unknown, name: string, httpStatus: number): boolean {
     error instanceof S3ServiceException &&
     (error.name === name || error.$metadata.httpStatusCode === httpStatus)
   );
+}
+
+/** `NoSuchUpload` của S3 → lỗi của tầng storage (domain không cần biết tên lỗi SDK). */
+function rethrowMultipartNotFound(error: unknown): never {
+  // So đúng TÊN, không so mã 404: `NoSuchBucket` cũng là 404 nhưng là lỗi cấu hình, không được
+  // biến thành "upload không còn". UploadPart / Complete có body lỗi nên luôn có `name`.
+  if (error instanceof S3ServiceException && error.name === 'NoSuchUpload') {
+    throw new MultipartUploadNotFoundError({ cause: error });
+  }
+  throw error;
 }

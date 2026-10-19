@@ -10,6 +10,8 @@ export const ErrorCode = {
   NotFound: 'NOT_FOUND',
   Conflict: 'CONFLICT',
   PayloadTooLarge: 'PAYLOAD_TOO_LARGE',
+  LengthRequired: 'LENGTH_REQUIRED',
+  UnsupportedMediaType: 'UNSUPPORTED_MEDIA_TYPE',
   RateLimited: 'RATE_LIMITED',
   ServiceUnavailable: 'SERVICE_UNAVAILABLE',
   InternalError: 'INTERNAL_ERROR',
@@ -42,6 +44,10 @@ export const ErrorCode = {
 
   // M5 — Upload
   UploadNotActive: 'UPLOAD_NOT_ACTIVE',
+  UploadExpired: 'UPLOAD_EXPIRED',
+  UploadPartOutOfRange: 'UPLOAD_PART_OUT_OF_RANGE',
+  UploadPartSizeMismatch: 'UPLOAD_PART_SIZE_MISMATCH',
+  UploadPartAborted: 'UPLOAD_PART_ABORTED',
 
   // M4 — Kênh
   ChannelNameTaken: 'CHANNEL_NAME_TAKEN',
@@ -69,8 +75,12 @@ export function defaultCodeForStatus(status: number): ErrorCode {
       return ErrorCode.Conflict;
     case 410:
       return ErrorCode.Gone;
+    case 411:
+      return ErrorCode.LengthRequired;
     case 413:
       return ErrorCode.PayloadTooLarge;
+    case 415:
+      return ErrorCode.UnsupportedMediaType;
     case 429:
       return ErrorCode.RateLimited;
     case 503:

@@ -4,7 +4,7 @@ import type { PgInsertValue } from 'drizzle-orm/pg-core';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import { type UploadRow, uploadParts, uploads } from '../../infra/database/schema/index.js';
-import type { UploadView } from './uploads.types.js';
+import type { SavedPart, UploadView } from './uploads.types.js';
 
 @Injectable()
 export class UploadsRepository {
@@ -60,6 +60,28 @@ export class UploadsRepository {
       .from(uploadParts)
       .where(eq(uploadParts.uploadId, uploadId))
       .orderBy(asc(uploadParts.partNumber));
+  }
+
+  /**
+   * Lưu phần vừa lên S3 — CHỈ khi upload vẫn đang nhận dữ liệu (chưa huỷ / complete / hết hạn).
+   * Gửi lại cùng phần = `ON CONFLICT DO UPDATE` (idempotent, ETag mới thay ETag cũ).
+   * Không khoá dòng upload: phần có thể mất hàng phút để lên S3, không giữ khoá suốt thời gian đó;
+   * điều kiện `EXISTS` cùng câu lệnh là đủ (huỷ giữa chừng → 0 dòng → 409).
+   */
+  async upsertPart(part: SavedPart & { uploadId: string }): Promise<boolean> {
+    const result = await this.db.execute(sql`
+      insert into ${uploadParts} (upload_id, part_number, size_bytes, etag)
+      select ${part.uploadId}::uuid, ${part.partNumber}::int, ${part.sizeBytes}::int, ${part.etag}
+      where exists (
+        select 1 from ${uploads}
+        where ${uploads.id} = ${part.uploadId}::uuid
+          and ${uploads.status} = 'initiated'
+          and ${uploads.expiresAt} > now()
+      )
+      on conflict (upload_id, part_number) do update
+        set size_bytes = excluded.size_bytes, etag = excluded.etag, created_at = now()
+      returning part_number`);
+    return result.rows.length > 0;
   }
 
   async markAborted(uploadId: string, executor: DbExecutor): Promise<void> {

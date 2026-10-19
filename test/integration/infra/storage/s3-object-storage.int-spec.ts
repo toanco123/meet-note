@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { S3ServiceException } from '@aws-sdk/client-s3';
 import { afterAll, describe, expect, it } from 'vitest';
+import { MultipartUploadNotFoundError } from '../../../../src/infra/storage/storage.errors.js';
 import { createTestStorage } from '../../../support/storage.js';
 
 const MiB = 1024 * 1024;
@@ -119,13 +120,14 @@ describe('S3ObjectStorage với RustFS thật', () => {
     await storage.abortMultipartUpload(key, uploadId);
   });
 
-  it('abort hai lần không lỗi (idempotent); upload phần sau khi abort → NoSuchUpload', async () => {
+  it('abort hai lần không lỗi (idempotent); upload phần sau khi abort → MultipartUploadNotFoundError', async () => {
     const key = newKey();
     const { uploadId } = await storage.createMultipartUpload(key, 'audio/mp4');
 
     await storage.abortMultipartUpload(key, uploadId);
     await expect(storage.abortMultipartUpload(key, uploadId)).resolves.toBeUndefined();
-    const name = await s3ErrorName(
+    // Adapter đổi `NoSuchUpload` của SDK thành lỗi của tầng storage — domain không biết tên lỗi SDK.
+    await expect(
       storage.uploadPart({
         key,
         uploadId,
@@ -133,8 +135,7 @@ describe('S3ObjectStorage với RustFS thật', () => {
         body: byteStream(MiB),
         contentLength: MiB,
       }),
-    );
-    expect(name).toBe('NoSuchUpload');
+    ).rejects.toBeInstanceOf(MultipartUploadNotFoundError);
   });
 
   it('headObject của key không tồn tại → undefined', async () => {

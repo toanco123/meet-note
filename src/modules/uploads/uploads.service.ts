@@ -4,11 +4,12 @@ import { Errors } from '../../common/errors/errors.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database } from '../../infra/database/database.types.js';
 import type { UploadRow, UploadStatus } from '../../infra/database/schema/index.js';
+import { MultipartUploadNotFoundError } from '../../infra/storage/storage.errors.js';
 import { OBJECT_STORAGE } from '../../infra/storage/storage.module.js';
 import type { ObjectStorage } from '../../infra/storage/storage.types.js';
 import type { InitUploadDto } from './dto/init-upload.dto.js';
 import { UploadsRepository } from './uploads.repository.js';
-import type { UploadView } from './uploads.types.js';
+import type { PartUploadInput, SavedPart, UploadView } from './uploads.types.js';
 
 /** 8 MiB (D4): ≥ 5 MiB mà S3 đòi, 2 GiB / 8 MiB = 256 phần — xa trần 10 000. */
 export const UPLOAD_CHUNK_BYTES = 8 * 1024 * 1024;
@@ -78,6 +79,59 @@ export class UploadsService {
   }
 
   /**
+   * Nhận MỘT phần. Mọi kiểm tra chạy TRƯỚC khi đọc byte nào của body — từ chối sớm thì không
+   * tốn băng thông nhận dữ liệu sẽ bị bỏ. Sau đó stream thẳng `req` → S3 `UploadPart` kèm
+   * `ContentLength`: không có Buffer cả phần trong RAM, backpressure đi tới tận TCP của client.
+   */
+  async uploadPart(
+    orgId: string,
+    userId: string,
+    uploadId: string,
+    partNumber: number,
+    input: PartUploadInput,
+  ): Promise<Omit<SavedPart, 'etag'>> {
+    if (!isOctetStream(input.contentType)) throw Errors.upload.unsupportedMediaType();
+    const length = parseContentLength(input.contentLength);
+    if (length === undefined) throw Errors.upload.lengthRequired();
+
+    const upload = await this.repo.findOwned(orgId, userId, uploadId);
+    if (!upload) throw Errors.upload.notFound();
+    assertAcceptingParts(upload);
+    if (partNumber < 1 || partNumber > upload.totalParts) {
+      throw Errors.upload.partOutOfRange(upload.totalParts);
+    }
+    const expected = expectedPartSize(upload, partNumber);
+    if (length > expected) throw Errors.upload.partTooLarge(expected);
+    if (length !== expected) throw Errors.upload.partSizeMismatch(expected, length);
+
+    let etag: string;
+    try {
+      ({ etag } = await this.storage.uploadPart({
+        key: upload.objectKey,
+        uploadId: upload.s3UploadId,
+        partNumber,
+        body: input.body,
+        contentLength: length,
+        signal: input.signal,
+      }));
+    } catch (error) {
+      if (input.signal.aborted) throw Errors.upload.partAborted();
+      // Multipart bị huỷ / complete trong lúc phần đang lên.
+      if (error instanceof MultipartUploadNotFoundError) throw Errors.upload.notActive();
+      throw error;
+    }
+
+    const saved = await this.repo.upsertPart({
+      uploadId: upload.id,
+      partNumber,
+      sizeBytes: length,
+      etag,
+    });
+    if (!saved) throw Errors.upload.notActive();
+    return { partNumber, sizeBytes: length };
+  }
+
+  /**
    * Huỷ: khoá dòng → đánh dấu `aborted` → COMMIT → gọi S3 abort NGOÀI transaction (không giữ khoá
    * + connection trong lúc gọi mạng). S3 lỗi → `storage_aborted_at` còn NULL → job dọn dẹp (B7) thử
    * lại. Gọi lại khi đã huỷ / đã hết hạn → 204 (idempotent). Đã complete → 409.
@@ -110,4 +164,26 @@ function displayStatus(upload: UploadRow): UploadStatus {
   return upload.status === 'initiated' && upload.expiresAt.getTime() <= Date.now()
     ? 'expired'
     : upload.status;
+}
+
+/** Upload còn nhận phần không: hết hạn → 410; đã huỷ / complete → 409. */
+function assertAcceptingParts(upload: UploadRow): void {
+  if (displayStatus(upload) === 'expired') throw Errors.upload.expired();
+  if (upload.status !== 'initiated') throw Errors.upload.notActive();
+}
+
+/** Mọi phần đúng `chunkSize`, trừ phần cuối là phần còn lại. */
+function expectedPartSize(upload: UploadRow, partNumber: number): number {
+  return partNumber < upload.totalParts
+    ? upload.chunkSize
+    : upload.sizeBytes - upload.chunkSize * (upload.totalParts - 1);
+}
+
+function isOctetStream(contentType: string | undefined): boolean {
+  return contentType?.split(';')[0]?.trim().toLowerCase() === 'application/octet-stream';
+}
+
+/** Chỉ nhận số nguyên thập phân; thiếu (vd `Transfer-Encoding: chunked`) → `undefined`. */
+function parseContentLength(raw: string | undefined): number | undefined {
+  return raw !== undefined && /^\d+$/.test(raw) ? Number(raw) : undefined;
 }

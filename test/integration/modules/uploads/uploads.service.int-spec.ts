@@ -1,4 +1,3 @@
-import { Readable } from 'node:stream';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
@@ -6,7 +5,7 @@ import { OBJECT_STORAGE } from '../../../../src/infra/storage/storage.module.js'
 import { UploadsRepository } from '../../../../src/modules/uploads/uploads.repository.js';
 import { UploadsService } from '../../../../src/modules/uploads/uploads.service.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
-import { createTestStorage } from '../../../support/storage.js';
+import { createTestStorage, isMultipartAlive } from '../../../support/storage.js';
 
 /**
  * Hành động BÙ TRỪ của init: multipart mở trên S3 xong mà INSERT lỗi → phải abort ngay. Không abort
@@ -58,19 +57,6 @@ describe('UploadsService.init — bù trừ khi ghi DB lỗi (Postgres + RustFS 
     if (!call || !result) throw new Error('createMultipartUpload chưa được gọi');
     const [key] = call;
     const { uploadId } = await (result.value as Promise<{ uploadId: string }>);
-    const stillAlive = await s3.storage
-      .uploadPart({
-        key: key ?? '',
-        uploadId,
-        partNumber: 1,
-        body: Readable.from([Buffer.alloc(8)]),
-        contentLength: 8,
-      })
-      .then(
-        () => true,
-        (error: { name?: string }) =>
-          error.name === 'NoSuchUpload' ? false : Promise.reject(error),
-      );
-    expect(stillAlive).toBe(false);
+    expect(await isMultipartAlive(s3.storage, key, uploadId)).toBe(false);
   });
 });

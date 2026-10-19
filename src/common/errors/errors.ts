@@ -151,6 +151,36 @@ export const Errors = {
   upload: {
     /** Không tồn tại, của người khác, hoặc khác tổ chức — một câu cho cả ba (tài nguyên ẩn). */
     notFound: () => notFound('Không tìm thấy upload.'),
+    expired: () => gone(ErrorCode.UploadExpired, 'Upload đã hết hạn. Hãy bắt đầu upload mới.'),
+    partOutOfRange: (totalParts: number) =>
+      badRequest(ErrorCode.UploadPartOutOfRange, `Số phần phải từ 1 đến ${totalParts}.`),
+    partSizeMismatch: (expected: number, actual: number) =>
+      badRequest(
+        ErrorCode.UploadPartSizeMismatch,
+        `Phần này phải đúng ${expected} byte, nhận Content-Length ${actual}.`,
+      ),
+    /** Trả TRƯỚC khi đọc body: không tốn băng thông nhận một phần quá cỡ rồi mới từ chối. */
+    partTooLarge: (expected: number) =>
+      new AppException(
+        ErrorCode.PayloadTooLarge,
+        HttpStatus.PAYLOAD_TOO_LARGE,
+        `Phần này tối đa ${expected} byte.`,
+      ),
+    lengthRequired: () =>
+      new AppException(
+        ErrorCode.LengthRequired,
+        HttpStatus.LENGTH_REQUIRED,
+        'Cần header Content-Length đúng kích thước phần (không nhận Transfer-Encoding: chunked).',
+      ),
+    unsupportedMediaType: () =>
+      new AppException(
+        ErrorCode.UnsupportedMediaType,
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+        'Body của phần phải là application/octet-stream.',
+      ),
+    /** Client ngắt giữa chừng. Client không nhận được câu này; mục đích là log 4xx thay vì 5xx. */
+    partAborted: () =>
+      badRequest(ErrorCode.UploadPartAborted, 'Kết nối bị ngắt giữa chừng. Hãy gửi lại phần này.'),
     /** Upload đã xong / đã huỷ / đã hết hạn nên không làm thao tác này được nữa. */
     notActive: () =>
       conflict(ErrorCode.UploadNotActive, 'Upload không còn ở trạng thái nhận dữ liệu.'),

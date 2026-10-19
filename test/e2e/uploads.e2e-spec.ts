@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { Readable } from 'node:stream';
 import type { INestApplication } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import request from 'supertest';
@@ -11,7 +10,7 @@ import { uploads } from '../../src/infra/database/schema/index.js';
 import { createTestApp } from '../support/app.js';
 import { addMember, insertMeeting } from '../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../support/factories.js';
-import { createTestStorage } from '../support/storage.js';
+import { createTestStorage, isMultipartAlive } from '../support/storage.js';
 
 const MiB = 1024 * 1024;
 const GiB = 1024 * MiB;
@@ -45,23 +44,10 @@ describe('Upload: khởi tạo / trạng thái / huỷ (e2e)', () => {
       .send({ ...valid, ...body });
   const rowOf = async (id: string) =>
     (await db.select().from(uploads).where(eq(uploads.id, id)))[0];
-  /** Multipart còn sống trên S3 không: gửi thử một phần nhỏ. */
   const multipartAlive = async (id: string) => {
     const row = await rowOf(id);
     if (!row) throw new Error('không có upload');
-    try {
-      await s3.storage.uploadPart({
-        key: row.objectKey,
-        uploadId: row.s3UploadId,
-        partNumber: 1,
-        body: Readable.from([Buffer.alloc(16)]),
-        contentLength: 16,
-      });
-      return true;
-    } catch (error) {
-      if ((error as { name?: string }).name === 'NoSuchUpload') return false;
-      throw error;
-    }
+    return isMultipartAlive(s3.storage, row.objectKey, row.s3UploadId);
   };
 
   beforeAll(async () => {
