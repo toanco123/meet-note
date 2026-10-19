@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { PgInsertValue } from 'drizzle-orm/pg-core';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import { type UploadRow, uploadParts, uploads } from '../../infra/database/schema/index.js';
-import type { SavedPart, UploadView } from './uploads.types.js';
+import type { SavedPart, StorageAbortTarget, UploadView } from './uploads.types.js';
 
 @Injectable()
 export class UploadsRepository {
@@ -104,6 +104,49 @@ export class UploadsRepository {
 
   async markAborted(uploadId: string, executor: DbExecutor): Promise<void> {
     await executor.update(uploads).set({ status: 'aborted' }).where(eq(uploads.id, uploadId));
+  }
+
+  /**
+   * Chuyển một lô upload `initiated` đã hết hạn (quá `graceMinutes`) sang `expired` — MỘT câu lệnh,
+   * như `purgeDeletedBatch` của kênh. `SKIP LOCKED`: worker khác đang giữ lô nào thì bỏ qua lô đó;
+   * và upload đang bị `complete` khoá (đang gọi S3) cũng được bỏ qua thay vì đứng chờ.
+   * Khớp partial index `uploads_expiry_idx (expires_at) WHERE status = 'initiated'`.
+   */
+  expireBatch(
+    { limit, graceMinutes }: { limit: number; graceMinutes: number },
+    executor: DbExecutor,
+  ): Promise<StorageAbortTarget[]> {
+    const batch = executor
+      .select({ id: uploads.id })
+      .from(uploads)
+      .where(
+        and(
+          eq(uploads.status, 'initiated'),
+          sql`${uploads.expiresAt} <= now() - make_interval(mins => ${graceMinutes}::int)`,
+        ),
+      )
+      .orderBy(asc(uploads.expiresAt))
+      .limit(limit)
+      .for('update', { skipLocked: true });
+    return executor
+      .update(uploads)
+      .set({ status: 'expired' })
+      .where(inArray(uploads.id, batch))
+      .returning({ id: uploads.id, objectKey: uploads.objectKey, s3UploadId: uploads.s3UploadId });
+  }
+
+  /**
+   * Upload đã huỷ / hết hạn mà chưa abort được trên S3 (lần trước S3 lỗi, hoặc tiến trình chết giữa
+   * hai pha). KHÔNG khoá: abort + ghi `storage_aborted_at` đều idempotent, hai worker cùng làm một
+   * dòng chỉ tốn thêm một lời gọi S3. Khớp partial index `uploads_abort_retry_idx`.
+   */
+  listStorageAbortPending(limit: number): Promise<StorageAbortTarget[]> {
+    return this.db
+      .select({ id: uploads.id, objectKey: uploads.objectKey, s3UploadId: uploads.s3UploadId })
+      .from(uploads)
+      .where(and(inArray(uploads.status, ['aborted', 'expired']), isNull(uploads.storageAbortedAt)))
+      .orderBy(asc(uploads.id))
+      .limit(limit);
   }
 
   async markStorageAborted(uploadId: string): Promise<void> {

@@ -31,7 +31,7 @@ import { MeetingResponseDto } from '../meetings/dto/meeting-response.dto.js';
 import { RequireOrgPermission } from '../organizations/guards/require-org-permission.decorator.js';
 import { InitUploadDto } from './dto/init-upload.dto.js';
 import { UploadPartResponseDto, UploadResponseDto } from './dto/upload-response.dto.js';
-import { UploadsService } from './uploads.service.js';
+import { UploadsService } from './services/uploads.service.js';
 
 @ApiTags('Meetings')
 @Controller('orgs/:orgId/uploads')

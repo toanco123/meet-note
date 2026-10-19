@@ -1,17 +1,18 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
-import { Errors } from '../../common/errors/errors.js';
-import { DRIZZLE } from '../../infra/database/database.module.js';
-import type { Database } from '../../infra/database/database.types.js';
-import type { MeetingRow, UploadRow, UploadStatus } from '../../infra/database/schema/index.js';
-import { MultipartUploadNotFoundError } from '../../infra/storage/storage.errors.js';
-import { OBJECT_STORAGE } from '../../infra/storage/storage.module.js';
-import type { ObjectStorage } from '../../infra/storage/storage.types.js';
-import { MeetingsRepository } from '../meetings/meetings.repository.js';
-import { MeetingsService } from '../meetings/meetings.service.js';
-import type { InitUploadDto } from './dto/init-upload.dto.js';
-import { UploadsRepository } from './uploads.repository.js';
-import type { PartUploadInput, SavedPart, UploadView } from './uploads.types.js';
+import { Errors } from '../../../common/errors/errors.js';
+import { DRIZZLE } from '../../../infra/database/database.module.js';
+import type { Database } from '../../../infra/database/database.types.js';
+import type { MeetingRow, UploadRow, UploadStatus } from '../../../infra/database/schema/index.js';
+import { MultipartUploadNotFoundError } from '../../../infra/storage/storage.errors.js';
+import { OBJECT_STORAGE } from '../../../infra/storage/storage.module.js';
+import type { ObjectStorage } from '../../../infra/storage/storage.types.js';
+import { MeetingsRepository } from '../../meetings/meetings.repository.js';
+import { MeetingsService } from '../../meetings/meetings.service.js';
+import type { InitUploadDto } from '../dto/init-upload.dto.js';
+import { UploadsRepository } from '../uploads.repository.js';
+import { UploadsCleanupService } from './uploads-cleanup.service.js';
+import type { PartUploadInput, SavedPart, UploadView } from '../uploads.types.js';
 
 /** 8 MiB (D4): ≥ 5 MiB mà S3 đòi, 2 GiB / 8 MiB = 256 phần — xa trần 10 000. */
 export const UPLOAD_CHUNK_BYTES = 8 * 1024 * 1024;
@@ -27,6 +28,7 @@ export class UploadsService {
     private readonly repo: UploadsRepository,
     private readonly meetingsRepo: MeetingsRepository,
     private readonly meetings: MeetingsService,
+    private readonly cleanup: UploadsCleanupService,
   ) {}
 
   /**
@@ -213,8 +215,8 @@ export class UploadsService {
 
   /**
    * Huỷ: khoá dòng → đánh dấu `aborted` → COMMIT → gọi S3 abort NGOÀI transaction (không giữ khoá
-   * + connection trong lúc gọi mạng). S3 lỗi → `storage_aborted_at` còn NULL → job dọn dẹp (B7) thử
-   * lại. Gọi lại khi đã huỷ / đã hết hạn → 204 (idempotent). Đã complete → 409.
+   * + connection trong lúc gọi mạng). S3 lỗi → `storage_aborted_at` còn NULL →
+   * `UploadsCleanupService.retryStorageAbortBatch` thử lại. Gọi lại khi đã huỷ / đã hết hạn → 204 (idempotent). Đã complete → 409.
    */
   async cancel(orgId: string, userId: string, uploadId: string): Promise<void> {
     const pending = await this.db.transaction(async (tx) => {
@@ -224,19 +226,7 @@ export class UploadsService {
       if (upload.status === 'initiated') await this.repo.markAborted(upload.id, tx);
       return upload.storageAbortedAt ? undefined : upload;
     });
-    if (pending) await this.abortInStorage(pending);
-  }
-
-  private async abortInStorage(upload: UploadRow): Promise<void> {
-    try {
-      await this.storage.abortMultipartUpload(upload.objectKey, upload.s3UploadId);
-      await this.repo.markStorageAborted(upload.id);
-    } catch (error) {
-      this.logger.warn(
-        { err: error, uploadId: upload.id },
-        'Abort multipart lỗi — job dọn dẹp sẽ thử lại',
-      );
-    }
+    if (pending) await this.cleanup.abortInStorage(pending);
   }
 }
 

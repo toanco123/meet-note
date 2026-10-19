@@ -54,7 +54,10 @@ Bẫy & cách xử lý:
 - **Enqueue sau COMMIT.** Nếu enqueue trước, worker có thể chạy khi meeting chưa tồn tại trong DB. Nếu commit xong mà enqueue lỗi: complete vẫn trả meeting (không ném); gọi lại complete enqueue lại (jobId trùng → BullMQ bỏ qua nếu đã có); từ M6 job quét meeting `queued` quá 5 phút để enqueue lại. Đây là bản "outbox nghèo".
 - `jobId = meeting.preprocess.{meetingId}.a{attempt}`: BullMQ bỏ qua job trùng ID, nên enqueue lại là an toàn. ID phải chứa **tên bước**, vì các bước dùng chung queue mà trùng ID thì bước sau bị bỏ qua. ID cũng phải chứa **lần chạy** (`attempt`), vì job cũ còn giữ trong tập failed/completed thì `POST /retry` sẽ bị bỏ qua. BullMQ **cấm dấu `:`** trong custom jobId (`Custom Id cannot contain :`).
 - **Init lặp lại (M5 B6).** Init không tự idempotent: gọi lại là mở multipart mới. Client mất response (timeout, mất mạng) mà gửi lại không kèm key → hai upload, một cái bỏ dở tới khi hết hạn. Kèm `Idempotency-Key` → lần sau nhận lại đúng upload cũ. Complete thì KHÔNG cần key (tự idempotent theo trạng thái).
-- Upload bỏ dở: job dọn dẹp (`FOR UPDATE SKIP LOCKED`) gọi `AbortMultipartUpload` và set `expired`. Nếu không abort, S3 vẫn tính dung lượng cho các part mồ côi.
+- **Upload bỏ dở (M5 B7):** job dọn dẹp đánh dấu `expired` theo lô (`FOR UPDATE SKIP LOCKED`, transaction ngắn), **commit rồi mới** gọi `AbortMultipartUpload` từng upload (không giữ khoá + connection lúc gọi mạng). Nếu không abort, S3 vẫn tính dung lượng cho các part mồ côi.
+  - **Ân hạn 10 phút sau `expires_at`.** Abort multipart lúc còn part đang gửi thì part đó "có thể thành công hoặc không" (AWS khuyên abort lại). Part chỉ bắt đầu được trước `expires_at`, Node cắt request quá `requestTimeout` (5 phút) → sau 10 phút không còn part nào đang gửi.
+  - **S3 lỗi / tiến trình chết giữa hai pha:** `storage_aborted_at` còn NULL → lượt thử lại (một lô mỗi lần chạy job) gom cả upload hết hạn lẫn upload huỷ thủ công bị lỗi S3.
+  - **Huỷ thủ công** abort ngay, nên vẫn có thể còn part đang gửi dở bị S3 lưu lại. Lưới an toàn cuối khi lên production: lifecycle rule của bucket `AbortIncompleteMultipartUpload` (vd sau 2 ngày).
 
 ### 1.2 Pipeline xử lý (worker)
 

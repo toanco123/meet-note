@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database } from '../../infra/database/database.types.js';
 import { type IdempotencyKeyRow, idempotencyKeys } from '../../infra/database/schema/index.js';
@@ -88,6 +88,27 @@ export class IdempotencyRepository {
       .where(ownedBy(r, claimedAt))
       .returning({ key: t.key });
     return rows.length > 0;
+  }
+
+  /**
+   * Xoá một lô key hết hạn; trả số dòng đã xoá (gọi lặp tới khi 0). Lên lịch cùng job dọn upload ở
+   * M6. `SKIP LOCKED`: dòng đang bị `claim` chiếm lại (đang khoá) thì bỏ qua; ngược lại `claim` gặp
+   * dòng đang bị xoá thì CHỜ, rồi INSERT như key mới (Postgres thử lại nhánh conflict khi dòng
+   * xung đột biến mất) — không có lỗi trùng khoá lọt ra.
+   */
+  async deleteExpiredBatch(limit = 1000): Promise<number> {
+    const batch = this.db
+      .select({ userId: t.userId, key: t.key })
+      .from(t)
+      .where(sql`${t.expiresAt} <= now()`)
+      .orderBy(asc(t.expiresAt))
+      .limit(limit)
+      .for('update', { skipLocked: true });
+    const rows = await this.db
+      .delete(t)
+      .where(sql`(${t.userId}, ${t.key}) in (${batch})`)
+      .returning({ key: t.key });
+    return rows.length;
   }
 
   /** Handler lỗi → bỏ chỗ giữ để client gửi lại cùng key (lỗi KHÔNG được ghi nhớ). */

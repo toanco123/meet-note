@@ -11,10 +11,11 @@ import { OBJECT_STORAGE } from '../../../../src/infra/storage/storage.module.js'
 import { MeetingsRepository } from '../../../../src/modules/meetings/meetings.repository.js';
 import { MeetingsService } from '../../../../src/modules/meetings/meetings.service.js';
 import { UploadsRepository } from '../../../../src/modules/uploads/uploads.repository.js';
+import { UploadsCleanupService } from '../../../../src/modules/uploads/services/uploads-cleanup.service.js';
 import {
   UPLOAD_CHUNK_BYTES,
   UploadsService,
-} from '../../../../src/modules/uploads/uploads.service.js';
+} from '../../../../src/modules/uploads/services/uploads.service.js';
 import { insertOrg, insertUser } from '../../../support/db-factories.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 import { outcomeOf } from '../../../support/locks.js';
@@ -57,6 +58,7 @@ describe('UploadsService.complete (Postgres + RustFS thật)', () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         UploadsService,
+        UploadsCleanupService,
         UploadsRepository,
         MeetingsRepository,
         MeetingsService,

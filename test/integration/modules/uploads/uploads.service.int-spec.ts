@@ -7,7 +7,8 @@ import { OBJECT_STORAGE } from '../../../../src/infra/storage/storage.module.js'
 import { MeetingsRepository } from '../../../../src/modules/meetings/meetings.repository.js';
 import { MeetingsService } from '../../../../src/modules/meetings/meetings.service.js';
 import { UploadsRepository } from '../../../../src/modules/uploads/uploads.repository.js';
-import { UploadsService } from '../../../../src/modules/uploads/uploads.service.js';
+import { UploadsCleanupService } from '../../../../src/modules/uploads/services/uploads-cleanup.service.js';
+import { UploadsService } from '../../../../src/modules/uploads/services/uploads.service.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 import { createTestStorage, isMultipartAlive } from '../../../support/storage.js';
 
@@ -27,6 +28,7 @@ describe('UploadsService.init — bù trừ khi ghi DB lỗi (Postgres + RustFS 
     const moduleRef = await Test.createTestingModule({
       providers: [
         UploadsService,
+        UploadsCleanupService,
         UploadsRepository,
         MeetingsRepository,
         MeetingsService,
