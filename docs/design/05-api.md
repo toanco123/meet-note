@@ -127,6 +127,7 @@ Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReport
 
 - Kết nối: `io('/realtime', { auth: { token: '<access JWT>' } })` (token trong `auth`, KHÔNG trong query string — query string nằm trong log của proxy). Middleware của namespace xác thực trong handshake, cùng hai lớp với REST: chữ ký + hạn JWT, rồi phiên còn sống. Bị từ chối → client nhận `connect_error` với `err.data = { code, statusCode, message }`, cùng mã với REST: `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED` (M7 B1).
 - Server tự join `user:{userId}` và `session:{sessionId}` (để ngắt đúng phiên khi logout — M7 Q1). Client gửi `subscribe { meetingId }`, server kiểm tra quyền xem rồi mới join `meeting:{meetingId}`.
+- `subscribe { meetingId }` / `unsubscribe { meetingId }` trả qua **ack** (M7 B3, Q4): `{ data: { meetingId } }` hoặc `{ error: { code, statusCode, message } }`. Quyền = điều kiện xem dùng chung của REST (04 §3): server tự tìm org của meeting rồi vai trò của người gọi trong org đó. Không xem được / không tồn tại → `NOT_FOUND`; payload sai → `VALIDATION_FAILED`. `unsubscribe` khi chưa subscribe → vẫn ok.
 
 | Event (server → client) | Room                               | Payload                                                                                     |
 | ----------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------- |

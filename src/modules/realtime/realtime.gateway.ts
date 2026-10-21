@@ -1,7 +1,10 @@
 import { Logger } from '@nestjs/common';
 import {
+  ConnectedSocket,
+  MessageBody,
   type OnGatewayConnection,
   type OnGatewayInit,
+  SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
@@ -9,10 +12,17 @@ import { AppException } from '../../common/errors/app.exception.js';
 import { Errors } from '../../common/errors/errors.js';
 import { SessionsService } from '../auth/services/sessions.service.js';
 import { TokenService } from '../auth/services/token.service.js';
-import { toConnectError } from './realtime-errors.js';
+import { isUuid } from '../../common/validation/uuid.js';
+import { toConnectError, toRealtimeError } from './realtime-errors.js';
+import { RealtimeSubscriptionsService } from './realtime-subscriptions.service.js';
 import { RealtimeRoom } from '../../infra/realtime/realtime-rooms.js';
 import { REALTIME_NAMESPACE } from '../../infra/realtime/realtime.module.js';
-import type { RealtimeNamespace, RealtimeSocket, SocketUser } from './realtime.types.js';
+import type {
+  RealtimeAck,
+  RealtimeNamespace,
+  RealtimeSocket,
+  SocketUser,
+} from './realtime.types.js';
 
 /**
  * Socket.IO namespace `/realtime` (D6). Socket chỉ để NHẬN event; ghi vẫn qua REST.
@@ -31,6 +41,7 @@ export class RealtimeGateway implements OnGatewayInit<RealtimeNamespace>, OnGate
   constructor(
     private readonly tokens: TokenService,
     private readonly sessions: SessionsService,
+    private readonly subscriptions: RealtimeSubscriptionsService,
   ) {}
 
   afterInit(namespace: RealtimeNamespace): void {
@@ -52,6 +63,45 @@ export class RealtimeGateway implements OnGatewayInit<RealtimeNamespace>, OnGate
     const { user } = socket.data;
     await socket.join([RealtimeRoom.user(user.id), RealtimeRoom.session(user.sessionId)]);
     this.disconnectWhenTokenExpires(socket, user.tokenExpiresAt);
+  }
+
+  /**
+   * Theo dõi một meeting: vào room `meeting:{id}` CHỈ khi xem được (điều kiện xem dùng chung của REST).
+   * Trả qua ACK (M7 Q4): `{ data: { meetingId } }` hoặc `{ error: { code, … } }`. Không xem được →
+   * `NOT_FOUND` như REST (không nói "có nhưng bạn không được xem").
+   * Không ném lỗi ra ngoài handler: Nest sẽ phát event `exception` riêng, client không biết lỗi đó
+   * thuộc yêu cầu nào.
+   */
+  @SubscribeMessage('subscribe')
+  async subscribe(
+    @ConnectedSocket() socket: RealtimeSocket,
+    @MessageBody() body: unknown,
+  ): Promise<RealtimeAck<{ meetingId: string }>> {
+    try {
+      const meetingId = meetingIdOf(body);
+      if (!(await this.subscriptions.canView(socket.data.user.id, meetingId))) {
+        throw Errors.meeting.notFound();
+      }
+      await socket.join(RealtimeRoom.meeting(meetingId));
+      return { data: { meetingId } };
+    } catch (error) {
+      return { error: toRealtimeError(error) };
+    }
+  }
+
+  /** Rời room; chưa từng vào → vẫn ok (idempotent). */
+  @SubscribeMessage('unsubscribe')
+  async unsubscribe(
+    @ConnectedSocket() socket: RealtimeSocket,
+    @MessageBody() body: unknown,
+  ): Promise<RealtimeAck<{ meetingId: string }>> {
+    try {
+      const meetingId = meetingIdOf(body);
+      await socket.leave(RealtimeRoom.meeting(meetingId));
+      return { data: { meetingId } };
+    } catch (error) {
+      return { error: toRealtimeError(error) };
+    }
   }
 
   /**
@@ -87,4 +137,15 @@ export class RealtimeGateway implements OnGatewayInit<RealtimeNamespace>, OnGate
     if (!(await this.sessions.isActive(sid, sub))) throw Errors.auth.sessionRevoked();
     return { id: sub, sessionId: sid, tokenExpiresAt: verified.expiresAt };
   }
+}
+
+/** Payload socket không đi qua ValidationPipe của REST → kiểm tay, lỗi cùng mã `VALIDATION_FAILED`. */
+function meetingIdOf(body: unknown): string {
+  const meetingId = (body as { meetingId?: unknown } | null)?.meetingId;
+  if (!isUuid(meetingId)) {
+    throw Errors.common.validationFailed([
+      { field: 'meetingId', message: 'meetingId phải là uuid' },
+    ]);
+  }
+  return meetingId;
 }

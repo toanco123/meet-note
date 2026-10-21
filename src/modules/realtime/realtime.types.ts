@@ -17,7 +17,18 @@ export interface RealtimeSocketData {
 /** Event server → client của `/realtime` (05 Realtime). Phát sai tên / sai payload = lỗi compile. */
 export interface ServerToClientEvents {
   'session.ended': (payload: { reason: SessionEndedReason }) => void;
+  'meeting.status': (payload: MeetingStatusEvent) => void;
 }
+
+/** Payload nhỏ — chỉ là GỢI Ý; client cần chi tiết thì gọi REST (02 §2). */
+export interface MeetingStatusEvent {
+  meetingId: string;
+  status: string;
+  failureCode?: string | null;
+}
+
+/** Ack của `subscribe` / `unsubscribe`: cùng vỏ với REST — có `data` là thành công, có `error` là lỗi. */
+export type RealtimeAck<T> = { data: T } | { error: RealtimeErrorData };
 
 export type RealtimeSocket = Socket<
   Record<string, never>,

@@ -25,7 +25,14 @@ export class JwtAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // WebSocket (M7) xác thực ở handshake, không qua guard này. Chặn mặc định cho an toàn.
+    // WebSocket (M7): guard này là APP_GUARD nên Nest chạy cả cho TỪNG message của gateway.
+    // Xác thực đã làm ở handshake (middleware namespace `/realtime` gắn `socket.data.user`), phiên
+    // bị thu hồi thì socket bị ngắt ngay (M7 B2) → chỉ cần socket đã qua handshake.
+    if (context.getType() === 'ws') {
+      const client = context.switchToWs().getClient<{ data?: { user?: unknown } }>();
+      return client.data?.user !== undefined;
+    }
+    // Loại context khác (rpc…): chưa dùng → chặn mặc định cho an toàn.
     if (context.getType() !== 'http') return false;
 
     // getAllAndOverride: metadata ở method thắng metadata ở class.
