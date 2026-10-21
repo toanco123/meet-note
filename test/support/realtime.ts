@@ -16,9 +16,12 @@ export function portOf(app: INestApplication): number {
 export async function connectRealtime(
   port: number,
   token: string | undefined,
+  /** Header của handshake, vd `{ origin: 'https://…' }` để giả lập trình duyệt. */
+  extraHeaders?: Record<string, string>,
 ): Promise<{ socket: Socket; outcome: string }> {
   const socket = io(`http://127.0.0.1:${port}/realtime`, {
     auth: token === undefined ? {} : { token },
+    ...(extraHeaders && { extraHeaders }),
     transports: ['websocket'],
     reconnection: false,
     forceNew: true,

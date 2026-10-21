@@ -20,6 +20,7 @@ x-app: &app
     S3_SECRET_ACCESS_KEY: meetnote-secret
     S3_FORCE_PATH_STYLE: 'true' # RustFS cần path-style
     S3_CREATE_BUCKET: 'true' # local: tạo bucket lúc khởi động
+    REALTIME_CORS_ORIGINS: http://localhost:3000 # trang /realtime-test.html (dev)
   restart: unless-stopped
 
 services:
