@@ -26,7 +26,7 @@ Trạng thái hiện tại:
 | M5 — Upload                    | Xong (PR #5). Upload chunked 8 MiB tới 2 GiB stream thẳng lên S3 (RustFS), resume, complete → meeting `queued` + job sau commit, `Idempotency-Key`, dọn upload hết hạn                 |
 | M6 — Pipeline                  | Hoãn (plan nháp)                                                                                                                                                                       |
 | M6b — Chia sẻ & quyền xem      | Xong (PR #6). Chia sẻ meeting vào kênh, một điều kiện xem dùng chung, danh sách meeting (theo org / theo kênh), sửa / xoá meeting                                                      |
-| M7 — Realtime                  | Xong (chưa PR). Socket.IO `/realtime`: xác thực handshake, ngắt khi token hết hạn / phiên bị thu hồi, subscribe meeting theo quyền, mất quyền là rời room, nhiều instance qua Redis    |
+| M7 — Realtime                  | Xong (PR #7). Socket.IO `/realtime`: xác thực handshake, ngắt khi token hết hạn / phiên bị thu hồi, subscribe meeting theo quyền, mất quyền là rời room, nhiều instance qua Redis      |
 
 Chi tiết từng mốc (các bước, quyết định, bài học) trong [docs/plans/](docs/plans/).
 
