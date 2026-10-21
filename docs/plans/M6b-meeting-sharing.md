@@ -1,6 +1,6 @@
 # M6b — Chia sẻ & quyền xem meeting
 
-- **Trạng thái:** Đang làm (plan đã duyệt 2026-10-21: ★ cho Q1–Q6)
+- **Trạng thái:** **Xong** (2026-10-21): B1–B7, chưa push / mở PR → CI chưa chạy. Plan đã duyệt 2026-10-21 (★ cho Q1–Q6)
 - **Nhánh:** `m6b-meeting-sharing`
 - **Ghi chú:** tách từ M6 (Q1 của [M6-pipeline.md](M6-pipeline.md)). Pipeline (whisper, tóm tắt) **hoãn** theo yêu cầu người dùng 2026-10-21; mốc này không phụ thuộc pipeline: meeting đã có từ M5 (trạng thái `queued`).
 - **Tài liệu thiết kế liên quan:** [01-overview D2, D3, D16](../design/01-overview.md), [03-database `meeting_shares`, §7](../design/03-database.md), [04-authorization §2, §3](../design/04-authorization.md), [05-api Meetings, Channels](../design/05-api.md)
@@ -85,15 +85,17 @@ Mỗi bước = 1 commit, chạy được và có test.
 - [x] **B6 — Sửa / xoá meeting**
   - Việc: PATCH / DELETE (Q2, Q6), audit khi OrgAdm xoá meeting không chủ.
   - Test (e2e): chủ / OrgAdm (meeting có chủ → 403 nếu xem được, 404 nếu không; không chủ → được) / người khác (403 nếu xem được, 404 nếu không — nhất quán với gỡ share ở B4); sau xoá: chi tiết 404, mất khỏi mọi danh sách, gọi lại 404; audit khi OrgAdm xoá meeting không chủ.
-- [ ] **B7 — Đóng mốc**
+- [x] **B7 — Đóng mốc**
   - Việc: `openapi.json`, đối chiếu tài liệu bằng script, smoke test trên Compose (2 người, kênh công khai + riêng tư, share / gỡ / lưu trữ / xoá), ghi "Điều học được".
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở local và CI; mọi chỗ khoá đã được đột biến
-- [ ] Một điều kiện xem duy nhất, ma trận 04 §3 được test đầy đủ
-- [ ] `openapi.json` đã cập nhật; `docs/design/` khớp code (03, 04, 05, 10)
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 387)
+- [x] `pnpm test:e2e` xanh ở local (491 test); mọi chỗ khoá đã được đột biến (B4: 3 khoá, 3 kịch bản)
+- [ ] `pnpm test:e2e` xanh trên CI — chạy khi push / mở PR
+- [x] Một điều kiện xem duy nhất (`meetingVisibleTo`), ma trận 04 §3 được test đầy đủ (B2, 6 đột biến)
+- [x] `openapi.json` đã cập nhật (42 path); `docs/design/` khớp code — đối chiếu bằng script (route, mã lỗi, tên index `0008`, phiên bản)
+- [x] Smoke test trên Docker Compose: 24 bước qua HTTP thật (mời → kênh → upload → share / xem / lọc / gỡ / lưu trữ / sửa / xoá)
 
 ## Điều sẽ học
 
@@ -112,3 +114,5 @@ Mỗi bước = 1 commit, chạy được và có test.
 6. **Mỗi khoá `FOR SHARE` có một kịch bản chứng minh RIÊNG — và một khoá hoá ra thừa cho share.** Ba đột biến, ba test đỏ đúng chỗ: bỏ khoá dòng kênh → "share ‖ bị gỡ khỏi kênh" và "share ‖ lưu trữ" đỏ (share xong trước khi mất quyền); bỏ khoá meeting → "share ‖ xoá meeting" đỏ (FK chỉ khoá `FOR KEY SHARE`, đợi xong vẫn chèn được share lên meeting đã xoá); bỏ khoá dòng `channel_members` → chỉ "QTV gỡ share ‖ QTV bị gỡ khỏi org" đỏ. Với **share**, khoá dòng thành viên là thừa: gỡ khỏi org đặt `meetings.owner_id = NULL` (khoá dòng meeting) → kiểm tra lại "meeting của mình" sau khi khoá meeting đã chặn. Với **gỡ share của QTV** (meeting người khác, owner không đổi), cascade xoá dòng thành viên KHÔNG đi qua dòng kênh → khoá dòng thành viên là thứ duy nhất bảo vệ. Giữ khoá ở cả hai cho một thứ tự khoá thống nhất.
 7. **`FOR SHARE` thay vì `FOR UPDATE` (mutex kênh của M4):** share chỉ cần "quyền / trạng thái không đổi tới khi commit", không đổi kênh. `FOR SHARE` cho nhiều người share song song vào cùng kênh mà vẫn xung đột với `FOR UPDATE` của lưu trữ / đổi quyền.
 8. **403 hay 404 khi gỡ share không có quyền:** 403 xác nhận meeting tồn tại. Service chỉ trả 403 khi người gọi XEM ĐƯỢC meeting (gọi lại điều kiện xem dùng chung), còn lại 404 — test "người ngoài, meeting không thấy được → 404". B6 áp cùng quy tắc cho sửa / xoá (plan ban đầu ghi "người khác → 404" — đổi cho nhất quán).
+9. **`EXISTS` nằm trong `OR` không thành semi-join — đo bằng `EXPLAIN ANALYZE` trên dữ liệu đủ lớn, không phải dữ liệu test.** DB thử dùng xong bỏ (migration thật, 100k meeting, 119 800 share, 200 kênh, 10k thành viên kênh). Với `owner_id = $u OR EXISTS(...)`, Postgres chọn **hashed SubPlan**: tính TOÀN BỘ tập meeting xem được (hash join 62 300 dòng, quét hết `meeting_shares`) rồi mới lọc trang 21 dòng → chi phí tỷ lệ tổng số share của org ở MỌI request. Viết lại thành một `EXISTS (… UNION ALL …)` không còn `OR` → planner kiểm TỪNG dòng khi đi lùi index `(org_id, recorded_at)` và dừng khi đủ trang. Đo: người thấy nhiều 29,7 ms → **0,75 ms**; thấy ít (mọi kênh riêng tư, ở 7 kênh) 14,6 → 5,5 ms; nhưng **người không thấy gì** (thành viên mới) 15,9 → **343 ms** — phải duyệt hết 100k dòng để trả rỗng. **Giữ cách viết hiện tại** (chi phí ổn định, có trần ~15–30 ms ở mức này); lời giải cho cả hai ca (gộp hai luồng keyset "của mình" + "qua kênh thấy được", hoặc bảng visibility phi chuẩn hoá) ghi vào M11. Bài học: cùng một điều kiện logic, hai cách viết SQL cho hai kế hoạch thực thi với điểm yếu ngược nhau — phải đo cả ca dày lẫn ca thưa.
+10. **Smoke test trên Compose bằng luồng THẬT, không chèn DB:** thành viên vào org bằng link mời (M3), kênh tạo qua API (M4), meeting đi qua upload + complete (M5) — nên lượt chạy này cũng là kiểm tra hồi quy cho ba mốc trước. 24 bước đều đúng, gồm các ca dễ lộ dữ liệu: `channels` trong chi tiết không lộ tên kênh riêng tư, lọc `channelId` kênh riêng tư → 404, kênh lưu trữ vẫn xem được (Q1) nhưng không gỡ được (409).
