@@ -57,13 +57,16 @@ CO = Chủ kênh, CA = QTV kênh, CM = Thành viên kênh, G = Khách.
 
 ## 3. Quyền xem meeting
 
-User được xem meeting M khi thoả **một** trong các điều kiện:
+User (thành viên org) được xem meeting M **chưa xoá** khi thoả **một** trong các điều kiện:
 
 1. User là `owner_id` của M.
-2. M được share vào kênh C, và user là thành viên C (bất kỳ vai trò).
-3. M được share vào kênh **công khai**, chưa lưu trữ/xoá, và user là thành viên org.
+2. M được share vào kênh C **chưa xoá**, và user là thành viên C (bất kỳ vai trò, kể cả khách).
+3. M được share vào kênh **công khai chưa xoá**. Kênh **đã lưu trữ vẫn tính**: lưu trữ = chỉ đọc (M6b Q1, khớp `channel.content.read` của M4).
+4. M **không chủ** (chủ đã rời org, D16) và user là Owner / Admin org (M6b Q2).
 
-Viết thành một hàm SQL dùng lại được (`visible_meetings(user_id, org_id)` hoặc một subquery `EXISTS` dùng chung trong repository). Danh sách, search và báo cáo đều đi qua cùng một điều kiện, để không có chỗ nào lọc quyền khác chỗ nào.
+Org Owner / Admin **không** đọc nội dung kênh riêng tư mình không ở trong (D2) — điều 2 không có nhánh OrgAdm.
+
+Hiện thực (M6b B2): **một** biểu thức SQL `meetingVisibleTo(viewer)` trong `src/modules/meetings/meeting-visibility.ts` (`EXISTS` lồng nhau), test bằng toàn bộ ma trận người xem. Chi tiết, danh sách, danh sách theo kênh, và sau này search (M8), báo cáo (M9) đều ghép đúng biểu thức này. **Tiền điều kiện:** người xem là thành viên org đang query và `orgRole` là vai trò thật — `OrgMemberGuard` bảo đảm; biểu thức không tự kiểm membership.
 
 ## 4. Cách hiện thực trong NestJS (nhiều tầng)
 

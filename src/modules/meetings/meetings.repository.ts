@@ -3,6 +3,8 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import { type MeetingRow, meetings } from '../../infra/database/schema/index.js';
+import { meetingVisibleTo } from './meeting-visibility.js';
+import type { MeetingViewer } from './meetings.types.js';
 
 @Injectable()
 export class MeetingsRepository {
@@ -36,6 +38,19 @@ export class MeetingsRepository {
           isNull(meetings.deletedAt),
         ),
       );
+    return row;
+  }
+
+  /** Meeting mà `viewer` được xem (04 §3); không xem được = không tồn tại (404). */
+  async findVisible(
+    orgId: string,
+    viewer: MeetingViewer,
+    meetingId: string,
+  ): Promise<MeetingRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(meetings)
+      .where(and(eq(meetings.id, meetingId), eq(meetings.orgId, orgId), meetingVisibleTo(viewer)));
     return row;
   }
 }
