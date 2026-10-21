@@ -123,6 +123,17 @@ Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReport
 | POST   | `/v1/notifications/read-all?orgId=`            | User                 |
 | DELETE | `/v1/notifications/:id`                        | User (xoá mềm)       |
 
+**Loại thông báo (M10)** — `payload` là id + tên lúc tạo:
+
+| `type`                          | Người nhận                                              | `payload`                                                                                                  |
+| ------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `channel.member_added`          | người được thêm vào kênh                                | `channelId, channelName, role, actorId, actorName`                                                         |
+| `channel.ownership_transferred` | chủ mới + chủ cũ, trừ người thực hiện                   | `channelId, channelName, newOwnerId, newOwnerName, previousOwnerId, previousOwnerName, actorId, actorName` |
+| `org.join_request_approved`     | người xin vào                                           | `orgName, role`                                                                                            |
+| `meeting.shared`                | thành viên kênh trừ người chia sẻ và khách (job worker) | `meetingId, meetingTitle, channelId, channelName, actorId, actorName`                                      |
+
+Thông báo ít người nhận được ghi **trong transaction** của thao tác (rollback → không có thông báo); đẩy `notification.created` **sau commit**.
+
 ## Realtime (Socket.IO, namespace `/realtime`)
 
 - Kết nối: `io('/realtime', { auth: { token: '<access JWT>' } })` (token trong `auth`, KHÔNG trong query string — query string nằm trong log của proxy). Middleware của namespace xác thực trong handshake, cùng hai lớp với REST: chữ ký + hạn JWT, rồi phiên còn sống. Bị từ chối → client nhận `connect_error` với `err.data = { code, statusCode, message }`, cùng mã với REST: `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED` (M7 B1).
@@ -138,7 +149,7 @@ Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReport
 | `meeting.access_revoked` | socket vừa bị cho rời `meeting:{id}` | `{ meetingId }` — mất quyền xem (M7 B5)                                                                                                                                        |
 | `meeting.progress`       | `meeting:{id}`                       | `{ meetingId, stage, percent }`                                                                                                                                                |
 | `meeting.status`         | `meeting:{id}`, `user:{ownerId}`     | `{ meetingId, status, failureCode }` — phát SAU commit; M7: khi upload complete tạo meeting `queued` (complete gọi lại không phát lại); M6: mỗi lần pipeline chuyển trạng thái |
-| `notification.created`   | `user:{id}`                          | Notification DTO                                                                                                                                                               |
+| `notification.created`   | `user:{id}`                          | `NotificationResponseDto` — sau commit (M10)                                                                                                                                   |
 | `report.ready`           | thông qua notification               |                                                                                                                                                                                |
 
 > **Bẫy:** Access token hết hạn khi socket vẫn đang mở. Server lưu `exp` lúc handshake và chủ động ngắt khi hết hạn (`session.ended { reason: token_expired }`), client refresh qua REST rồi kết nối lại bằng token mới. Phiên bị thu hồi (logout, logout-all, xoá phiên ở `/me/sessions`, phát hiện reuse refresh token) → ngắt NGAY mọi socket của phiên đó (room `session:{sid}`; logout-all: `user:{id}`) qua Redis, đúng cả khi socket ở instance khác (M7 B2).

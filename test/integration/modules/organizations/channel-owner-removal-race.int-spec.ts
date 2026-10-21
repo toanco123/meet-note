@@ -1,4 +1,6 @@
 import { Test } from '@nestjs/testing';
+import { NotificationsRepository } from '../../../../src/modules/notifications/notifications.repository.js';
+import { NotificationsService } from '../../../../src/modules/notifications/notifications.service.js';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
@@ -51,6 +53,8 @@ describe('Race: gỡ X khỏi org ‖ chuyển chủ kênh cho X (Postgres thậ
         ChannelsRepository,
         AuditService,
         { provide: DRIZZLE, useValue: t.db },
+        NotificationsService,
+        NotificationsRepository,
         realtimeStub,
       ],
     }).compile();

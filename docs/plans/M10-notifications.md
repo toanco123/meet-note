@@ -49,7 +49,7 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 
 - [x] **B1 — Schema + migration**
   - Test (integration): unique partial `(user_id, dedupe_key)` (NULL không đụng nhau), CHECK `type`, EXPLAIN đếm chưa đọc dùng index partial.
-- [ ] **B2 — Tạo thông báo trong transaction + đẩy sau commit**
+- [x] **B2 — Tạo thông báo trong transaction + đẩy sau commit**
   - Việc: `NotificationsService.createInTx(tx, …)` (`ON CONFLICT DO NOTHING`) + gom "việc sau commit"; gắn vào thêm thành viên kênh, chuyển chủ kênh, duyệt yêu cầu vào tổ chức.
   - Test: thao tác qua HTTP → đúng dòng thông báo + client socket nhận `notification.created`; thao tác lỗi (rollback) → không có thông báo, không có event; gọi lại không trùng.
 - [ ] **B3 — API**
@@ -81,3 +81,5 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 
 1. **Q3 hiện thực bằng FK cascade thay vì JOIN mỗi lần đọc.** FK composite `(org_id, user_id)` → `organization_members` ON DELETE CASCADE: rời / bị gỡ khỏi tổ chức → thông báo của tổ chức đó bị xoá theo; `org_id` NULL thì FK không áp (MATCH SIMPLE) nên thông báo ngoài tổ chức vẫn còn. Với người dùng giống "ẩn"; khác biệt duy nhất: quay lại tổ chức thì thông báo cũ không hiện lại. Truy vấn danh sách / đếm không phải JOIN. FK còn chặn luôn bug "tạo thông báo tổ chức cho người không thuộc tổ chức" (23503).
 2. **Suýt lặp lại M5 bài học 2.** Cả ba index bắt đầu bằng `user_id` lúc đầu đều partial → FK `user_id` không có index dùng được (xoá user = quét bảng). Bỏ partial ở index danh sách để một index phục vụ cả hai việc; migration chưa commit → xoá và sinh lại cho sạch. Kiểm index partial "dùng được không" bằng `SET LOCAL enable_seqscan = off` + `EXPLAIN` (ít dòng thì planner luôn seq scan — không nói lên gì).
+3. **Payload có kiểu theo từng loại** (`NotificationPayloads` + union `NotificationDraft`): tạo thông báo thiếu trường hay ghép nhầm payload của loại khác là lỗi compile. Người nhận "chuyển chủ kênh" = chủ mới + chủ cũ trừ người thực hiện — đột biến không loại người thực hiện → đỏ. "Đẩy sau commit" kiểm bằng spy trên publisher thật của app: lúc `emit`, connection khác đã thấy dòng; đột biến gọi `publish` trong transaction → đỏ.
+4. **Lỗi 500 chập chờn ở hạ tầng test (đang theo dõi, chưa sửa).** Một lượt chạy nhóm `integration + e2e/channels + e2e/invites` hỏng ở `beforeAll` của `join-requests.e2e-spec` (chấp nhận link mời — luồng M10 không đụng): 500 sau **5 341 ms**, khớp `connectionTimeoutMillis: 5000` của pool app. Không tái hiện được (6 lượt sau đó, 4 lượt có log `error`). Giả thuyết: nhiều file chạy song song, mỗi file pool riêng (có file tới 40 connection) trong khi Postgres container mặc định `max_connections = 100` → lấy connection bị nghẽn. Theo M5 bài học 21: chưa có stack thì không sửa theo đoán; nếu gặp lại, log đầy đủ sẽ cho biết đúng lỗi.

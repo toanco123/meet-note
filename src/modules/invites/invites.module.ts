@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { OrganizationsModule } from '../organizations/organizations.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { InviteAcceptanceController } from './controllers/invite-acceptance.controller.js';
 import { InviteAcceptanceService } from './services/invite-acceptance.service.js';
 import { InvitesController } from './controllers/invites.controller.js';
@@ -11,7 +12,7 @@ import { JoinRequestsService } from './services/join-requests.service.js';
 
 /** Link mời + yêu cầu tham gia. Phụ thuộc một chiều: invites → organizations (guard, membership). */
 @Module({
-  imports: [OrganizationsModule],
+  imports: [OrganizationsModule, NotificationsModule],
   controllers: [InvitesController, InviteAcceptanceController, JoinRequestsController],
   providers: [
     InvitesRepository,

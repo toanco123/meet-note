@@ -6,6 +6,7 @@ import { expectTimestampKey, expectUuidKey } from '../../../common/pagination/ke
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database } from '../../../infra/database/database.types.js';
 import { AuditService } from '../../audit/audit.service.js';
+import { NotificationsService } from '../../notifications/notifications.service.js';
 import type { UserAuditContext } from '../../audit/audit.types.js';
 import { OrganizationMembersRepository } from '../../organizations/repositories/organization-members.repository.js';
 import { assertChannelTargetDecision } from '../channel-decisions.js';
@@ -44,6 +45,7 @@ export class ChannelMembersService {
     private readonly channels: ChannelsService,
     private readonly orgMembers: OrganizationMembersRepository,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
     @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
   ) {}
 
@@ -79,11 +81,15 @@ export class ChannelMembersService {
     ctx: UserAuditContext,
   ): Promise<ChannelMemberListRow> {
     const channelId = access.channel.id;
-    await this.db.transaction(async (tx) => {
+    const created = await this.db.transaction(async (tx) => {
       const orgRole = await this.orgMembers.lockRoleForShare(access.orgId, userId, tx);
       if (!orgRole) throw Errors.org.memberNotFound();
 
-      const { actorRole } = await this.channels.lockForAction(access, 'channel.member.add', tx);
+      const { channel, actorRole } = await this.channels.lockForAction(
+        access,
+        'channel.member.add',
+        tx,
+      );
       if (!canGrantChannelRole(actorRole, role)) {
         throw Errors.role.cannotGrant();
       }
@@ -102,7 +108,24 @@ export class ChannelMembersService {
         targetId: channelId,
         metadata: { userId, after: { role } },
       });
+      // Thông báo trong CÙNG transaction (M10 Q2): thêm thất bại → không có thông báo "ma".
+      const names = await this.notifications.displayNames([ctx.actorId], tx);
+      return this.notifications.recordInTx(tx, [
+        {
+          userId,
+          orgId: access.orgId,
+          type: 'channel.member_added',
+          payload: {
+            channelId,
+            channelName: channel.name,
+            role,
+            actorId: ctx.actorId,
+            actorName: names.get(ctx.actorId) ?? '',
+          },
+        },
+      ]);
     });
+    this.notifications.publish(created); // SAU commit
     return this.findOrFail(channelId, userId);
   }
 
@@ -224,7 +247,7 @@ export class ChannelMembersService {
     ctx: UserAuditContext,
   ): Promise<{ channelId: string; ownerId: string }> {
     const channelId = access.channel.id;
-    await this.db.transaction(async (tx) => {
+    const created = await this.db.transaction(async (tx) => {
       // Bậc 1
       const orgRows = await this.orgMembers.lockRolesForShare(
         access.orgId,
@@ -236,7 +259,12 @@ export class ChannelMembersService {
       if (!orgRows.some((r) => r.userId === newOwnerId)) throw Errors.org.memberNotFound();
 
       // Bậc 2
-      await this.channels.lockForAction(access, 'channel.ownership.transfer', tx, actorOrgRole);
+      const { channel } = await this.channels.lockForAction(
+        access,
+        'channel.ownership.transfer',
+        tx,
+        actorOrgRole,
+      );
 
       // Bậc 3
       const rows = await this.repo.lockOwnerAndMember(channelId, newOwnerId, tx);
@@ -261,7 +289,36 @@ export class ChannelMembersService {
           after: { ownerId: newOwnerId, previousOwnerRole: ChannelRole.Admin },
         },
       });
+      // Chủ mới + chủ cũ, trừ chính người thực hiện (CO tự chuyển → chỉ chủ mới nhận; OrgAdm chuyển
+      // hộ → cả hai nhận).
+      const previousOwnerId = oldOwner?.userId ?? null;
+      const recipients = [newOwnerId, previousOwnerId].filter(
+        (id): id is string => id !== null && id !== ctx.actorId,
+      );
+      const names = await this.notifications.displayNames(
+        [ctx.actorId, newOwnerId, ...(previousOwnerId ? [previousOwnerId] : [])],
+        tx,
+      );
+      return this.notifications.recordInTx(
+        tx,
+        recipients.map((recipient) => ({
+          userId: recipient,
+          orgId: access.orgId,
+          type: 'channel.ownership_transferred' as const,
+          payload: {
+            channelId,
+            channelName: channel.name,
+            newOwnerId,
+            newOwnerName: names.get(newOwnerId) ?? '',
+            previousOwnerId,
+            previousOwnerName: previousOwnerId ? (names.get(previousOwnerId) ?? '') : null,
+            actorId: ctx.actorId,
+            actorName: names.get(ctx.actorId) ?? '',
+          },
+        })),
+      );
     });
+    this.notifications.publish(created); // SAU commit
     return { channelId, ownerId: newOwnerId };
   }
 

@@ -1,4 +1,6 @@
 import { Test } from '@nestjs/testing';
+import { NotificationsRepository } from '../../../../src/modules/notifications/notifications.repository.js';
+import { NotificationsService } from '../../../../src/modules/notifications/notifications.service.js';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AppException } from '../../../../src/common/errors/app.exception.js';
@@ -12,6 +14,7 @@ import { JoinRequestsRepository } from '../../../../src/modules/invites/reposito
 import { JoinRequestsService } from '../../../../src/modules/invites/services/join-requests.service.js';
 import { OrganizationMembersRepository } from '../../../../src/modules/organizations/repositories/organization-members.repository.js';
 import { addMember, insertOrg, insertUser } from '../../../support/db-factories.js';
+import { realtimeStub } from '../../../support/realtime-stub.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 
 async function outcomeOf(promise: Promise<unknown>): Promise<string> {
@@ -35,6 +38,10 @@ describe('Race: hai Admin duyệt cùng một yêu cầu (Postgres thật)', () 
         JoinRequestsService,
         JoinRequestsRepository,
         OrganizationMembersRepository,
+
+        NotificationsService,
+        NotificationsRepository,
+        realtimeStub,
         AuditService,
         { provide: DRIZZLE, useValue: t.db },
       ],
