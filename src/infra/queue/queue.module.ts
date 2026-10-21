@@ -27,7 +27,7 @@ export type QueueName = (typeof QueueName)[keyof typeof QueueName];
       inject: [ConfigService],
       useFactory: (config: ConfigService<EnvironmentVariables, true>) => ({
         connection: { url: config.get('REDIS_URL', { infer: true }) },
-        prefix: 'meetnote',
+        prefix: config.get('QUEUE_PREFIX', { infer: true }),
         defaultJobOptions: {
           removeOnComplete: { age: 24 * 3600, count: 1000 },
           removeOnFail: { age: 7 * 24 * 3600 },

@@ -1,20 +1,20 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Errors } from '../../common/errors/errors.js';
-import { decodeCursor, toPage } from '../../common/pagination/cursor.js';
-import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
-import type { Page } from '../../common/pagination/pagination.types.js';
-import type { DbExecutor } from '../../infra/database/database.types.js';
-import type { NotificationRow } from '../../infra/database/schema/index.js';
-import { RealtimeRoom } from '../../infra/realtime/realtime-rooms.js';
-import { REALTIME_PUBLISHER } from '../../infra/realtime/realtime.module.js';
-import type { RealtimePublisher } from '../../infra/realtime/realtime.types.js';
+import { Errors } from '../../../common/errors/errors.js';
+import { decodeCursor, toPage } from '../../../common/pagination/cursor.js';
+import { expectTimestampKey, expectUuidKey } from '../../../common/pagination/keys.js';
+import type { Page } from '../../../common/pagination/pagination.types.js';
+import type { DbExecutor } from '../../../infra/database/database.types.js';
+import type { NotificationRow } from '../../../infra/database/schema/index.js';
+import { RealtimeRoom } from '../../../infra/realtime/realtime-rooms.js';
+import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
+import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
 import type {
   ListNotificationsQueryDto,
   UnreadCountResponseDto,
-} from './dto/notification-query.dto.js';
-import { NotificationResponseDto } from './dto/notification-response.dto.js';
-import { NotificationsRepository } from './notifications.repository.js';
-import type { NotificationDraft, NotificationReadEvent } from './notifications.types.js';
+} from '../dto/notification-query.dto.js';
+import { NotificationResponseDto } from '../dto/notification-response.dto.js';
+import { NotificationsRepository } from '../notifications.repository.js';
+import type { NotificationDraft, NotificationReadEvent } from '../notifications.types.js';
 
 /** Đếm chưa đọc dừng ở đây; hiển thị `"99+"` (M10 Q5). */
 const UNREAD_CAP = 100;

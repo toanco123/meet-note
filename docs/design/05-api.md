@@ -132,7 +132,7 @@ Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReport
 | `org.join_request_approved`     | người xin vào                                           | `orgName, role`                                                                                            |
 | `meeting.shared`                | thành viên kênh trừ người chia sẻ và khách (job worker) | `meetingId, meetingTitle, channelId, channelName, actorId, actorName`                                      |
 
-Thông báo ít người nhận được ghi **trong transaction** của thao tác (rollback → không có thông báo); đẩy `notification.created` **sau commit**.
+Thông báo ít người nhận được ghi **trong transaction** của thao tác (rollback → không có thông báo); đẩy `notification.created` **sau commit**. Nhiều người nhận (`meeting.shared`): share commit → enqueue `notification.fanout` (jobId `notification.fanout.meeting-shared.{meetingId}.{channelId}.{sharedAt ms}`, share lặp lại → cùng jobId); worker đọc lại share + thành viên kênh LÚC CHẠY, INSERT theo lô 500 với `dedupe_key = meeting-shared.{meetingId}.{channelId}`, đẩy realtime sau mỗi lô (M10 B5).
 
 ## Realtime (Socket.IO, namespace `/realtime`)
 

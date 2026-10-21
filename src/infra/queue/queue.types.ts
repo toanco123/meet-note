@@ -6,3 +6,14 @@ export interface MeetingJobData {
   /** Nối log của request đã tạo job với log của worker. */
   requestId: string | null;
 }
+
+/**
+ * `notification.fanout` (M10 B5): thông báo NHIỀU người nhận. Không mang danh sách người nhận /
+ * tên — worker đọc lại lúc chạy (người vừa rời kênh không nhận; đã gỡ share → không ai nhận).
+ */
+export interface NotificationFanoutJobData {
+  type: 'meeting.shared';
+  meetingId: string;
+  channelId: string;
+  requestId: string | null;
+}

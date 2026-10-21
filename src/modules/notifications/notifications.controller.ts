@@ -21,7 +21,7 @@ import {
   UnreadCountResponseDto,
 } from './dto/notification-query.dto.js';
 import { NotificationResponseDto } from './dto/notification-response.dto.js';
-import { NotificationsService } from './notifications.service.js';
+import { NotificationsService } from './services/notifications.service.js';
 
 /** Thông báo của CHÍNH người gọi (không nằm dưới `/orgs/:orgId`: một người, nhiều tổ chức). */
 @ApiTags('Notifications')

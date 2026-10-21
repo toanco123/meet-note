@@ -1,15 +1,36 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, getTableColumns, inArray, isNull, type SQL, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  getTableColumns,
+  gt,
+  inArray,
+  isNull,
+  ne,
+  type SQL,
+  sql,
+} from 'drizzle-orm';
 import { timestampKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import {
+  channelMembers,
+  channels,
+  meetingShares,
+  meetings,
   type NotificationRow,
   notifications,
   organizations,
   users,
 } from '../../infra/database/schema/index.js';
-import type { ListNotificationsParams, NotificationDraft } from './notifications.types.js';
+import type {
+  FanoutRecipientsParams,
+  ListNotificationsParams,
+  NotificationDraft,
+} from './notifications.types.js';
 
 @Injectable()
 export class NotificationsRepository {
@@ -19,7 +40,10 @@ export class NotificationsRepository {
    * Ghi nhiều thông báo; trùng `(user_id, dedupe_key)` → bỏ qua (`ON CONFLICT DO NOTHING`). Trả CHỈ
    * các dòng vừa tạo — để đẩy realtime đúng một lần dù thao tác / job chạy lại.
    */
-  async insertMany(drafts: NotificationDraft[], executor: DbExecutor): Promise<NotificationRow[]> {
+  async insertMany(
+    drafts: NotificationDraft[],
+    executor: DbExecutor = this.db,
+  ): Promise<NotificationRow[]> {
     if (drafts.length === 0) return [];
     return executor
       .insert(notifications)
@@ -55,6 +79,55 @@ export class NotificationsRepository {
       .from(organizations)
       .where(eq(organizations.id, orgId));
     return row?.name ?? '';
+  }
+
+  /**
+   * Share còn "sống" lúc job chạy (M10 B5): còn dòng share, meeting và kênh chưa xoá. `undefined` =
+   * đã gỡ share / xoá trước khi job tới lượt → không gửi cho ai.
+   */
+  async findLiveShare(meetingId: string, channelId: string) {
+    const [row] = await this.db
+      .select({
+        orgId: meetingShares.orgId,
+        sharedBy: meetingShares.sharedBy,
+        meetingTitle: meetings.title,
+        channelName: channels.name,
+      })
+      .from(meetingShares)
+      .innerJoin(meetings, eq(meetings.id, meetingShares.meetingId))
+      .innerJoin(channels, eq(channels.id, meetingShares.channelId))
+      .where(liveShare(meetingId, channelId));
+    return row;
+  }
+
+  /**
+   * Một lô người nhận "meeting được chia sẻ": thành viên kênh trừ khách (Q1) và người share, keyset
+   * theo `user_id` (PK `(channel_id, user_id)` phục vụ cả lọc lẫn thứ tự). Mỗi lô KIỂM LẠI share còn
+   * sống: gỡ share giữa chừng → các lô sau rỗng.
+   */
+  async fanoutRecipients(p: FanoutRecipientsParams): Promise<string[]> {
+    const rows = await this.db
+      .select({ userId: channelMembers.userId })
+      .from(channelMembers)
+      .where(
+        and(
+          eq(channelMembers.channelId, p.channelId),
+          ne(channelMembers.role, 'guest'),
+          p.excludeUserId ? ne(channelMembers.userId, p.excludeUserId) : undefined,
+          p.afterUserId ? gt(channelMembers.userId, p.afterUserId) : undefined,
+          exists(
+            this.db
+              .select({ one: sql`1` })
+              .from(meetingShares)
+              .innerJoin(meetings, eq(meetings.id, meetingShares.meetingId))
+              .innerJoin(channels, eq(channels.id, meetingShares.channelId))
+              .where(liveShare(p.meetingId, p.channelId)),
+          ),
+        ),
+      )
+      .orderBy(asc(channelMembers.userId))
+      .limit(p.limit);
+    return rows.map((r) => r.userId);
   }
 
   /** Keyset `(created_at DESC, id DESC)` trên `notifications_user_created_idx`; `limit + 1` dòng. */
@@ -130,6 +203,16 @@ export class NotificationsRepository {
       .returning({ id: notifications.id });
     return rows.length > 0;
   }
+}
+
+/** Dùng chung cho đọc share và kiểm lại mỗi lô — cần join `meetings` + `channels`. */
+function liveShare(meetingId: string, channelId: string): SQL {
+  return and(
+    eq(meetingShares.meetingId, meetingId),
+    eq(meetingShares.channelId, channelId),
+    isNull(meetings.deletedAt),
+    isNull(channels.deletedAt),
+  ) as SQL;
 }
 
 /** "Chưa đọc của người này [trong tổ chức này]" — khớp điều kiện của index partial chưa đọc. */

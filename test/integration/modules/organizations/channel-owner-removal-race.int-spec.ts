@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { NotificationsRepository } from '../../../../src/modules/notifications/notifications.repository.js';
-import { NotificationsService } from '../../../../src/modules/notifications/notifications.service.js';
+import { NotificationsService } from '../../../../src/modules/notifications/services/notifications.service.js';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';

@@ -4,7 +4,7 @@ import { expectTimestampKey, expectUuidKey } from '../../../common/pagination/ke
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database, Transaction } from '../../../infra/database/database.types.js';
 import { AuditService } from '../../audit/audit.service.js';
-import { NotificationsService } from '../../notifications/notifications.service.js';
+import { NotificationsService } from '../../notifications/services/notifications.service.js';
 import type { UserAuditContext } from '../../audit/audit.types.js';
 import { canGrantRole } from '../../organizations/organization.policy.js';
 import { OrganizationMembersRepository } from '../../organizations/repositories/organization-members.repository.js';

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { OrganizationsModule } from '../organizations/organizations.module.js';
-import { NotificationsModule } from '../notifications/notifications.module.js';
+import { NotificationsCoreModule } from '../notifications/notifications-core.module.js';
 import { ChannelMembersController } from './controllers/channel-members.controller.js';
 import { ChannelMembersRepository } from './repositories/channel-members.repository.js';
 import { ChannelMembersService } from './services/channel-members.service.js';
@@ -14,7 +14,7 @@ import { ChannelPermissionGuard } from './guards/channel-permission.guard.js';
 @Module({
   // OrganizationsModule export OrgMemberGuard (+ repository nó cần) → @RequireOrgPermission và
   // @RequireChannelPermission resolve được guard trong module này.
-  imports: [OrganizationsModule, NotificationsModule],
+  imports: [OrganizationsModule, NotificationsCoreModule],
   controllers: [ChannelsController, ChannelMembersController],
   providers: [
     ChannelsRepository,

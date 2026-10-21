@@ -2,6 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { QueueName } from '../../infra/queue/queue.module.js';
 import { ChannelsModule } from '../channels/channels.module.js';
+import { NotificationsCoreModule } from '../notifications/notifications-core.module.js';
 import { OrganizationsModule } from '../organizations/organizations.module.js';
 import { ChannelMeetingsController } from './controllers/channel-meetings.controller.js';
 import { MeetingsController } from './controllers/meetings.controller.js';
@@ -19,6 +20,7 @@ import { MeetingsService } from './services/meetings.service.js';
   imports: [
     OrganizationsModule,
     ChannelsModule,
+    NotificationsCoreModule,
     BullModule.registerQueue({ name: QueueName.Default }),
   ],
   controllers: [MeetingsController, ChannelMeetingsController],

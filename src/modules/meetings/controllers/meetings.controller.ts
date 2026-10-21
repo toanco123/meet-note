@@ -88,16 +88,17 @@ export class MeetingsController {
   @ApiErrorResponses(400, 403, 409)
   async share(
     @CurrentOrgMembership() membership: OrgMembershipContext,
-    @CurrentUser() user: AuthUser,
+    @UserAuditCtx() ctx: UserAuditContext,
     @Param('meetingId', new ParseUUIDPipe()) meetingId: string,
     @Body() dto: ShareMeetingDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<MeetingShareResponseDto> {
     const { share, created } = await this.shares.share(
       membership,
-      user.id,
+      ctx.actorId,
       meetingId,
       dto.channelId,
+      ctx.requestId ?? null,
     );
     if (!created) res.status(HttpStatus.OK);
     return share;

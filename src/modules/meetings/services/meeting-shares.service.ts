@@ -4,6 +4,7 @@ import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.j
 import { Errors } from '../../../common/errors/errors.js';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database, Transaction } from '../../../infra/database/database.types.js';
+import { NotificationFanoutService } from '../../notifications/services/notification-fanout.service.js';
 import { assertChannelDecision } from '../../channels/channel-decisions.js';
 import { channelPolicy, decideChannelPermission } from '../../channels/channel.policy.js';
 import type { ChannelAccess } from '../../channels/channels.types.js';
@@ -24,16 +25,22 @@ export class MeetingSharesService {
     private readonly repo: MeetingSharesRepository,
     private readonly meetings: MeetingsRepository,
     @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
+    private readonly fanout: NotificationFanoutService,
   ) {}
 
-  /** Lần đầu `created: true` (201); đã share từ trước → `false` (200, cùng nội dung — Q3). */
+  /**
+   * Lần đầu `created: true` (201); đã share từ trước → `false` (200, cùng nội dung — Q3). Sau commit:
+   * enqueue fan-out thông báo `meeting.shared` (M10 B5) — cả khi share lặp lại, xem
+   * `enqueueMeetingShared`.
+   */
   async share(
     membership: OrgMembershipContext,
     userId: string,
     meetingId: string,
     channelId: string,
+    requestId: string | null = null,
   ): Promise<{ share: MeetingShareResponseDto; created: boolean }> {
-    return this.db.transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       const access = await this.lockChannelAccess(membership, userId, channelId, tx);
       const meeting = await this.repo.lockMeeting(membership.orgId, meetingId, tx); // bậc 4
       // Chỉ share meeting CỦA MÌNH; của người khác → 404 như không tồn tại (không nói "có nhưng
@@ -49,8 +56,11 @@ export class MeetingSharesService {
       return {
         share: { meetingId, channelId, sharedAt: sharedAt.toISOString() },
         created: inserted !== undefined,
+        sharedAt,
       };
     });
+    await this.fanout.enqueueMeetingShared(meetingId, channelId, result.sharedAt, requestId);
+    return { share: result.share, created: result.created };
   }
 
   /** Idempotent: chưa share / đã gỡ → vẫn 204 (với người có quyền). */

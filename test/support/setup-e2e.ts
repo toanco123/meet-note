@@ -24,6 +24,8 @@ process.env.S3_FORCE_PATH_STYLE = 'true';
 process.env.REALTIME_CORS_ORIGINS = 'http://app.meetnote.test';
 // Redis dùng chung giữa các file test chạy song song → mỗi file một kênh Socket.IO riêng (như DB riêng).
 process.env.REALTIME_REDIS_KEY = `meetnote-test:${randomBytes(6).toString('hex')}:socket.io`;
+// Cùng lý do cho BullMQ: worker của file này không được lấy job của file khác (DB khác).
+process.env.QUEUE_PREFIX = `meetnote-test-${randomBytes(6).toString('hex')}`;
 
 afterAll(async () => {
   await database.drop();

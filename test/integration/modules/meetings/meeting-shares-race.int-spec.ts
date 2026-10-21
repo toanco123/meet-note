@@ -12,6 +12,7 @@ import {
 import { MeetingSharesRepository } from '../../../../src/modules/meetings/repositories/meeting-shares.repository.js';
 import { MeetingsRepository } from '../../../../src/modules/meetings/repositories/meetings.repository.js';
 import { MeetingSharesService } from '../../../../src/modules/meetings/services/meeting-shares.service.js';
+import { NotificationFanoutService } from '../../../../src/modules/notifications/services/notification-fanout.service.js';
 import {
   addChannelMember,
   addMember,
@@ -43,6 +44,8 @@ describe('Share / gỡ share ‖ mất quyền (Postgres thật)', () => {
         MeetingsRepository,
         { provide: DRIZZLE, useValue: t.db },
         realtimeStub,
+        // Không có queue ở test này — fan-out thông báo test riêng (e2e notifications).
+        { provide: NotificationFanoutService, useValue: { enqueueMeetingShared: async () => {} } },
       ],
     }).compile();
     service = moduleRef.get(MeetingSharesService);

@@ -31,8 +31,9 @@ export interface NotificationPayloads {
     meetingTitle: string;
     channelId: string;
     channelName: string;
-    actorId: string;
-    actorName: string;
+    /** NULL khi tài khoản người share đã bị xoá (`meeting_shares.shared_by` SET NULL). */
+    actorId: string | null;
+    actorName: string | null;
   };
 }
 
@@ -61,5 +62,15 @@ export interface ListNotificationsParams {
   unreadOnly: boolean;
   /** Khoá cursor dòng cuối trang trước: `(created_at, id)`, thời gian dạng text đủ micro giây. */
   after?: { createdAt: string; id: string };
+  limit: number;
+}
+
+export interface FanoutRecipientsParams {
+  meetingId: string;
+  channelId: string;
+  /** Người share — không tự báo cho mình. */
+  excludeUserId: string | null;
+  /** Keyset: `user_id` cuối của lô trước. */
+  afterUserId: string | null;
   limit: number;
 }

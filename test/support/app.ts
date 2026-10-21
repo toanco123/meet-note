@@ -1,9 +1,10 @@
-import type { INestApplication, Type } from '@nestjs/common';
+import type { INestApplication, INestApplicationContext, Type } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/bootstrap/configure-app.js';
 import { buildOpenApiDocument, setupSwagger } from '../../src/bootstrap/swagger.js';
+import { WorkerModule } from '../../src/worker.module.js';
 
 export interface TestAppOptions {
   /** Controller chỉ có trong test (vd controller thăm dò để test guard độc lập với tính năng). */
@@ -29,4 +30,14 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<INest
 
   await app.init();
   return app;
+}
+
+/**
+ * Tiến trình worker trong test (như worker.ts: application context, không HTTP) — chạy processor
+ * thật trên Redis thật, cùng DB / prefix queue của file test. Đóng bằng `close()` (chờ job đang chạy).
+ */
+export async function createTestWorker(): Promise<INestApplicationContext> {
+  const moduleRef = await Test.createTestingModule({ imports: [WorkerModule] }).compile();
+  moduleRef.useLogger(false);
+  return moduleRef.init();
 }
