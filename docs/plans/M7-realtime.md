@@ -1,6 +1,6 @@
 # M7 — Realtime
 
-- **Trạng thái:** Đang làm (plan đã duyệt 2026-10-21: ★ cho Q1–Q4)
+- **Trạng thái:** **Xong** (2026-10-21): B1–B7, chưa push / mở PR → CI chưa chạy. Plan đã duyệt 2026-10-21 (★ cho Q1–Q4)
 - **Nhánh:** `m7-realtime`
 - **Tài liệu thiết kế liên quan:** [01-overview D6](../design/01-overview.md), [02-architecture §2 (nguyên tắc giao tiếp)](../design/02-architecture.md), [05-api Realtime](../design/05-api.md), [08-testing](../design/08-testing.md), [10-roadmap M7](../design/10-roadmap.md)
 - **Ghi chú:** pipeline M6 đang hoãn → chưa có event `meeting.progress` thật. Mốc này dựng **hạ tầng realtime cho đúng** (xác thực, room theo quyền, nhiều instance, mất quyền là mất event); event `meeting.progress` cắm vào khi làm M6, `notification.created` khi làm M10.
@@ -69,15 +69,17 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 - [x] **B6 — `meeting.status` khi upload complete + trang thử**
   - Việc: phát `meeting.status { meetingId, status: 'queued' }` vào `user:{ownerId}` + `meeting:{id}` sau commit; trang `/realtime-test.html` (dev).
   - Test: complete upload qua HTTP → client nhận đúng 1 event; complete lại (200) → không phát lại; transaction lỗi → không có event.
-- [ ] **B7 — Đóng mốc**
+- [x] **B7 — Đóng mốc**
   - Việc: `openapi.json` (nếu đổi), đối chiếu tài liệu, chạy tay trên Compose với **2 api instance** sau một proxy, ghi "Điều học được".
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở local và CI, gồm test 2 instance
-- [ ] Không có đường nào để socket tiếp tục nhận event sau khi mất phiên hoặc mất quyền xem
-- [ ] `docs/design/` khớp code (05 Realtime, 02, 09)
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 391)
+- [x] `pnpm test:e2e` xanh ở local (521 test), gồm test 2 api instance + worker
+- [ ] `pnpm test:e2e` xanh trên CI — chạy khi push / mở PR
+- [x] Không có đường nào để socket tiếp tục nhận event sau khi mất phiên (token hết hạn, logout, logout-all, xoá phiên, reuse) hoặc mất quyền xem (10 điểm phát "kiểm lại", mỗi điểm có đột biến đỏ)
+- [x] `docs/design/` khớp code (05 Realtime, 02, 07, 09) — đối chiếu bằng script
+- [x] Docker Compose với 2 api instance + worker: 7 bước qua Redis thật (event, cho rời room, ngắt phiên, worker phát, kiểm Origin)
 
 ## Điều sẽ học
 
@@ -102,3 +104,4 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 12. **Test chạy song song dùng chung Redis → `fetchSockets` xuyên instance timeout.** Lượt e2e đầy đủ đỏ một ca (chạy riêng thì xanh): `timeout reached while waiting for fetchSockets response` từ redis-adapter. `fetchSockets()` (không `.local`) gửi yêu cầu qua kênh Redis rồi chờ phản hồi từ MỌI server đang nghe kênh đó (đếm bằng `PUBSUB NUMSUB`) — gồm cả server của FILE TEST KHÁC (cùng container Redis, cùng key `meetnote:socket.io`); server nào vừa đóng là không bao giờ trả lời → chờ hết 5 s. Mỗi file test có DB riêng nhưng Redis thì chưa từng được cô lập theo kênh realtime. Sửa: key thành env `REALTIME_REDIS_KEY`, `setup-e2e` đặt key ngẫu nhiên mỗi file (như DB riêng); e2e đầy đủ chạy lại 2 lần đều xanh. Ở production cùng bẫy đó: hai môi trường chung Redis phải khác key. Code chính chỉ dùng `.local.fetchSockets()` nên không phụ thuộc phản hồi của instance khác (rolling deploy không làm treo "kiểm lại").
 13. **"Phát sau commit" kiểm bằng chính quan sát của publisher** (như queue ở M5): publisher giả ghi lại, ngay lúc `emit`, một connection KHÁC có thấy meeting không. Test cũng bắt được lỗi của chính nó: lần đầu reset danh sách event SAU lượt complete bị lỗi → nếu lượt lỗi có phát thì cũng đã bị xoá mất; dời reset lên trước. Đột biến phát cả khi complete gọi lại (200) → đỏ.
 14. **Route Express gắn sau `app.init()` không bao giờ tới được.** Trang thử trả 404 trong test: `createTestApp` đã `init()` (Nest gắn handler 404 cuối chuỗi lúc init) rồi mới gắn route. `main.ts` thì đúng thứ tự (gắn trước `listen()`). Thêm `beforeInit` cho `createTestApp` để test đi đúng thứ tự như main.ts.
+15. **Chạy tay 2 api instance trên Compose không cần sửa `compose.yaml`:** file override ngoài repo thêm `api2` bằng `extends` + `ports: !override ['3001:3000']` (Compose 2.24+). Socket nối instance 2, REST gọi instance 1, và một bước phát event **từ trong container worker** bằng redis-emitter — 7 bước đều đúng. Không cần sticky session vì client chỉ dùng transport WebSocket (sticky session cần cho HTTP long-polling, khi các request của một phiên Engine.IO phải tới cùng instance).

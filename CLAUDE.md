@@ -25,7 +25,7 @@ MeetNote là ứng dụng biên bản họp theo nhóm. Người dùng thuộc t
 | M5 — Upload                    | **Xong** (PR #5)                                                        |
 | M6 — Pipeline                  | **Hoãn** (plan nháp `docs/plans/M6-pipeline.md`)                        |
 | M6b — Chia sẻ & quyền xem      | **Xong** (PR #6)                                                        |
-| M7 — Realtime                  | **Đang làm** (`docs/plans/M7-realtime.md`)                              |
+| M7 — Realtime                  | **Xong** (nhánh `m7-realtime`, chưa PR)                                 |
 
 Lộ trình đầy đủ: `docs/design/10-roadmap.md`.
 
