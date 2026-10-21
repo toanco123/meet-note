@@ -7,7 +7,7 @@ import { channelPolicy, decideChannelPermission } from '../../channels/channel.p
 import type { ChannelAccess } from '../../channels/channels.types.js';
 import type { OrgMembershipContext } from '../../organizations/organizations.types.js';
 import { MeetingShareResponseDto } from '../dto/meeting-share.dto.js';
-import { decideUnshare } from '../meeting-share.policy.js';
+import { decideUnshare } from '../meeting.policy.js';
 import { MeetingSharesRepository } from '../repositories/meeting-shares.repository.js';
 import { MeetingsRepository } from '../repositories/meetings.repository.js';
 

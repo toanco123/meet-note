@@ -1,6 +1,7 @@
 import type { ChannelDecision } from '../channels/channels.types.js';
 import { ChannelRole, isChannelRoleAtLeast } from '../channels/channel.policy.js';
 import { isOrgRoleAtLeast, OrgRole } from '../organizations/organization.policy.js';
+import type { OrgRoleValue } from '../../infra/database/schema/index.js';
 import type { UnshareContext } from './meetings.types.js';
 
 /**
@@ -19,4 +20,16 @@ export function decideUnshare(c: UnshareContext): ChannelDecision {
   if (!allowed) return 'forbidden';
   if (c.channelArchived) return 'archived';
   return 'ok';
+}
+
+/**
+ * Ai sửa / xoá được meeting: chủ meeting; meeting KHÔNG CHỦ (chủ rời org, D16) thì Owner / Admin org
+ * quản lý (M6b Q2). OrgAdm không đụng được meeting CÓ chủ — kể cả meeting họ xem được.
+ */
+export function canManageMeeting(
+  meeting: { ownerId: string | null },
+  viewer: { userId: string; orgRole: OrgRoleValue },
+): boolean {
+  if (meeting.ownerId !== null) return meeting.ownerId === viewer.userId;
+  return isOrgRoleAtLeast(viewer.orgRole, OrgRole.Admin);
 }

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { decideUnshare } from '../../../../src/modules/meetings/meeting-share.policy.js';
+import {
+  canManageMeeting,
+  decideUnshare,
+} from '../../../../src/modules/meetings/meeting.policy.js';
 import type { UnshareContext } from '../../../../src/modules/meetings/meetings.types.js';
 
 const base: UnshareContext = {
@@ -31,5 +34,20 @@ describe('decideUnshare — ai gỡ được meeting khỏi kênh (04 §2, M6b Q
     ['kênh lưu trữ, người KHÔNG có quyền → 403', { channelArchived: true }, 'forbidden'],
   ])('%s → %s', (_label, over, expected) => {
     expect(decideUnshare({ ...base, ...over })).toBe(expected);
+  });
+});
+
+describe('canManageMeeting — ai sửa / xoá được meeting (M6b Q2)', () => {
+  const ME = 'u-me';
+  it.each<[string, string | null, 'owner' | 'admin' | 'member', boolean]>([
+    ['chủ meeting', ME, 'member', true],
+    ['thành viên khác', 'u-other', 'member', false],
+    ['Admin org, meeting CÓ chủ', 'u-other', 'admin', false],
+    ['Owner org, meeting CÓ chủ', 'u-other', 'owner', false],
+    ['Admin org, meeting KHÔNG chủ', null, 'admin', true],
+    ['Owner org, meeting KHÔNG chủ', null, 'owner', true],
+    ['thành viên, meeting KHÔNG chủ', null, 'member', false],
+  ])('%s → %s', (_label, ownerId, orgRole, expected) => {
+    expect(canManageMeeting({ ownerId }, { userId: ME, orgRole })).toBe(expected);
   });
 });

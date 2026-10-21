@@ -18,7 +18,7 @@ export type UserAuditContext = AuditContext & { actorId: string };
 export interface AuditEntry {
   orgId: string;
   action: AuditAction;
-  targetType: 'organization' | 'member' | 'invite' | 'join_request' | 'channel';
+  targetType: 'organization' | 'member' | 'invite' | 'join_request' | 'channel' | 'meeting';
   targetId: string;
   /** Thường là `{ before, after }` — chỉ những field thay đổi, KHÔNG ghi dữ liệu nhạy cảm. */
   metadata?: Record<string, unknown>;

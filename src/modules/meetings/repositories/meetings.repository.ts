@@ -26,6 +26,7 @@ import { isOrgRoleAtLeast, OrgRole } from '../../organizations/organization.poli
 import { meetingVisibleTo } from '../meeting-visibility.js';
 import type {
   ChannelMeetingRow,
+  MeetingPatch,
   ListChannelMeetingsParams,
   ListVisibleMeetingsParams,
   MeetingChannelRef,
@@ -140,5 +141,31 @@ export class MeetingsRepository {
       )
       .orderBy(desc(meetingShares.sharedAt), desc(meetingShares.meetingId))
       .limit(p.limit + 1);
+  }
+
+  /** Bậc 4 của thứ tự khoá chung. Meeting đã xoá → `undefined` (đọc lại sau khi chờ khoá). */
+  async lockForUpdate(
+    orgId: string,
+    meetingId: string,
+    executor: DbExecutor,
+  ): Promise<MeetingRow | undefined> {
+    const [row] = await executor
+      .select()
+      .from(meetings)
+      .where(and(eq(meetings.id, meetingId), eq(meetings.orgId, orgId), isNull(meetings.deletedAt)))
+      .for('update');
+    return row;
+  }
+
+  async update(meetingId: string, patch: MeetingPatch, executor: DbExecutor): Promise<void> {
+    await executor.update(meetings).set(patch).where(eq(meetings.id, meetingId));
+  }
+
+  /** Xoá MỀM (Q6): share giữ nguyên nhưng hết hiệu lực vì điều kiện xem đòi `deleted_at IS NULL`. */
+  async softDelete(meetingId: string, executor: DbExecutor): Promise<void> {
+    await executor
+      .update(meetings)
+      .set({ deletedAt: sql`now()` })
+      .where(eq(meetings.id, meetingId));
   }
 }

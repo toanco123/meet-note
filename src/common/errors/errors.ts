@@ -220,6 +220,11 @@ export const Errors = {
   meeting: {
     /** Không tồn tại / không có quyền xem / khác tổ chức — một câu (tài nguyên ẩn). */
     notFound: () => notFound('Không tìm thấy cuộc họp.'),
+    /** Xem được nhưng không phải chủ (và không phải OrgAdm với meeting không chủ). */
+    notManager: () =>
+      forbidden(
+        'Chỉ chủ cuộc họp được làm việc này (cuộc họp không còn chủ: Owner / Admin tổ chức).',
+      ),
   },
 
   channel: {

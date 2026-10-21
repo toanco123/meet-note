@@ -82,9 +82,9 @@ Mỗi bước = 1 commit, chạy được và có test.
 - [x] **B5 — `GET /channels/:channelId/meetings`**
   - Việc: qua `ChannelAccessGuard` (`channel.content.read`), cursor `(shared_at DESC, meeting_id)`.
   - Test (e2e): OrgAdm + kênh riêng tư → 403 / 404 như M4; meeting đã xoá không hiện.
-- [ ] **B6 — Sửa / xoá meeting**
+- [x] **B6 — Sửa / xoá meeting**
   - Việc: PATCH / DELETE (Q2, Q6), audit khi OrgAdm xoá meeting không chủ.
-  - Test (e2e): chủ / OrgAdm (meeting có chủ → 404, không chủ → được) / người khác → 404; sau xoá: chi tiết 404, mất khỏi mọi danh sách.
+  - Test (e2e): chủ / OrgAdm (meeting có chủ → 403 nếu xem được, 404 nếu không; không chủ → được) / người khác (403 nếu xem được, 404 nếu không — nhất quán với gỡ share ở B4); sau xoá: chi tiết 404, mất khỏi mọi danh sách, gọi lại 404; audit khi OrgAdm xoá meeting không chủ.
 - [ ] **B7 — Đóng mốc**
   - Việc: `openapi.json`, đối chiếu tài liệu bằng script, smoke test trên Compose (2 người, kênh công khai + riêng tư, share / gỡ / lưu trữ / xoá), ghi "Điều học được".
 
@@ -111,4 +111,4 @@ Mỗi bước = 1 commit, chạy được và có test.
 5. **Dữ liệu test phải cô lập theo đúng quy tắc đang test.** Test danh sách dùng chung org với các test khác thấy thừa meeting ở kênh công khai — đúng quy tắc xem, sai cách dựng test. Mỗi test danh sách tạo org riêng.
 6. **Mỗi khoá `FOR SHARE` có một kịch bản chứng minh RIÊNG — và một khoá hoá ra thừa cho share.** Ba đột biến, ba test đỏ đúng chỗ: bỏ khoá dòng kênh → "share ‖ bị gỡ khỏi kênh" và "share ‖ lưu trữ" đỏ (share xong trước khi mất quyền); bỏ khoá meeting → "share ‖ xoá meeting" đỏ (FK chỉ khoá `FOR KEY SHARE`, đợi xong vẫn chèn được share lên meeting đã xoá); bỏ khoá dòng `channel_members` → chỉ "QTV gỡ share ‖ QTV bị gỡ khỏi org" đỏ. Với **share**, khoá dòng thành viên là thừa: gỡ khỏi org đặt `meetings.owner_id = NULL` (khoá dòng meeting) → kiểm tra lại "meeting của mình" sau khi khoá meeting đã chặn. Với **gỡ share của QTV** (meeting người khác, owner không đổi), cascade xoá dòng thành viên KHÔNG đi qua dòng kênh → khoá dòng thành viên là thứ duy nhất bảo vệ. Giữ khoá ở cả hai cho một thứ tự khoá thống nhất.
 7. **`FOR SHARE` thay vì `FOR UPDATE` (mutex kênh của M4):** share chỉ cần "quyền / trạng thái không đổi tới khi commit", không đổi kênh. `FOR SHARE` cho nhiều người share song song vào cùng kênh mà vẫn xung đột với `FOR UPDATE` của lưu trữ / đổi quyền.
-8. **403 hay 404 khi gỡ share không có quyền:** 403 xác nhận meeting tồn tại. Service chỉ trả 403 khi người gọi XEM ĐƯỢC meeting (gọi lại điều kiện xem dùng chung), còn lại 404 — test "người ngoài, meeting không thấy được → 404".
+8. **403 hay 404 khi gỡ share không có quyền:** 403 xác nhận meeting tồn tại. Service chỉ trả 403 khi người gọi XEM ĐƯỢC meeting (gọi lại điều kiện xem dùng chung), còn lại 404 — test "người ngoài, meeting không thấy được → 404". B6 áp cùng quy tắc cho sửa / xoá (plan ban đầu ghi "người khác → 404" — đổi cho nhất quán).

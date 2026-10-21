@@ -55,3 +55,9 @@ export interface ListChannelMeetingsParams {
 
 /** Meeting trong một kênh, kèm lúc share và khoá cursor do Postgres in. */
 export type ChannelMeetingRow = MeetingRow & { sharedAt: Date; sharedAtKey: string };
+
+/** Trường sửa được của meeting (PATCH). */
+export interface MeetingPatch {
+  title?: string;
+  recordedAt?: Date;
+}

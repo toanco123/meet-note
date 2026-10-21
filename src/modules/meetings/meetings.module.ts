@@ -7,6 +7,7 @@ import { ChannelMeetingsController } from './controllers/channel-meetings.contro
 import { MeetingsController } from './controllers/meetings.controller.js';
 import { MeetingSharesRepository } from './repositories/meeting-shares.repository.js';
 import { MeetingsRepository } from './repositories/meetings.repository.js';
+import { MeetingManagementService } from './services/meeting-management.service.js';
 import { MeetingSharesService } from './services/meeting-shares.service.js';
 import { MeetingsService } from './services/meetings.service.js';
 
@@ -21,7 +22,13 @@ import { MeetingsService } from './services/meetings.service.js';
     BullModule.registerQueue({ name: QueueName.Default }),
   ],
   controllers: [MeetingsController, ChannelMeetingsController],
-  providers: [MeetingsRepository, MeetingsService, MeetingSharesRepository, MeetingSharesService],
+  providers: [
+    MeetingsRepository,
+    MeetingsService,
+    MeetingSharesRepository,
+    MeetingSharesService,
+    MeetingManagementService,
+  ],
   exports: [MeetingsRepository, MeetingsService],
 })
 export class MeetingsModule {}

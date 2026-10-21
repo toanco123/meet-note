@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   ParseUUIDPipe,
   Post,
   Query,
@@ -21,9 +22,13 @@ import { ApiPaginatedResponse } from '../../../common/swagger/api-paginated-resp
 import { CurrentOrgMembership } from '../../organizations/guards/org-membership.js';
 import { RequireOrgPermission } from '../../organizations/guards/require-org-permission.decorator.js';
 import type { OrgMembershipContext } from '../../organizations/organizations.types.js';
+import { UserAuditCtx } from '../../audit/audit-context.decorator.js';
+import type { UserAuditContext } from '../../audit/audit.types.js';
 import { ListMeetingsQueryDto } from '../dto/list-meetings-query.dto.js';
+import { UpdateMeetingDto } from '../dto/update-meeting.dto.js';
 import { MeetingShareResponseDto, ShareMeetingDto } from '../dto/meeting-share.dto.js';
 import { MeetingDetailResponseDto, MeetingResponseDto } from '../dto/meeting-response.dto.js';
+import { MeetingManagementService } from '../services/meeting-management.service.js';
 import { MeetingSharesService } from '../services/meeting-shares.service.js';
 import { MeetingsService } from '../services/meetings.service.js';
 
@@ -33,6 +38,7 @@ export class MeetingsController {
   constructor(
     private readonly meetings: MeetingsService,
     private readonly shares: MeetingSharesService,
+    private readonly management: MeetingManagementService,
   ) {}
 
   /**
@@ -114,5 +120,42 @@ export class MeetingsController {
     @Param('channelId', new ParseUUIDPipe()) channelId: string,
   ): Promise<void> {
     await this.shares.unshare(membership, user.id, meetingId, channelId);
+  }
+
+  /**
+   * Sửa tiêu đề / thời điểm họp.
+   *
+   * @remarks Chủ cuộc họp; cuộc họp không còn chủ thì Owner / Admin tổ chức. Xem được nhưng không
+   * có quyền → 403; không xem được → 404.
+   */
+  @Patch(':meetingId')
+  @RequireOrgPermission('org.meeting.manage')
+  @ApiErrorResponses(400, 403)
+  async update(
+    @CurrentOrgMembership() membership: OrgMembershipContext,
+    @UserAuditCtx() ctx: UserAuditContext,
+    @Param('meetingId', new ParseUUIDPipe()) meetingId: string,
+    @Body() dto: UpdateMeetingDto,
+  ): Promise<MeetingDetailResponseDto> {
+    await this.management.update(membership, ctx, meetingId, dto);
+    return this.meetings.getVisible(membership, ctx.actorId, meetingId);
+  }
+
+  /**
+   * Xoá cuộc họp (xoá mềm).
+   *
+   * @remarks Cùng quyền như sửa. Cuộc họp biến mất với mọi người, kể cả khỏi các kênh đã chia sẻ.
+   * Owner / Admin tổ chức xoá cuộc họp không còn chủ thì được ghi audit.
+   */
+  @Delete(':meetingId')
+  @RequireOrgPermission('org.meeting.manage')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiErrorResponses(400, 403)
+  async remove(
+    @CurrentOrgMembership() membership: OrgMembershipContext,
+    @UserAuditCtx() ctx: UserAuditContext,
+    @Param('meetingId', new ParseUUIDPipe()) meetingId: string,
+  ): Promise<void> {
+    await this.management.remove(membership, ctx, meetingId);
   }
 }
