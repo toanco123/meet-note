@@ -4,8 +4,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
 import { QueueName } from '../../../../src/infra/queue/queue.module.js';
 import { OBJECT_STORAGE } from '../../../../src/infra/storage/storage.module.js';
-import { MeetingsRepository } from '../../../../src/modules/meetings/meetings.repository.js';
-import { MeetingsService } from '../../../../src/modules/meetings/meetings.service.js';
+import { MeetingsRepository } from '../../../../src/modules/meetings/repositories/meetings.repository.js';
+import { MeetingsService } from '../../../../src/modules/meetings/services/meetings.service.js';
+import { ChannelsRepository } from '../../../../src/modules/channels/repositories/channels.repository.js';
 import { UploadsRepository } from '../../../../src/modules/uploads/uploads.repository.js';
 import { UploadsCleanupService } from '../../../../src/modules/uploads/services/uploads-cleanup.service.js';
 import { UploadsService } from '../../../../src/modules/uploads/services/uploads.service.js';
@@ -32,6 +33,7 @@ describe('UploadsService.init — bù trừ khi ghi DB lỗi (Postgres + RustFS 
         UploadsRepository,
         MeetingsRepository,
         MeetingsService,
+        ChannelsRepository,
         {
           provide: getQueueToken(QueueName.Default),
           useValue: { add: vi.fn<() => Promise<void>>() },

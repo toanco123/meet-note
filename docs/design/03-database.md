@@ -277,14 +277,14 @@ WHERE id = $1 AND status = 'preprocessing' RETURNING id;
 
 ### `meeting_shares`
 
-meeting_id, channel_id, org_id, shared_by, shared_at. PK `(meeting_id, channel_id)`.
-Có 2 composite FK:
+meeting_id, channel_id, org_id, shared_by NULL (FK `users` ON DELETE SET NULL), shared_at. PK `meeting_shares_pk (meeting_id, channel_id)` (M6b, migration `0008`).
+Có 2 composite FK, cả hai **ON DELETE CASCADE**:
 
-- `(meeting_id, org_id)` → `meetings(id, org_id)`
-- `(channel_id, org_id)` → `channels(id, org_id)`
+- `meeting_shares_meeting_fk (meeting_id, org_id)` → `meetings(id, org_id)`
+- `meeting_shares_channel_fk (channel_id, org_id)` → `channels(id, org_id)`
 
-Như vậy không thể share chéo org.
-Index: `(channel_id, shared_at DESC, meeting_id)`.
+Như vậy không thể share chéo org. Purge kênh (xoá cứng) tự gỡ share, meeting còn nguyên (D3). Chủ meeting rời org: `owner_id` NULL, share giữ nguyên.
+Index: `meeting_shares_channel_shared_idx (channel_id, shared_at DESC, meeting_id DESC)` — danh sách meeting theo kênh, cũng là index phía tham chiếu của FK kênh. Phía meeting đã có PK bắt đầu bằng `meeting_id`.
 
 ### `transcript_segments`
 
@@ -383,6 +383,7 @@ Dùng cho các POST không tự idempotent, theo header `Idempotency-Key` (`@Ide
 1. `organization_members`, sắp theo `user_id` (`FOR UPDATE` khi đổi/xoá, `FOR SHARE` khi chỉ cần "vai trò này giữ nguyên")
 2. `channels`, sắp theo `id` (dòng kênh là mutex cho mọi thay đổi quyền trong kênh)
 3. `channel_members`, sắp theo `user_id`
+4. `meetings` (M6b). Đứng SAU `organization_members` vì gỡ thành viên khỏi org (khoá bậc 1) cập nhật `meetings.owner_id` qua `ON DELETE SET NULL`. Share meeting: kênh `FOR SHARE` (bậc 2) → dòng `channel_members` của người share `FOR SHARE` (bậc 3) → meeting `FOR SHARE` (bậc 4)
 
 Ví dụ:
 
@@ -400,23 +401,24 @@ Hai thao tác chạm cùng người X luôn tuần tự, không deadlock.
 
 ### Tóm tắt
 
-| Thao tác                           | Kỹ thuật                                                                                              | Lý do                                                                         |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Refresh token                      | tx + `FOR UPDATE` refresh_token rồi session                                                           | Chặn 2 refresh song song, phát hiện reuse                                     |
-| Chuyển quyền sở hữu org            | tx + `FOR UPDATE` 2 dòng member (sắp theo user_id) + hạ trước nâng sau                                | Partial unique index, chống deadlock                                          |
-| Đổi vai trò / gỡ thành viên org    | tx + `FOR UPDATE` dòng member mục tiêu + kiểm tra không gỡ owner                                      | Owner không bị gỡ nhầm                                                        |
-| Rời / bị gỡ khỏi org               | tx + `FOR UPDATE` member → còn làm chủ kênh thì 409 → xoá member                                      | Cascade không để lại kênh mồ côi (M4 Q3)                                      |
-| Dùng link mời                      | UPDATE có điều kiện                                                                                   | Nguyên tử, không cần khoá                                                     |
-| Duyệt yêu cầu vào org              | tx + `FOR UPDATE` request                                                                             | Chặn duyệt 2 lần                                                              |
-| Thêm thành viên kênh               | tx + `FOR SHARE` org member của X → `FOR UPDATE` kênh → ON CONFLICT                                   | X không bị gỡ khỏi org giữa chừng; 404 rõ                                     |
-| Đổi vai trò / gỡ / chuyển chủ kênh | tx + `FOR UPDATE` dòng `channels` trước, rồi dòng `channel_members`                                   | Một mutex cho mỗi kênh, thứ tự khoá cố định                                   |
-| Complete upload                    | tx + `FOR UPDATE` upload, gọi S3 Complete **trong** khoá (timeout 30 s, M5 Q2); enqueue sau commit    | Idempotent, chặn tạo 2 meeting; S3 xong mà DB lỗi → gọi lại tự gỡ bằng `HEAD` |
-| Giữ chỗ `Idempotency-Key`          | `INSERT … ON CONFLICT DO UPDATE … WHERE` (hết hạn / quá lease) + fencing token `created_at`           | Một câu nguyên tử, không khoá tường minh; crash giữa chừng không kẹt key      |
-| Chuyển trạng thái meeting          | UPDATE … WHERE status = expected                                                                      | Optimistic, không giữ khoá trong lúc chạy lâu                                 |
-| Ghi transcript                     | tx delete + insert                                                                                    | Idempotent khi chạy lại                                                       |
-| Cron báo cáo                       | INSERT … ON CONFLICT DO NOTHING                                                                       | Idempotent theo (kênh, tuần)                                                  |
-| Tạo lại báo cáo                    | tx + `FOR UPDATE` report                                                                              | Quota 3 lần chính xác                                                         |
-| Job purge / dọn upload             | `FOR UPDATE SKIP LOCKED` theo lô + `lock_timeout` (`set_config`); dọn upload: abort S3 **sau** commit | Nhiều worker chạy song song không giẫm nhau; không giữ khoá lúc gọi S3        |
-| Dọn `idempotency_keys` hết hạn     | `DELETE … WHERE (user_id, key) IN (SELECT … FOR UPDATE SKIP LOCKED)` theo lô                          | `claim` cùng key chờ rồi INSERT như mới, không lỗi trùng khoá                 |
-| Lưu trữ / xoá kênh                 | tx + `FOR SHARE` org member người gọi → `FOR UPDATE` kênh                                             | Quyền override của OrgAdm giữ nguyên tới commit                               |
-| Audit log                          | INSERT trong tx của thao tác                                                                          | Nhất quán                                                                     |
+| Thao tác                           | Kỹ thuật                                                                                                                       | Lý do                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Refresh token                      | tx + `FOR UPDATE` refresh_token rồi session                                                                                    | Chặn 2 refresh song song, phát hiện reuse                                                   |
+| Chuyển quyền sở hữu org            | tx + `FOR UPDATE` 2 dòng member (sắp theo user_id) + hạ trước nâng sau                                                         | Partial unique index, chống deadlock                                                        |
+| Đổi vai trò / gỡ thành viên org    | tx + `FOR UPDATE` dòng member mục tiêu + kiểm tra không gỡ owner                                                               | Owner không bị gỡ nhầm                                                                      |
+| Rời / bị gỡ khỏi org               | tx + `FOR UPDATE` member → còn làm chủ kênh thì 409 → xoá member                                                               | Cascade không để lại kênh mồ côi (M4 Q3)                                                    |
+| Dùng link mời                      | UPDATE có điều kiện                                                                                                            | Nguyên tử, không cần khoá                                                                   |
+| Duyệt yêu cầu vào org              | tx + `FOR UPDATE` request                                                                                                      | Chặn duyệt 2 lần                                                                            |
+| Thêm thành viên kênh               | tx + `FOR SHARE` org member của X → `FOR UPDATE` kênh → ON CONFLICT                                                            | X không bị gỡ khỏi org giữa chừng; 404 rõ                                                   |
+| Đổi vai trò / gỡ / chuyển chủ kênh | tx + `FOR UPDATE` dòng `channels` trước, rồi dòng `channel_members`                                                            | Một mutex cho mỗi kênh, thứ tự khoá cố định                                                 |
+| Complete upload                    | tx + `FOR UPDATE` upload, gọi S3 Complete **trong** khoá (timeout 30 s, M5 Q2); enqueue sau commit                             | Idempotent, chặn tạo 2 meeting; S3 xong mà DB lỗi → gọi lại tự gỡ bằng `HEAD`               |
+| Share / gỡ share meeting           | tx: kênh `FOR SHARE` → dòng thành viên của người gọi `FOR SHARE` → meeting `FOR SHARE`, kiểm tra lại, `ON CONFLICT DO NOTHING` | Share song song không chặn nhau; chặn lưu trữ, gỡ quyền, gỡ khỏi org (cascade), xoá meeting |
+| Giữ chỗ `Idempotency-Key`          | `INSERT … ON CONFLICT DO UPDATE … WHERE` (hết hạn / quá lease) + fencing token `created_at`                                    | Một câu nguyên tử, không khoá tường minh; crash giữa chừng không kẹt key                    |
+| Chuyển trạng thái meeting          | UPDATE … WHERE status = expected                                                                                               | Optimistic, không giữ khoá trong lúc chạy lâu                                               |
+| Ghi transcript                     | tx delete + insert                                                                                                             | Idempotent khi chạy lại                                                                     |
+| Cron báo cáo                       | INSERT … ON CONFLICT DO NOTHING                                                                                                | Idempotent theo (kênh, tuần)                                                                |
+| Tạo lại báo cáo                    | tx + `FOR UPDATE` report                                                                                                       | Quota 3 lần chính xác                                                                       |
+| Job purge / dọn upload             | `FOR UPDATE SKIP LOCKED` theo lô + `lock_timeout` (`set_config`); dọn upload: abort S3 **sau** commit                          | Nhiều worker chạy song song không giẫm nhau; không giữ khoá lúc gọi S3                      |
+| Dọn `idempotency_keys` hết hạn     | `DELETE … WHERE (user_id, key) IN (SELECT … FOR UPDATE SKIP LOCKED)` theo lô                                                   | `claim` cùng key chờ rồi INSERT như mới, không lỗi trùng khoá                               |
+| Lưu trữ / xoá kênh                 | tx + `FOR SHARE` org member người gọi → `FOR UPDATE` kênh                                                                      | Quyền override của OrgAdm giữ nguyên tới commit                                             |
+| Audit log                          | INSERT trong tx của thao tác                                                                                                   | Nhất quán                                                                                   |

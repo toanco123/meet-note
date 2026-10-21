@@ -43,6 +43,7 @@ const MATRIX: Array<[ChannelPermission, boolean[], boolean[]]> = [
   ['channel.update', [T, T, F, F, F, F], [T, T, F, F, F, F]],
   ['channel.archive', [T, F, F, F, F, T], [T, F, F, F, F, T]],
   ['channel.delete', [T, F, F, F, F, T], [T, F, F, F, F, T]],
+  ['channel.meeting.share', [T, T, T, F, F, F], [T, T, T, F, F, F]],
 ];
 const ORDER: Actor[] = ['CO', 'CA', 'CM', 'G', 'OUT', 'ORGADM'];
 
@@ -75,6 +76,7 @@ describe('channelPolicy — ma trận §2', () => {
   it('kênh lưu trữ chặn đúng các thao tác ghi, vẫn cho đọc / rời / bỏ lưu trữ / xoá', () => {
     expect([...BLOCKED_WHEN_ARCHIVED].sort()).toEqual([
       'channel.join',
+      'channel.meeting.share',
       'channel.member.add',
       'channel.member.remove',
       'channel.member.role.change',

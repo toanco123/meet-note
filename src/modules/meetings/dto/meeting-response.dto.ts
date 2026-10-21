@@ -47,3 +47,29 @@ export class MeetingResponseDto {
     };
   }
 }
+
+export class MeetingChannelRefDto {
+  id: string;
+
+  /** @example "Kỹ thuật" */
+  name: string;
+}
+
+/** Chi tiết: thêm các kênh chứa meeting mà người gọi thấy được. */
+export class MeetingDetailResponseDto extends MeetingResponseDto {
+  channels: MeetingChannelRefDto[];
+
+  static withChannels(row: MeetingRow, channels: MeetingChannelRefDto[]): MeetingDetailResponseDto {
+    return { ...MeetingResponseDto.from(row), channels };
+  }
+}
+
+/** Một dòng của danh sách meeting trong kênh. */
+export class ChannelMeetingResponseDto extends MeetingResponseDto {
+  /** Lúc được chia sẻ vào kênh này. @example "2026-10-21T02:00:00.000Z" */
+  sharedAt: string;
+
+  static fromShared(row: MeetingRow & { sharedAt: Date }): ChannelMeetingResponseDto {
+    return { ...MeetingResponseDto.from(row), sharedAt: row.sharedAt.toISOString() };
+  }
+}

@@ -5,13 +5,16 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { channels } from './channels.js';
 import { inValues } from './column-types.js';
 import { organizations } from './organizations.js';
+import { users } from './users.js';
 
 export const MEETING_STATUSES = [
   'queued',
@@ -90,3 +93,49 @@ export const meetings = pgTable(
 );
 
 export type MeetingRow = typeof meetings.$inferSelect;
+
+/**
+ * Meeting được chia sẻ vào kênh (D3: một meeting, 0..n kênh) — M6b.
+ *
+ * Hai composite FK theo `org_id` → DB tự chặn share chéo tổ chức dù code có bug. Cả hai CASCADE:
+ * xoá cứng meeting / purge kênh (D3: "chỉ gỡ share, không xoá meeting") tự dọn share.
+ */
+export const meetingShares = pgTable(
+  'meeting_shares',
+  {
+    meetingId: uuid().notNull(),
+    channelId: uuid().notNull(),
+    orgId: uuid().notNull(),
+    /** Người share. NULL nếu tài khoản bị xoá — share vẫn giữ (meeting vẫn thuộc kênh). */
+    sharedBy: uuid(),
+    sharedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: 'meeting_shares_pk', columns: [t.meetingId, t.channelId] }),
+    foreignKey({
+      name: 'meeting_shares_meeting_fk',
+      columns: [t.meetingId, t.orgId],
+      foreignColumns: [meetings.id, meetings.orgId],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'meeting_shares_channel_fk',
+      columns: [t.channelId, t.orgId],
+      foreignColumns: [channels.id, channels.orgId],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'meeting_shares_shared_by_fk',
+      columns: [t.sharedBy],
+      foreignColumns: [users.id],
+    }).onDelete('set null'),
+    // `GET /channels/:id/meetings` (keyset shared_at DESC, meeting_id DESC); cũng là index phía
+    // tham chiếu cho FK kênh (purge kênh tìm share theo channel_id). Phía meeting: PK đã bắt đầu
+    // bằng meeting_id.
+    index('meeting_shares_channel_shared_idx').on(
+      t.channelId,
+      t.sharedAt.desc(),
+      t.meetingId.desc(),
+    ),
+  ],
+);
+
+export type MeetingShareRow = typeof meetingShares.$inferSelect;
