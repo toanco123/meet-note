@@ -7,8 +7,8 @@ import type { MeetingRow, UploadRow, UploadStatus } from '../../../infra/databas
 import { MultipartUploadNotFoundError } from '../../../infra/storage/storage.errors.js';
 import { OBJECT_STORAGE } from '../../../infra/storage/storage.module.js';
 import type { ObjectStorage } from '../../../infra/storage/storage.types.js';
-import { MeetingsRepository } from '../../meetings/meetings.repository.js';
-import { MeetingsService } from '../../meetings/meetings.service.js';
+import { MeetingsRepository } from '../../meetings/repositories/meetings.repository.js';
+import { MeetingsService } from '../../meetings/services/meetings.service.js';
 import type { InitUploadDto } from '../dto/init-upload.dto.js';
 import { UploadsRepository } from '../uploads.repository.js';
 import { UploadsCleanupService } from './uploads-cleanup.service.js';

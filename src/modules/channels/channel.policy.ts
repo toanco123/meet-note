@@ -49,6 +49,12 @@ export const channelPolicy = {
   'channel.update': (c) => isChannelRoleAtLeast(c.channelRole, ChannelRole.Admin),
   'channel.archive': (c) => c.channelRole === ChannelRole.Owner || isOrgAdmin(c),
   'channel.delete': (c) => c.channelRole === ChannelRole.Owner || isOrgAdmin(c),
+  /**
+   * Chia sẻ meeting (CỦA CHÍNH MÌNH — service kiểm theo đối tượng) vào kênh: CO, CA, CM. Khách,
+   * người ngoài kênh công khai và OrgAdm thì không (04 §2, M6b). Gỡ share là kiểm theo đối tượng
+   * (`decideUnshare` của module meetings), không nằm ở đây.
+   */
+  'channel.meeting.share': (c) => isChannelRoleAtLeast(c.channelRole, ChannelRole.Member),
 } satisfies Record<string, (ctx: ChannelAccessContext) => boolean>;
 
 export type ChannelPermission = keyof typeof channelPolicy;
@@ -64,6 +70,7 @@ export const BLOCKED_WHEN_ARCHIVED: ReadonlySet<ChannelPermission> = new Set<Cha
   'channel.member.role.change',
   'channel.member.remove',
   'channel.ownership.transfer',
+  'channel.meeting.share',
 ]);
 
 /**

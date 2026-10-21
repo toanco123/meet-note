@@ -4365,6 +4365,211 @@
         ]
       }
     },
+    "/v1/orgs/{orgId}/meetings/{meetingId}/shares": {
+      "post": {
+        "description": "Bạn phải là thành viên kênh (Chủ kênh / QTV / Thành viên; khách không được). Kênh lưu\ntrữ → 409. Chia sẻ lại → 200 với đúng bản ghi cũ (lần đầu 201).",
+        "operationId": "Meetings_share",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareMeetingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MeetingShareResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).\n\nKhông đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Chia sẻ cuộc họp của bạn vào một kênh.",
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/meetings/{meetingId}/shares/{channelId}": {
+      "delete": {
+        "description": "Chủ cuộc họp (kể cả khi đã rời kênh), Chủ kênh / QTV kênh; cuộc họp không còn chủ thì\nOwner / Admin tổ chức. Kênh lưu trữ → 409. Gọi lại → 204.",
+        "operationId": "Meetings_unshare",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).\n\nKhông đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Gỡ cuộc họp khỏi kênh.",
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
     "/v1/orgs/{orgId}/audit-logs": {
       "get": {
         "description": "Lọc theo `action`, `actorId`. Log chỉ ghi thêm, không sửa/xoá được.",
@@ -5949,6 +6154,40 @@
           "recordedAt",
           "createdAt",
           "channels"
+        ]
+      },
+      "ShareMeetingDto": {
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string",
+            "description": "Kênh muốn chia sẻ vào. Bạn phải là thành viên kênh (không phải khách).",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "channelId"
+        ]
+      },
+      "MeetingShareResponseDto": {
+        "type": "object",
+        "properties": {
+          "meetingId": {
+            "type": "string"
+          },
+          "channelId": {
+            "type": "string"
+          },
+          "sharedAt": {
+            "type": "string",
+            "description": "Lần chia sẻ ĐẦU TIÊN (chia sẻ lại không đổi).",
+            "example": "2026-10-21T02:00:00.000Z"
+          }
+        },
+        "required": [
+          "meetingId",
+          "channelId",
+          "sharedAt"
         ]
       },
       "AuditAction": {

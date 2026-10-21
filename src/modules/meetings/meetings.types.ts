@@ -1,4 +1,9 @@
-import type { MeetingRow, MeetingStatus, OrgRoleValue } from '../../infra/database/schema/index.js';
+import type {
+  ChannelRoleValue,
+  MeetingRow,
+  MeetingStatus,
+  OrgRoleValue,
+} from '../../infra/database/schema/index.js';
 
 /** Người đang xem meeting: đủ để quyết định quyền xem (04 §3) mà không cần đọc thêm gì. */
 export interface MeetingViewer {
@@ -29,4 +34,13 @@ export type MeetingListRow = MeetingRow & { recordedAtKey: string };
 export interface MeetingChannelRef {
   id: string;
   name: string;
+}
+
+/** Đủ để quyết định ai gỡ được meeting khỏi kênh — đọc từ các dòng VỪA KHOÁ. */
+export interface UnshareContext {
+  channelRole: ChannelRoleValue | null;
+  orgRole: OrgRoleValue;
+  channelArchived: boolean;
+  isMeetingOwner: boolean;
+  meetingOwnerless: boolean;
 }

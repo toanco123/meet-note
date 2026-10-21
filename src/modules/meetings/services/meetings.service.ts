@@ -1,23 +1,23 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import type { Queue } from 'bullmq';
-import { Errors } from '../../common/errors/errors.js';
-import { decodeCursor, toPage } from '../../common/pagination/cursor.js';
-import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
-import type { Page } from '../../common/pagination/pagination.types.js';
-import type { MeetingRow } from '../../infra/database/schema/index.js';
-import { JobName, meetingJobId } from '../../infra/queue/jobs.js';
-import { QueueName } from '../../infra/queue/queue.module.js';
-import type { MeetingJobData } from '../../infra/queue/queue.types.js';
-import { channelPolicy, decideChannelPermission } from '../channels/channel.policy.js';
-import { assertChannelDecision } from '../channels/channel-decisions.js';
-import type { ChannelAccess } from '../channels/channels.types.js';
-import { ChannelsRepository } from '../channels/repositories/channels.repository.js';
-import type { OrgMembershipContext } from '../organizations/organizations.types.js';
-import type { ListMeetingsQueryDto } from './dto/list-meetings-query.dto.js';
-import { MeetingDetailResponseDto, MeetingResponseDto } from './dto/meeting-response.dto.js';
-import { MeetingsRepository } from './meetings.repository.js';
-import type { MeetingViewer } from './meetings.types.js';
+import { Errors } from '../../../common/errors/errors.js';
+import { decodeCursor, toPage } from '../../../common/pagination/cursor.js';
+import { expectTimestampKey, expectUuidKey } from '../../../common/pagination/keys.js';
+import type { Page } from '../../../common/pagination/pagination.types.js';
+import type { MeetingRow } from '../../../infra/database/schema/index.js';
+import { JobName, meetingJobId } from '../../../infra/queue/jobs.js';
+import { QueueName } from '../../../infra/queue/queue.module.js';
+import type { MeetingJobData } from '../../../infra/queue/queue.types.js';
+import { channelPolicy, decideChannelPermission } from '../../channels/channel.policy.js';
+import { assertChannelDecision } from '../../channels/channel-decisions.js';
+import type { ChannelAccess } from '../../channels/channels.types.js';
+import { ChannelsRepository } from '../../channels/repositories/channels.repository.js';
+import type { OrgMembershipContext } from '../../organizations/organizations.types.js';
+import type { ListMeetingsQueryDto } from '../dto/list-meetings-query.dto.js';
+import { MeetingDetailResponseDto, MeetingResponseDto } from '../dto/meeting-response.dto.js';
+import { MeetingsRepository } from '../repositories/meetings.repository.js';
+import type { MeetingViewer } from '../meetings.types.js';
 
 @Injectable()
 export class MeetingsService {

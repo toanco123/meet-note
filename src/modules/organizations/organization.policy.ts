@@ -40,6 +40,8 @@ export const orgPolicy = {
   'org.upload': () => true,
   // M5: chủ meeting xem được (service kiểm). M6 mở rộng theo quyền xem qua kênh (04 §3).
   'org.meeting.read': () => true,
+  /** Share / gỡ share / sửa / xoá meeting (M6b): mọi thành viên gọi được, service kiểm theo đối tượng. */
+  'org.meeting.manage': () => true,
 } satisfies Record<string, (ctx: OrgMembershipContext) => boolean>;
 
 export type OrgPermission = keyof typeof orgPolicy;

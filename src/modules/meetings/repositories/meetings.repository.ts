@@ -12,24 +12,24 @@ import {
   or,
   sql,
 } from 'drizzle-orm';
-import { DRIZZLE } from '../../infra/database/database.module.js';
-import type { Database, DbExecutor } from '../../infra/database/database.types.js';
-import { timestampKey } from '../../common/pagination/keys.js';
+import { DRIZZLE } from '../../../infra/database/database.module.js';
+import type { Database, DbExecutor } from '../../../infra/database/database.types.js';
+import { timestampKey } from '../../../common/pagination/keys.js';
 import {
   channelMembers,
   channels,
   type MeetingRow,
   meetings,
   meetingShares,
-} from '../../infra/database/schema/index.js';
-import { isOrgRoleAtLeast, OrgRole } from '../organizations/organization.policy.js';
-import { meetingVisibleTo } from './meeting-visibility.js';
+} from '../../../infra/database/schema/index.js';
+import { isOrgRoleAtLeast, OrgRole } from '../../organizations/organization.policy.js';
+import { meetingVisibleTo } from '../meeting-visibility.js';
 import type {
   ListVisibleMeetingsParams,
   MeetingChannelRef,
   MeetingListRow,
   MeetingViewer,
-} from './meetings.types.js';
+} from '../meetings.types.js';
 
 @Injectable()
 export class MeetingsRepository {

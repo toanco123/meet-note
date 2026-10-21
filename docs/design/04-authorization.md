@@ -32,26 +32,27 @@ CO = Chủ kênh, CA = QTV kênh, CM = Thành viên kênh, G = Khách.
 **Ngoài (pub)** = thành viên org chưa join kênh công khai.
 **OrgAdm** = Org Owner/Admin không phải thành viên kênh.
 
-| Hành động                                    |          CO           |        CA        |          CM          |  G  | Ngoài (pub) |              OrgAdm               |
-| -------------------------------------------- | :-------------------: | :--------------: | :------------------: | :-: | :---------: | :-------------------------------: |
-| Xem metadata kênh                            |           ✓           |        ✓         |          ✓           |  ✓  |      ✓      |                 ✓                 |
-| Xem meeting / transcript / tóm tắt / báo cáo |           ✓           |        ✓         |          ✓           |  ✓  |      ✓      |      chỉ khi kênh công khai       |
-| Xem danh sách thành viên                     |           ✓           |        ✓         |          ✓           |  ✗  |      ✓      |                 ✓                 |
-| Tự join                                      |   409 (đã ở trong)    | 409 (đã ở trong) |   409 (đã ở trong)   | 409 |      ✓      |       ✓ nếu kênh công khai        |
-| Rời kênh                                     | phải chuyển chủ trước |        ✓         |          ✓           |  ✓  |      –      |                 –                 |
-| Chia sẻ meeting (của chính mình) vào kênh    |           ✓           |        ✓         |          ✓           |  ✗  |      ✗      |                 ✗                 |
-| Gỡ meeting khỏi kênh                         |           ✓           |        ✓         | chỉ meeting của mình |  ✗  |      ✗      |                 ✗                 |
-| Thêm thành viên (role member/guest)          |           ✓           |        ✓         |          ✗           |  ✗  |      ✗      |                 ✗                 |
-| Thêm/nâng lên admin                          |           ✓           |        ✗         |          ✗           |  ✗  |      ✗      |                 ✗                 |
-| Đổi vai trò member ↔ guest                   |           ✓           |        ✓         |          ✗           |  ✗  |      ✗      |                 ✗                 |
-| Gỡ thành viên                                |     ✓ (trừ mình)      | chỉ member/guest |          ✗           |  ✗  |      ✗      |                 ✗                 |
-| Chuyển chủ kênh                              |           ✓           |        ✗         |          ✗           |  ✗  |      ✗      | ✓ (override, vd chủ kênh rời org) |
-| Sửa tên/mô tả/visibility, bật/tắt báo cáo    |           ✓           |        ✓         |          ✗           |  ✗  |      ✗      |                 ✗                 |
-| Lưu trữ / bỏ lưu trữ                         |           ✓           |        ✗         |          ✗           |  ✗  |      ✗      |                 ✓                 |
-| Xoá kênh                                     |           ✓           |        ✗         |          ✗           |  ✗  |      ✗      |                 ✓                 |
-| Tạo lại báo cáo tuần                         |           ✓           |        ✓         |          ✗           |  ✗  |      ✗      |                 ✗                 |
-| Nhận thông báo báo cáo tuần                  |           ✓           |        ✓         |          ✓           |  ✗  |      ✗      |                 ✗                 |
+| Hành động                                    |          CO           |        CA        |          CM          |          G           |        Ngoài (pub)        |              OrgAdm               |
+| -------------------------------------------- | :-------------------: | :--------------: | :------------------: | :------------------: | :-----------------------: | :-------------------------------: |
+| Xem metadata kênh                            |           ✓           |        ✓         |          ✓           |          ✓           |             ✓             |                 ✓                 |
+| Xem meeting / transcript / tóm tắt / báo cáo |           ✓           |        ✓         |          ✓           |          ✓           |             ✓             |      chỉ khi kênh công khai       |
+| Xem danh sách thành viên                     |           ✓           |        ✓         |          ✓           |          ✗           |             ✓             |                 ✓                 |
+| Tự join                                      |   409 (đã ở trong)    | 409 (đã ở trong) |   409 (đã ở trong)   |         409          |             ✓             |       ✓ nếu kênh công khai        |
+| Rời kênh                                     | phải chuyển chủ trước |        ✓         |          ✓           |          ✓           |             –             |                 –                 |
+| Chia sẻ meeting (của chính mình) vào kênh    |           ✓           |        ✓         |          ✓           |          ✗           |             ✗             |                 ✗                 |
+| Gỡ meeting khỏi kênh                         |           ✓           |        ✓         | chỉ meeting của mình | chỉ meeting của mình | chỉ meeting của mình (Q4) |  chỉ meeting không chủ (M6b Q2)   |
+| Thêm thành viên (role member/guest)          |           ✓           |        ✓         |          ✗           |          ✗           |             ✗             |                 ✗                 |
+| Thêm/nâng lên admin                          |           ✓           |        ✗         |          ✗           |          ✗           |             ✗             |                 ✗                 |
+| Đổi vai trò member ↔ guest                   |           ✓           |        ✓         |          ✗           |          ✗           |             ✗             |                 ✗                 |
+| Gỡ thành viên                                |     ✓ (trừ mình)      | chỉ member/guest |          ✗           |          ✗           |             ✗             |                 ✗                 |
+| Chuyển chủ kênh                              |           ✓           |        ✗         |          ✗           |          ✗           |             ✗             | ✓ (override, vd chủ kênh rời org) |
+| Sửa tên/mô tả/visibility, bật/tắt báo cáo    |           ✓           |        ✓         |          ✗           |          ✗           |             ✗             |                 ✗                 |
+| Lưu trữ / bỏ lưu trữ                         |           ✓           |        ✗         |          ✗           |          ✗           |             ✗             |                 ✓                 |
+| Xoá kênh                                     |           ✓           |        ✗         |          ✗           |          ✗           |             ✗             |                 ✓                 |
+| Tạo lại báo cáo tuần                         |           ✓           |        ✓         |          ✗           |          ✗           |             ✗             |                 ✗                 |
+| Nhận thông báo báo cáo tuần                  |           ✓           |        ✓         |          ✓           |          ✗           |             ✗             |                 ✗                 |
 
+**Gỡ meeting khỏi kênh:** chủ meeting luôn gỡ được meeting của mình, kể cả khi không (còn) ở trong kênh (M6b Q4). Kiểm theo đối tượng: `decideUnshare` (`src/modules/meetings/meeting-share.policy.ts`); share là `channel.meeting.share` trong `channelPolicy`.
 **Kênh đã lưu trữ:** mọi hành động ghi đều trả `409 CHANNEL_ARCHIVED`, trừ bỏ lưu trữ, xoá và **rời kênh** (để không ai bị kẹt trong kênh chỉ đọc). Danh sách nằm ở `BLOCKED_WHEN_ARCHIVED` trong `channel.policy.ts`.
 **Kênh riêng tư mà người gọi không có quyền thấy:** trả `404`, không trả `403`, để không lộ việc kênh tồn tại.
 

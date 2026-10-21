@@ -4,8 +4,10 @@ import { QueueName } from '../../infra/queue/queue.module.js';
 import { ChannelsModule } from '../channels/channels.module.js';
 import { OrganizationsModule } from '../organizations/organizations.module.js';
 import { MeetingsController } from './meetings.controller.js';
-import { MeetingsRepository } from './meetings.repository.js';
-import { MeetingsService } from './meetings.service.js';
+import { MeetingSharesRepository } from './repositories/meeting-shares.repository.js';
+import { MeetingsRepository } from './repositories/meetings.repository.js';
+import { MeetingSharesService } from './services/meeting-shares.service.js';
+import { MeetingsService } from './services/meetings.service.js';
 
 /**
  * Cuộc họp. M5: tạo meeting `queued` khi upload complete + enqueue `meeting.preprocess`.
@@ -18,7 +20,7 @@ import { MeetingsService } from './meetings.service.js';
     BullModule.registerQueue({ name: QueueName.Default }),
   ],
   controllers: [MeetingsController],
-  providers: [MeetingsRepository, MeetingsService],
+  providers: [MeetingsRepository, MeetingsService, MeetingSharesRepository, MeetingSharesService],
   exports: [MeetingsRepository, MeetingsService],
 })
 export class MeetingsModule {}
