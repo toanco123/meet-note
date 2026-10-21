@@ -194,7 +194,7 @@ migrations/                    SQL migration (drizzle-kit + viết tay), đã co
 test/
 ├─ unit/                       không cần Docker; mô phỏng cây src/ + `architecture/` (test quy ước)
 ├─ integration/                Postgres/Redis thật: schema, race test, service
-├─ e2e/                        gọi HTTP thật qua toàn bộ app
+├─ e2e/<domain>/               gọi HTTP thật qua toàn bộ app, gom theo domain (auth, channels, meetings…)
 └─ support/                    Testcontainers setup, factory, helper khoá (`runWhileLocked`)
 docs/design/                   thiết kế (DB, quyền, API, luồng, quy ước…)
 docs/plans/                    plan từng mốc (viết trước khi code)

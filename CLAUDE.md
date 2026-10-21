@@ -57,7 +57,7 @@ Không có pnpm global thì dùng `npx -y pnpm@12.11.2 <lệnh>`. Kiểm tra tr�
 - `src/infra/`: database (Drizzle + `pg`), redis, queue, logger. Sau này thêm storage, speech, llm.
 - `src/modules/<domain>/`: controller → service → repository, cùng policy thuần.
 - `migrations/`: SQL (drizzle-kit + viết tay). Chạy bằng service `migrate`, **không** chạy lúc app khởi động.
-- `test/`: **mọi test nằm ở đây, không đặt trong `src/`**. `unit/` và `integration/` mô phỏng cây `src/`, `e2e/` test qua HTTP, `support/` là Testcontainers setup + factory. Mỗi file test có một database riêng clone từ template.
+- `test/`: **mọi test nằm ở đây, không đặt trong `src/`**. `unit/` và `integration/` mô phỏng cây `src/`, `e2e/` test qua HTTP và **gom theo domain** (`e2e/<domain>/`, khớp `src/modules/`; thứ dùng chung toàn app ở `e2e/platform/`), `support/` là Testcontainers setup + factory. Mỗi file test có một database riêng clone từ template.
 
 ## Quy tắc bắt buộc (vi phạm là hỏng build hoặc gây bug khó thấy)
 

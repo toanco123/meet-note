@@ -94,7 +94,7 @@ meetnote/
 ├─ test/                        # MỌI test nằm ở đây, src/ chỉ chứa code ứng dụng
 │  ├─ unit/                      # *.spec.ts — cây thư mục mô phỏng src/ (vd unit/modules/auth/…)
 │  ├─ integration/               # *.int-spec.ts — Postgres/Redis thật, cây mô phỏng src/
-│  ├─ e2e/                       # *.e2e-spec.ts — qua HTTP
+│  ├─ e2e/<domain>/              # *.e2e-spec.ts — qua HTTP, gom theo domain (khớp src/modules/)
 │  └─ support/                   # testcontainers global setup, factory dữ liệu, helper
 ├─ docker/Dockerfile             # multi-stage, 1 image cho api/worker/migrate
 ├─ compose.yaml
