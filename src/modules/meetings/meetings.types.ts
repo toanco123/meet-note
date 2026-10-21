@@ -44,3 +44,14 @@ export interface UnshareContext {
   isMeetingOwner: boolean;
   meetingOwnerless: boolean;
 }
+
+export interface ListChannelMeetingsParams {
+  orgId: string;
+  channelId: string;
+  /** Khoá cursor dòng cuối trang trước: `(shared_at, meeting_id)`, thời gian dạng text. */
+  after?: { sharedAt: string; meetingId: string };
+  limit: number;
+}
+
+/** Meeting trong một kênh, kèm lúc share và khoá cursor do Postgres in. */
+export type ChannelMeetingRow = MeetingRow & { sharedAt: Date; sharedAtKey: string };

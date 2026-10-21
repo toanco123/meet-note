@@ -25,6 +25,8 @@ import {
 import { isOrgRoleAtLeast, OrgRole } from '../../organizations/organization.policy.js';
 import { meetingVisibleTo } from '../meeting-visibility.js';
 import type {
+  ChannelMeetingRow,
+  ListChannelMeetingsParams,
   ListVisibleMeetingsParams,
   MeetingChannelRef,
   MeetingListRow,
@@ -110,5 +112,33 @@ export class MeetingsRepository {
         ),
       )
       .orderBy(asc(channels.name));
+  }
+
+  /**
+   * Meeting (chưa xoá) share vào MỘT kênh, mới share trước. Không ghép điều kiện xem: guard đã kiểm
+   * người gọi đọc được nội dung kênh (`channel.content.read`), và kênh chưa xoá → mọi meeting trong
+   * kênh đều xem được theo điều 2 / 3 của 04 §3. Index `meeting_shares_channel_shared_idx`.
+   */
+  listByChannel(p: ListChannelMeetingsParams): Promise<ChannelMeetingRow[]> {
+    return this.db
+      .select({
+        ...getTableColumns(meetings),
+        sharedAt: meetingShares.sharedAt,
+        sharedAtKey: timestampKey(meetingShares.sharedAt),
+      })
+      .from(meetingShares)
+      .innerJoin(meetings, eq(meetings.id, meetingShares.meetingId))
+      .where(
+        and(
+          eq(meetingShares.channelId, p.channelId),
+          eq(meetingShares.orgId, p.orgId),
+          isNull(meetings.deletedAt),
+          p.after
+            ? sql`(${meetingShares.sharedAt}, ${meetingShares.meetingId}) < (${p.after.sharedAt}::timestamptz, ${p.after.meetingId}::uuid)`
+            : undefined,
+        ),
+      )
+      .orderBy(desc(meetingShares.sharedAt), desc(meetingShares.meetingId))
+      .limit(p.limit + 1);
   }
 }

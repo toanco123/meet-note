@@ -79,7 +79,7 @@ Mỗi bước = 1 commit, chạy được và có test.
   - Việc: quyền mới trong `channelPolicy` + unit test ma trận; service theo thứ tự khoá ở trên; idempotent (Q3, Q4).
   - Test (e2e): bảng `[người gọi, hành động] → status`; kênh lưu trữ → 409; meeting của người khác → 404.
   - **Race** (`interleave`): share ‖ người share bị gỡ khỏi kênh → không có share nào của người đã bị gỡ được commit; share ‖ lưu trữ kênh → share trước hoặc 409; share ‖ xoá meeting → không có share mới trên meeting đã xoá. Đột biến bỏ từng khoá → đỏ.
-- [ ] **B5 — `GET /channels/:channelId/meetings`**
+- [x] **B5 — `GET /channels/:channelId/meetings`**
   - Việc: qua `ChannelAccessGuard` (`channel.content.read`), cursor `(shared_at DESC, meeting_id)`.
   - Test (e2e): OrgAdm + kênh riêng tư → 403 / 404 như M4; meeting đã xoá không hiện.
 - [ ] **B6 — Sửa / xoá meeting**

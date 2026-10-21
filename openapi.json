@@ -4570,6 +4570,116 @@
         ]
       }
     },
+    "/v1/orgs/{orgId}/channels/{channelId}/meetings": {
+      "get": {
+        "description": "Cần đọc được nội dung kênh: thành viên kênh, hoặc thành viên tổ chức với kênh công khai\n(kể cả đã lưu trữ). Owner / Admin tổ chức không ở trong kênh riêng tư → 403.",
+        "operationId": "ChannelMeetings_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChannelMeetingResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Cuộc họp được chia sẻ vào kênh, mới chia sẻ trước.",
+        "tags": [
+          "Meetings"
+        ],
+        "x-paginated": true
+      }
+    },
     "/v1/orgs/{orgId}/audit-logs": {
       "get": {
         "description": "Lọc theo `action`, `actorId`. Log chỉ ghi thêm, không sửa/xoá được.",
@@ -6187,6 +6297,71 @@
         "required": [
           "meetingId",
           "channelId",
+          "sharedAt"
+        ]
+      },
+      "ChannelMeetingResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "`queued` → chờ xử lý (M6 chạy ffmpeg / Whisper / tóm tắt).",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MeetingStatus"
+              }
+            ]
+          },
+          "ownerId": {
+            "type": "string",
+            "nullable": true,
+            "description": "`null` = chủ đã rời tổ chức."
+          },
+          "durationMs": {
+            "type": "number",
+            "nullable": true,
+            "description": "Độ dài (ms), có sau khi xử lý."
+          },
+          "language": {
+            "type": "string",
+            "nullable": true,
+            "description": "Ngôn ngữ Whisper phát hiện."
+          },
+          "failureCode": {
+            "type": "string",
+            "nullable": true,
+            "description": "Mã lỗi khi `status = failed`."
+          },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "example": "Giao ban kỹ thuật tuần 42"
+          },
+          "recordedAt": {
+            "type": "string",
+            "example": "2026-10-19T02:00:00.000Z"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-19T02:05:00.000Z"
+          },
+          "sharedAt": {
+            "type": "string",
+            "description": "Lúc được chia sẻ vào kênh này.",
+            "example": "2026-10-21T02:00:00.000Z"
+          }
+        },
+        "required": [
+          "status",
+          "ownerId",
+          "durationMs",
+          "language",
+          "failureCode",
+          "id",
+          "title",
+          "recordedAt",
+          "createdAt",
           "sharedAt"
         ]
       },

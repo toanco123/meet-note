@@ -3,7 +3,8 @@ import { Module } from '@nestjs/common';
 import { QueueName } from '../../infra/queue/queue.module.js';
 import { ChannelsModule } from '../channels/channels.module.js';
 import { OrganizationsModule } from '../organizations/organizations.module.js';
-import { MeetingsController } from './meetings.controller.js';
+import { ChannelMeetingsController } from './controllers/channel-meetings.controller.js';
+import { MeetingsController } from './controllers/meetings.controller.js';
 import { MeetingSharesRepository } from './repositories/meeting-shares.repository.js';
 import { MeetingsRepository } from './repositories/meetings.repository.js';
 import { MeetingSharesService } from './services/meeting-shares.service.js';
@@ -19,7 +20,7 @@ import { MeetingsService } from './services/meetings.service.js';
     ChannelsModule,
     BullModule.registerQueue({ name: QueueName.Default }),
   ],
-  controllers: [MeetingsController],
+  controllers: [MeetingsController, ChannelMeetingsController],
   providers: [MeetingsRepository, MeetingsService, MeetingSharesRepository, MeetingSharesService],
   exports: [MeetingsRepository, MeetingsService],
 })

@@ -73,7 +73,7 @@ Prefix `/v1/orgs/:orgId/channels`. Mọi route có `:channelId` đi qua `@Requir
 | PATCH  | `/:channelId/members/:userId`                   | CO, CA (giới hạn theo ma trận)                                                                                                                                        |
 | DELETE | `/:channelId/members/:userId`                   | CO, CA (giới hạn theo ma trận)                                                                                                                                        |
 | POST   | `/:channelId/ownership-transfer`                | CO, OrgAdm. `{ newOwnerId }` → 200 `{ channelId, ownerId }`. Người nhận không trong kênh / org → 404; là Khách hoặc đã là chủ → 409 `CHANNEL_TRANSFER_INVALID_TARGET` |
-| GET    | `/:channelId/meetings?cursor=`                  | Người xem được nội dung kênh (M6)                                                                                                                                     |
+| GET    | `/:channelId/meetings?cursor=&limit=`           | `channel.content.read`: thành viên kênh, thành viên org với kênh công khai (kể cả lưu trữ); OrgAdm + riêng tư → 403                                                   | Meeting chưa xoá share vào kênh, mới share trước: keyset `(shared_at DESC, meeting_id DESC)`, mỗi dòng có `sharedAt` (M6b) |
 
 `DELETE /v1/orgs/:orgId` (chỉ Owner, 204, xoá mềm, từ M4): mọi route bên trong trả 404, link mời hết dùng được. Rời / bị gỡ khỏi org khi còn làm chủ kênh (chưa xoá) → 409 `ORG_MEMBER_OWNS_CHANNELS`, `details[i] = { field: "channels.<id>", message: <tên kênh> }` (A→Z).
 

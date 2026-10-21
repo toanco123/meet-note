@@ -15,7 +15,12 @@ import type { ChannelAccess } from '../../channels/channels.types.js';
 import { ChannelsRepository } from '../../channels/repositories/channels.repository.js';
 import type { OrgMembershipContext } from '../../organizations/organizations.types.js';
 import type { ListMeetingsQueryDto } from '../dto/list-meetings-query.dto.js';
-import { MeetingDetailResponseDto, MeetingResponseDto } from '../dto/meeting-response.dto.js';
+import type { CursorQueryDto } from '../../../common/pagination/cursor-query.dto.js';
+import {
+  ChannelMeetingResponseDto,
+  MeetingDetailResponseDto,
+  MeetingResponseDto,
+} from '../dto/meeting-response.dto.js';
 import { MeetingsRepository } from '../repositories/meetings.repository.js';
 import type { MeetingViewer } from '../meetings.types.js';
 
@@ -63,6 +68,28 @@ export class MeetingsService {
     const page = toPage(rows, query.limit, (row) => [row.recordedAtKey, row.id]);
     return {
       data: page.data.map((row) => MeetingResponseDto.from(row)),
+      nextCursor: page.nextCursor,
+    };
+  }
+
+  /** Meeting trong kênh — `access` do ChannelAccessGuard + `channel.content.read` cấp. */
+  async listByChannel(
+    access: ChannelAccess,
+    query: CursorQueryDto,
+  ): Promise<Page<ChannelMeetingResponseDto>> {
+    const after = query.cursor ? decodeCursor(query.cursor, 2) : undefined;
+    const rows = await this.repo.listByChannel({
+      orgId: access.orgId,
+      channelId: access.channel.id,
+      after: after && {
+        sharedAt: expectTimestampKey(after[0]),
+        meetingId: expectUuidKey(after[1]),
+      },
+      limit: query.limit,
+    });
+    const page = toPage(rows, query.limit, (row) => [row.sharedAtKey, row.id]);
+    return {
+      data: page.data.map((row) => ChannelMeetingResponseDto.fromShared(row)),
       nextCursor: page.nextCursor,
     };
   }

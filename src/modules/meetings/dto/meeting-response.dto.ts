@@ -63,3 +63,13 @@ export class MeetingDetailResponseDto extends MeetingResponseDto {
     return { ...MeetingResponseDto.from(row), channels };
   }
 }
+
+/** Một dòng của danh sách meeting trong kênh. */
+export class ChannelMeetingResponseDto extends MeetingResponseDto {
+  /** Lúc được chia sẻ vào kênh này. @example "2026-10-21T02:00:00.000Z" */
+  sharedAt: string;
+
+  static fromShared(row: MeetingRow & { sharedAt: Date }): ChannelMeetingResponseDto {
+    return { ...MeetingResponseDto.from(row), sharedAt: row.sharedAt.toISOString() };
+  }
+}

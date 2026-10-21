@@ -13,19 +13,19 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags } from '@nestjs/swagger';
-import type { AuthUser } from '../../common/auth/auth.types.js';
-import { CurrentUser } from '../../common/auth/current-user.decorator.js';
-import type { Page } from '../../common/pagination/pagination.types.js';
-import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
-import { ApiPaginatedResponse } from '../../common/swagger/api-paginated-response.decorator.js';
-import { CurrentOrgMembership } from '../organizations/guards/org-membership.js';
-import { RequireOrgPermission } from '../organizations/guards/require-org-permission.decorator.js';
-import type { OrgMembershipContext } from '../organizations/organizations.types.js';
-import { ListMeetingsQueryDto } from './dto/list-meetings-query.dto.js';
-import { MeetingShareResponseDto, ShareMeetingDto } from './dto/meeting-share.dto.js';
-import { MeetingDetailResponseDto, MeetingResponseDto } from './dto/meeting-response.dto.js';
-import { MeetingSharesService } from './services/meeting-shares.service.js';
-import { MeetingsService } from './services/meetings.service.js';
+import type { AuthUser } from '../../../common/auth/auth.types.js';
+import { CurrentUser } from '../../../common/auth/current-user.decorator.js';
+import type { Page } from '../../../common/pagination/pagination.types.js';
+import { ApiErrorResponses } from '../../../common/swagger/api-error-responses.decorator.js';
+import { ApiPaginatedResponse } from '../../../common/swagger/api-paginated-response.decorator.js';
+import { CurrentOrgMembership } from '../../organizations/guards/org-membership.js';
+import { RequireOrgPermission } from '../../organizations/guards/require-org-permission.decorator.js';
+import type { OrgMembershipContext } from '../../organizations/organizations.types.js';
+import { ListMeetingsQueryDto } from '../dto/list-meetings-query.dto.js';
+import { MeetingShareResponseDto, ShareMeetingDto } from '../dto/meeting-share.dto.js';
+import { MeetingDetailResponseDto, MeetingResponseDto } from '../dto/meeting-response.dto.js';
+import { MeetingSharesService } from '../services/meeting-shares.service.js';
+import { MeetingsService } from '../services/meetings.service.js';
 
 @ApiTags('Meetings')
 @Controller('orgs/:orgId/meetings')
