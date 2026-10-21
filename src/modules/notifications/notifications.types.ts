@@ -48,6 +48,13 @@ export type NotificationDraft = {
   };
 }[NotificationType];
 
+/**
+ * `notification.read` tới `user:{id}` (M10 B4) — các phiên KHÁC của cùng người cập nhật số chưa đọc.
+ * Đọc hết gửi `{ all }` thay vì danh sách id (có thể rất dài); client coi là gợi ý và lấy lại
+ * `unread-count` qua REST.
+ */
+export type NotificationReadEvent = { ids: string[] } | { all: true; orgId: string | null };
+
 export interface ListNotificationsParams {
   userId: string;
   orgId?: string;

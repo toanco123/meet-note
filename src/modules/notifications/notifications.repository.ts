@@ -110,14 +110,16 @@ export class NotificationsRepository {
     return rows.length > 0;
   }
 
-  /** Trả id các thông báo VỪA được đánh dấu (để đồng bộ realtime — B4). */
-  async markAllRead(userId: string, orgId: string | undefined): Promise<string[]> {
-    const rows = await this.db
+  /**
+   * Trả SỐ dòng vừa đánh dấu, không trả id: có thể là hàng chục nghìn dòng — `RETURNING` cả loạt chỉ
+   * để biết "có đổi gì không" là phí.
+   */
+  async markAllRead(userId: string, orgId: string | undefined): Promise<number> {
+    const result = await this.db
       .update(notifications)
       .set({ readAt: sql`now()` })
-      .where(unreadOf(userId, orgId))
-      .returning({ id: notifications.id });
-    return rows.map((r) => r.id);
+      .where(unreadOf(userId, orgId));
+    return result.rowCount ?? 0;
   }
 
   async softDelete(userId: string, id: string): Promise<boolean> {

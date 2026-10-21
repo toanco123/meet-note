@@ -14,7 +14,7 @@ import type {
 } from './dto/notification-query.dto.js';
 import { NotificationResponseDto } from './dto/notification-response.dto.js';
 import { NotificationsRepository } from './notifications.repository.js';
-import type { NotificationDraft } from './notifications.types.js';
+import type { NotificationDraft, NotificationReadEvent } from './notifications.types.js';
 
 /** Đếm chưa đọc dừng ở đây; hiển thị `"99+"` (M10 Q5). */
 const UNREAD_CAP = 100;
@@ -79,13 +79,25 @@ export class NotificationsService {
     return { count, display: count >= UNREAD_CAP ? '99+' : String(count) };
   }
 
-  /** Của người khác / không tồn tại / đã xoá → 404 (tài nguyên ẩn). Đọc lại → vẫn 204. */
+  /**
+   * Của người khác / không tồn tại / đã xoá → 404 (tài nguyên ẩn). Đọc lại → vẫn 204 và vẫn phát
+   * `notification.read` (client xử lý idempotent — không cần phân biệt "vừa đọc" với "đã đọc").
+   */
   async markRead(userId: string, id: string): Promise<void> {
     if (!(await this.repo.markRead(userId, id))) throw Errors.notification.notFound();
+    this.emitRead(userId, { ids: [id] });
   }
 
+  /** Không có gì chưa đọc → không phát (tránh mọi thiết bị đi lấy lại số chưa đọc vô ích). */
   async markAllRead(userId: string, orgId: string | undefined): Promise<void> {
-    await this.repo.markAllRead(userId, orgId);
+    if ((await this.repo.markAllRead(userId, orgId)) > 0) {
+      this.emitRead(userId, { all: true, orgId: orgId ?? null });
+    }
+  }
+
+  /** Câu UPDATE đã tự commit (không có transaction bao ngoài) → phát ngay sau đó là "sau commit". */
+  private emitRead(userId: string, event: NotificationReadEvent): void {
+    this.realtime.emit([RealtimeRoom.user(userId)], 'notification.read', event);
   }
 
   /** Xoá MỀM; xoá lại → vẫn 204. */
