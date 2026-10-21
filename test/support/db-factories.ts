@@ -6,6 +6,7 @@ import {
   channelMembers,
   channels,
   meetings,
+  meetingShares,
   type OrgRoleValue,
   organizationMembers,
   organizations,
@@ -150,4 +151,15 @@ export async function insertUpload(
     .returning();
   if (!row) throw new Error('insertUpload thất bại');
   return row;
+}
+
+/** Share thẳng vào DB (bỏ qua kiểm tra quyền của service) — dữ liệu nền cho test quyền xem. */
+export async function shareMeeting(
+  db: Database,
+  orgId: string,
+  meetingId: string,
+  channelId: string,
+  sharedBy: string | null = null,
+): Promise<void> {
+  await db.insert(meetingShares).values({ orgId, meetingId, channelId, sharedBy });
 }

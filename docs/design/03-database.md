@@ -277,14 +277,14 @@ WHERE id = $1 AND status = 'preprocessing' RETURNING id;
 
 ### `meeting_shares`
 
-meeting_id, channel_id, org_id, shared_by, shared_at. PK `(meeting_id, channel_id)`.
-Có 2 composite FK:
+meeting_id, channel_id, org_id, shared_by NULL (FK `users` ON DELETE SET NULL), shared_at. PK `meeting_shares_pk (meeting_id, channel_id)` (M6b, migration `0008`).
+Có 2 composite FK, cả hai **ON DELETE CASCADE**:
 
-- `(meeting_id, org_id)` → `meetings(id, org_id)`
-- `(channel_id, org_id)` → `channels(id, org_id)`
+- `meeting_shares_meeting_fk (meeting_id, org_id)` → `meetings(id, org_id)`
+- `meeting_shares_channel_fk (channel_id, org_id)` → `channels(id, org_id)`
 
-Như vậy không thể share chéo org.
-Index: `(channel_id, shared_at DESC, meeting_id)`.
+Như vậy không thể share chéo org. Purge kênh (xoá cứng) tự gỡ share, meeting còn nguyên (D3). Chủ meeting rời org: `owner_id` NULL, share giữ nguyên.
+Index: `meeting_shares_channel_shared_idx (channel_id, shared_at DESC, meeting_id DESC)` — danh sách meeting theo kênh, cũng là index phía tham chiếu của FK kênh. Phía meeting đã có PK bắt đầu bằng `meeting_id`.
 
 ### `transcript_segments`
 
@@ -383,6 +383,7 @@ Dùng cho các POST không tự idempotent, theo header `Idempotency-Key` (`@Ide
 1. `organization_members`, sắp theo `user_id` (`FOR UPDATE` khi đổi/xoá, `FOR SHARE` khi chỉ cần "vai trò này giữ nguyên")
 2. `channels`, sắp theo `id` (dòng kênh là mutex cho mọi thay đổi quyền trong kênh)
 3. `channel_members`, sắp theo `user_id`
+4. `meetings` (M6b). Đứng SAU `organization_members` vì gỡ thành viên khỏi org (khoá bậc 1) cập nhật `meetings.owner_id` qua `ON DELETE SET NULL`. Share meeting: kênh `FOR SHARE` (bậc 2) → dòng `channel_members` của người share `FOR SHARE` (bậc 3) → meeting `FOR SHARE` (bậc 4)
 
 Ví dụ:
 

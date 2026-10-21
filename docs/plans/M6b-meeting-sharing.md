@@ -66,7 +66,7 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 
 Mỗi bước = 1 commit, chạy được và có test.
 
-- [ ] **B1 — Schema `meeting_shares` + thứ tự khoá bậc 4**
+- [x] **B1 — Schema `meeting_shares` + thứ tự khoá bậc 4**
   - Việc: bảng + migration; cập nhật 03 §7 (bậc 4 `meetings`).
   - Test (integration): share chéo org bị FK chặn; purge kênh (xoá cứng) → share mất, meeting còn; xoá thành viên khỏi org → meeting còn, share còn.
 - [ ] **B2 — Điều kiện xem dùng chung**

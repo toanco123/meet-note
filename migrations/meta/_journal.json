@@ -57,6 +57,13 @@
       "when": 1792383015595,
       "tag": "0007_meetings_owner_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792570326403,
+      "tag": "0008_meeting_shares",
+      "breakpoints": true
     }
   ]
 }
