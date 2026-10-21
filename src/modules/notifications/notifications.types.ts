@@ -47,3 +47,12 @@ export type NotificationDraft = {
     dedupeKey?: string;
   };
 }[NotificationType];
+
+export interface ListNotificationsParams {
+  userId: string;
+  orgId?: string;
+  unreadOnly: boolean;
+  /** Khoá cursor dòng cuối trang trước: `(created_at, id)`, thời gian dạng text đủ micro giây. */
+  after?: { createdAt: string; id: string };
+  limit: number;
+}

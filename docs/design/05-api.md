@@ -115,13 +115,13 @@ Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReport
 
 ## Notifications (tag `Notifications`)
 
-| Method | Path                                           | Ai gọi               |
-| ------ | ---------------------------------------------- | -------------------- |
-| GET    | `/v1/notifications?orgId=&unreadOnly=&cursor=` | User                 |
-| GET    | `/v1/notifications/unread-count?orgId=`        | User                 |
-| POST   | `/v1/notifications/:id/read`                   | User (chủ thông báo) |
-| POST   | `/v1/notifications/read-all?orgId=`            | User                 |
-| DELETE | `/v1/notifications/:id`                        | User (xoá mềm)       |
+| Method | Path                                                  | Ai gọi               | Ghi chú (M10)                                                                                                                     |
+| ------ | ----------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/notifications?orgId=&unreadOnly=&cursor=&limit=` | User                 | Của chính người gọi, mới nhất trước: keyset `(created_at DESC, id DESC)`. Thông báo của tổ chức đã rời không còn (FK cascade, Q3) |
+| GET    | `/v1/notifications/unread-count?orgId=`               | User                 | `{ count, display }` — đếm CÓ TRẦN 100 (`count(*)` trên subquery `LIMIT 100`), `display = "99+"` từ 100 (Q5)                      |
+| POST   | `/v1/notifications/:notificationId/read`              | User (chủ thông báo) | 204; đọc lại 204, giữ mốc đọc lần đầu (`coalesce`). Của người khác / không tồn tại → 404                                          |
+| POST   | `/v1/notifications/read-all?orgId=`                   | User                 | 204; trong một tổ chức nếu có `orgId`                                                                                             |
+| DELETE | `/v1/notifications/:notificationId`                   | User                 | 204, xoá mềm; xoá lại 204. Của người khác → 404                                                                                   |
 
 **Loại thông báo (M10)** — `payload` là id + tên lúc tạo:
 

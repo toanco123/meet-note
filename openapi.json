@@ -2123,6 +2123,277 @@
         ]
       }
     },
+    "/v1/notifications": {
+      "get": {
+        "description": "Lọc `orgId`, `unreadOnly`. Thông báo của tổ chức bạn đã rời không còn ở đây.",
+        "operationId": "Notifications_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "unreadOnly",
+            "required": false,
+            "in": "query",
+            "description": "`true`: chỉ thông báo chưa đọc.\n@default false",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": false,
+            "in": "query",
+            "description": "Chỉ thông báo của tổ chức này.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/NotificationResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Thông báo của bạn, mới nhất trước.",
+        "tags": [
+          "Notifications"
+        ],
+        "x-paginated": true
+      }
+    },
+    "/v1/notifications/unread-count": {
+      "get": {
+        "operationId": "Notifications_unreadCount",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": false,
+            "in": "query",
+            "description": "Chỉ thông báo của tổ chức này.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UnreadCountResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Số thông báo chưa đọc (tối đa 100, hiển thị `\"99+\"`).",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/v1/notifications/read-all": {
+      "post": {
+        "operationId": "Notifications_markAllRead",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": false,
+            "in": "query",
+            "description": "Chỉ thông báo của tổ chức này.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Đánh dấu tất cả đã đọc (trong một tổ chức nếu có `orgId`).",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/v1/notifications/{notificationId}/read": {
+      "post": {
+        "operationId": "Notifications_markRead",
+        "parameters": [
+          {
+            "name": "notificationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Đánh dấu đã đọc. Gọi lại → 204. Của người khác → 404.",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
+    "/v1/notifications/{notificationId}": {
+      "delete": {
+        "operationId": "Notifications_remove",
+        "parameters": [
+          {
+            "name": "notificationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Xoá (mềm). Gọi lại → 204. Của người khác → 404.",
+        "tags": [
+          "Notifications"
+        ]
+      }
+    },
     "/v1/orgs/{orgId}/channels": {
       "post": {
         "description": "Tên trùng (không phân biệt hoa thường) với kênh khác trong tổ chức → 409\n`CHANNEL_NAME_TAKEN`. Tên của kênh đã xoá được dùng lại.",
@@ -5856,6 +6127,76 @@
         "required": [
           "status",
           "id"
+        ]
+      },
+      "NotificationType": {
+        "type": "string",
+        "enum": [
+          "channel.member_added",
+          "channel.ownership_transferred",
+          "org.join_request_approved",
+          "meeting.shared"
+        ]
+      },
+      "NotificationResponseDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NotificationType"
+              }
+            ]
+          },
+          "orgId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Tổ chức liên quan; `null` = không thuộc tổ chức nào."
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Id + tên lúc tạo, khác nhau theo `type` (xem 05-api Notifications)."
+          },
+          "readAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "`null` = chưa đọc."
+          },
+          "id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-21T02:00:00.000Z"
+          }
+        },
+        "required": [
+          "type",
+          "orgId",
+          "payload",
+          "readAt",
+          "id",
+          "createdAt"
+        ]
+      },
+      "UnreadCountResponseDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number",
+            "description": "Số chưa đọc, TỐI ĐA 100 (đếm có trần — M10 Q5).",
+            "example": 7
+          },
+          "display": {
+            "type": "string",
+            "description": "Chuỗi để hiển thị: `\"0\"` … `\"99\"`, hoặc `\"99+\"` khi từ 100 trở lên.",
+            "example": "7"
+          }
+        },
+        "required": [
+          "count",
+          "display"
         ]
       },
       "ChannelVisibility": {

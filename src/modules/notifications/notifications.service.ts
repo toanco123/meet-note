@@ -1,12 +1,23 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Errors } from '../../common/errors/errors.js';
+import { decodeCursor, toPage } from '../../common/pagination/cursor.js';
+import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
 import type { DbExecutor } from '../../infra/database/database.types.js';
 import type { NotificationRow } from '../../infra/database/schema/index.js';
 import { RealtimeRoom } from '../../infra/realtime/realtime-rooms.js';
 import { REALTIME_PUBLISHER } from '../../infra/realtime/realtime.module.js';
 import type { RealtimePublisher } from '../../infra/realtime/realtime.types.js';
+import type {
+  ListNotificationsQueryDto,
+  UnreadCountResponseDto,
+} from './dto/notification-query.dto.js';
 import { NotificationResponseDto } from './dto/notification-response.dto.js';
 import { NotificationsRepository } from './notifications.repository.js';
 import type { NotificationDraft } from './notifications.types.js';
+
+/** Đếm chưa đọc dừng ở đây; hiển thị `"99+"` (M10 Q5). */
+const UNREAD_CAP = 100;
 
 /**
  * Hai bước, như audit + enqueue (M10 Q2):
@@ -42,5 +53,43 @@ export class NotificationsService {
 
   orgName(orgId: string, executor?: DbExecutor): Promise<string> {
     return this.repo.orgName(orgId, executor);
+  }
+
+  async list(
+    userId: string,
+    query: ListNotificationsQueryDto,
+  ): Promise<Page<NotificationResponseDto>> {
+    const after = query.cursor ? decodeCursor(query.cursor, 2) : undefined;
+    const rows = await this.repo.list({
+      userId,
+      orgId: query.orgId,
+      unreadOnly: query.unreadOnly,
+      after: after && { createdAt: expectTimestampKey(after[0]), id: expectUuidKey(after[1]) },
+      limit: query.limit,
+    });
+    const page = toPage(rows, query.limit, (row) => [row.createdAtKey, row.id]);
+    return {
+      data: page.data.map((r) => NotificationResponseDto.from(r)),
+      nextCursor: page.nextCursor,
+    };
+  }
+
+  async unreadCount(userId: string, orgId: string | undefined): Promise<UnreadCountResponseDto> {
+    const count = await this.repo.countUnread(userId, orgId, UNREAD_CAP);
+    return { count, display: count >= UNREAD_CAP ? '99+' : String(count) };
+  }
+
+  /** Của người khác / không tồn tại / đã xoá → 404 (tài nguyên ẩn). Đọc lại → vẫn 204. */
+  async markRead(userId: string, id: string): Promise<void> {
+    if (!(await this.repo.markRead(userId, id))) throw Errors.notification.notFound();
+  }
+
+  async markAllRead(userId: string, orgId: string | undefined): Promise<void> {
+    await this.repo.markAllRead(userId, orgId);
+  }
+
+  /** Xoá MỀM; xoá lại → vẫn 204. */
+  async remove(userId: string, id: string): Promise<void> {
+    if (!(await this.repo.softDelete(userId, id))) throw Errors.notification.notFound();
   }
 }
