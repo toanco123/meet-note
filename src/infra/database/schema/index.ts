@@ -10,3 +10,4 @@ export * from './channels.js';
 export * from './meetings.js';
 export * from './uploads.js';
 export * from './idempotency.js';
+export * from './notifications.js';

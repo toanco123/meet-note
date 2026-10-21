@@ -1,6 +1,6 @@
 # M7 — Realtime
 
-- **Trạng thái:** **Xong** (2026-10-21): B1–B7, chưa push / mở PR → CI chưa chạy. Plan đã duyệt 2026-10-21 (★ cho Q1–Q4)
+- **Trạng thái:** **Xong** (2026-10-21): B1–B7, PR #7, CI xanh. Plan đã duyệt 2026-10-21 (★ cho Q1–Q4)
 - **Nhánh:** `m7-realtime`
 - **Tài liệu thiết kế liên quan:** [01-overview D6](../design/01-overview.md), [02-architecture §2 (nguyên tắc giao tiếp)](../design/02-architecture.md), [05-api Realtime](../design/05-api.md), [08-testing](../design/08-testing.md), [10-roadmap M7](../design/10-roadmap.md)
 - **Ghi chú:** pipeline M6 đang hoãn → chưa có event `meeting.progress` thật. Mốc này dựng **hạ tầng realtime cho đúng** (xác thực, room theo quyền, nhiều instance, mất quyền là mất event); event `meeting.progress` cắm vào khi làm M6, `notification.created` khi làm M10.
@@ -76,7 +76,7 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 
 - [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 391)
 - [x] `pnpm test:e2e` xanh ở local (521 test), gồm test 2 api instance + worker
-- [ ] `pnpm test:e2e` xanh trên CI — chạy khi push / mở PR
+- [x] `pnpm test:e2e` xanh trên CI (PR #7)
 - [x] Không có đường nào để socket tiếp tục nhận event sau khi mất phiên (token hết hạn, logout, logout-all, xoá phiên, reuse) hoặc mất quyền xem (10 điểm phát "kiểm lại", mỗi điểm có đột biến đỏ)
 - [x] `docs/design/` khớp code (05 Realtime, 02, 07, 09) — đối chiếu bằng script
 - [x] Docker Compose với 2 api instance + worker: 7 bước qua Redis thật (event, cho rời room, ngắt phiên, worker phát, kiểm Origin)

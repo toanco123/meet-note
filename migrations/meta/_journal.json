@@ -64,6 +64,13 @@
       "when": 1792570326403,
       "tag": "0008_meeting_shares",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792576980972,
+      "tag": "0009_notifications",
+      "breakpoints": true
     }
   ]
 }

@@ -217,6 +217,11 @@ export const Errors = {
       ),
   },
 
+  notification: {
+    /** Không tồn tại hoặc của người khác — một câu cho cả hai (tài nguyên ẩn). */
+    notFound: () => notFound('Không tìm thấy thông báo.'),
+  },
+
   meeting: {
     /** Không tồn tại / không có quyền xem / khác tổ chức — một câu (tài nguyên ẩn). */
     notFound: () => notFound('Không tìm thấy cuộc họp.'),

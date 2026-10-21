@@ -115,13 +115,24 @@ Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReport
 
 ## Notifications (tag `Notifications`)
 
-| Method | Path                                           | Ai gọi               |
-| ------ | ---------------------------------------------- | -------------------- |
-| GET    | `/v1/notifications?orgId=&unreadOnly=&cursor=` | User                 |
-| GET    | `/v1/notifications/unread-count?orgId=`        | User                 |
-| POST   | `/v1/notifications/:id/read`                   | User (chủ thông báo) |
-| POST   | `/v1/notifications/read-all?orgId=`            | User                 |
-| DELETE | `/v1/notifications/:id`                        | User (xoá mềm)       |
+| Method | Path                                                  | Ai gọi               | Ghi chú (M10)                                                                                                                     |
+| ------ | ----------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/notifications?orgId=&unreadOnly=&cursor=&limit=` | User                 | Của chính người gọi, mới nhất trước: keyset `(created_at DESC, id DESC)`. Thông báo của tổ chức đã rời không còn (FK cascade, Q3) |
+| GET    | `/v1/notifications/unread-count?orgId=`               | User                 | `{ count, display }` — đếm CÓ TRẦN 100 (`count(*)` trên subquery `LIMIT 100`), `display = "99+"` từ 100 (Q5)                      |
+| POST   | `/v1/notifications/:notificationId/read`              | User (chủ thông báo) | 204; đọc lại 204, giữ mốc đọc lần đầu (`coalesce`). Của người khác / không tồn tại → 404                                          |
+| POST   | `/v1/notifications/read-all?orgId=`                   | User                 | 204; trong một tổ chức nếu có `orgId`                                                                                             |
+| DELETE | `/v1/notifications/:notificationId`                   | User                 | 204, xoá mềm; xoá lại 204. Của người khác → 404                                                                                   |
+
+**Loại thông báo (M10)** — `payload` là id + tên lúc tạo:
+
+| `type`                          | Người nhận                                              | `payload`                                                                                                  |
+| ------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `channel.member_added`          | người được thêm vào kênh                                | `channelId, channelName, role, actorId, actorName`                                                         |
+| `channel.ownership_transferred` | chủ mới + chủ cũ, trừ người thực hiện                   | `channelId, channelName, newOwnerId, newOwnerName, previousOwnerId, previousOwnerName, actorId, actorName` |
+| `org.join_request_approved`     | người xin vào                                           | `orgName, role`                                                                                            |
+| `meeting.shared`                | thành viên kênh trừ người chia sẻ và khách (job worker) | `meetingId, meetingTitle, channelId, channelName, actorId, actorName`                                      |
+
+Thông báo ít người nhận được ghi **trong transaction** của thao tác (rollback → không có thông báo); đẩy `notification.created` **sau commit**. Nhiều người nhận (`meeting.shared`): share commit → enqueue `notification.fanout` (jobId `notification.fanout.meeting-shared.{meetingId}.{channelId}.{sharedAt ms}`, share lặp lại → cùng jobId); worker đọc lại share + thành viên kênh LÚC CHẠY, INSERT theo lô 500 với `dedupe_key = meeting-shared.{meetingId}.{channelId}`, đẩy realtime sau mỗi lô (M10 B5).
 
 ## Realtime (Socket.IO, namespace `/realtime`)
 
@@ -132,13 +143,14 @@ Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReport
 - **Mất quyền là rời room (M7 B5, Q2):** sau commit, mọi thao tác làm mất quyền xem phát "kiểm lại" (`serverSideEmit` qua Redis) theo phạm vi: **meeting** (gỡ share, xoá meeting), **người** (bị gỡ khỏi / rời kênh hoặc tổ chức, Admin org bị hạ xuống member), **kênh** (công khai → riêng tư, xoá kênh), **tổ chức** (xoá tổ chức). Mỗi api instance kiểm lại socket CỦA MÌNH trong đúng phạm vi đó bằng điều kiện xem dùng chung; socket không còn xem được → rời room + `meeting.access_revoked`. `subscribe` kiểm quyền lần hai SAU khi vào room để không lọt khe giữa lần kiểm đầu và `join`.
 - **Trang thử** `/realtime-test.html` (chỉ `NODE_ENV=development`): dán access token, kết nối, subscribe meeting, xem event. Client Socket.IO lấy từ chính server (`/socket.io/socket.io.js`).
 
-| Event (server → client)  | Room                                 | Payload                                                                                                                                                                        |
-| ------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `session.ended`          | socket bị ngắt (riêng từng socket)   | `{ reason: "token_expired" \| "session_revoked" }` — gửi NGAY TRƯỚC khi server ngắt (M7 B2)                                                                                    |
-| `meeting.access_revoked` | socket vừa bị cho rời `meeting:{id}` | `{ meetingId }` — mất quyền xem (M7 B5)                                                                                                                                        |
-| `meeting.progress`       | `meeting:{id}`                       | `{ meetingId, stage, percent }`                                                                                                                                                |
-| `meeting.status`         | `meeting:{id}`, `user:{ownerId}`     | `{ meetingId, status, failureCode }` — phát SAU commit; M7: khi upload complete tạo meeting `queued` (complete gọi lại không phát lại); M6: mỗi lần pipeline chuyển trạng thái |
-| `notification.created`   | `user:{id}`                          | Notification DTO                                                                                                                                                               |
-| `report.ready`           | thông qua notification               |                                                                                                                                                                                |
+| Event (server → client)  | Room                                 | Payload                                                                                                                                                                                        |
+| ------------------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `session.ended`          | socket bị ngắt (riêng từng socket)   | `{ reason: "token_expired" \| "session_revoked" }` — gửi NGAY TRƯỚC khi server ngắt (M7 B2)                                                                                                    |
+| `meeting.access_revoked` | socket vừa bị cho rời `meeting:{id}` | `{ meetingId }` — mất quyền xem (M7 B5)                                                                                                                                                        |
+| `meeting.progress`       | `meeting:{id}`                       | `{ meetingId, stage, percent }`                                                                                                                                                                |
+| `meeting.status`         | `meeting:{id}`, `user:{ownerId}`     | `{ meetingId, status, failureCode }` — phát SAU commit; M7: khi upload complete tạo meeting `queued` (complete gọi lại không phát lại); M6: mỗi lần pipeline chuyển trạng thái                 |
+| `notification.created`   | `user:{id}`                          | `NotificationResponseDto` — sau commit (M10)                                                                                                                                                   |
+| `notification.read`      | `user:{id}`                          | `{ ids: [id] }` (đọc một) hoặc `{ all: true, orgId }` (đọc hết; chỉ phát khi có dòng đổi) — để các phiên khác cập nhật số chưa đọc; `{ all }` là gợi ý, client lấy lại `unread-count` (M10 B4) |
+| `report.ready`           | thông qua notification               |                                                                                                                                                                                                |
 
 > **Bẫy:** Access token hết hạn khi socket vẫn đang mở. Server lưu `exp` lúc handshake và chủ động ngắt khi hết hạn (`session.ended { reason: token_expired }`), client refresh qua REST rồi kết nối lại bằng token mới. Phiên bị thu hồi (logout, logout-all, xoá phiên ở `/me/sessions`, phát hiện reuse refresh token) → ngắt NGAY mọi socket của phiên đó (room `session:{sid}`; logout-all: `user:{id}`) qua Redis, đúng cả khi socket ở instance khác (M7 B2).

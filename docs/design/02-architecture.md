@@ -149,7 +149,8 @@ channels/
 | `MeetingsModule`               | api, worker                       | Meeting CRUD, share vào kênh, state machine xử lý, pipeline processor                                                                                                                        |
 | `TranscriptsModule`            | api, worker                       | Lưu segment, search full-text, xuất SRT/VTT                                                                                                                                                  |
 | `ReportsModule`                | api, worker                       | Job scheduler cron, tạo báo cáo, tạo lại có quota, phiên bản                                                                                                                                 |
-| `NotificationsModule`          | api, worker                       | Tạo thông báo (có dedupe key), danh sách, đã đọc, xoá mềm                                                                                                                                    |
+| `NotificationsCoreModule`      | api, worker                       | Ghi thông báo trong transaction (dedupe key), đẩy realtime sau commit, enqueue + chạy fan-out `notification.fanout` (M10)                                                                    |
+| `NotificationsModule`          | api                               | Danh sách, đếm chưa đọc, đã đọc, xoá mềm (controller; import Core)                                                                                                                           |
 | `RealtimeModule`               | api                               | Gateway Socket.IO `/realtime`: xác thực handshake (token + phiên), ngắt khi token hết hạn / phiên bị thu hồi, `subscribe` meeting theo điều kiện xem dùng chung, kiểm lại khi mất quyền (M7) |
 | `RealtimeInfraModule` (global) | api, worker                       | `RealtimePublisher` (redis-emitter): phát event / ngắt socket / yêu cầu kiểm lại từ bất kỳ tiến trình nào; `RedisIoAdapter` gắn Redis adapter cho server                                     |
 | `AuditModule` (global)         | api, worker                       | `AuditService.record(tx, ctx, entry)`, bắt buộc truyền `tx` của thao tác. Chỉ ghi                                                                                                            |
@@ -157,3 +158,5 @@ channels/
 | `InvitesModule`                | api                               | Link mời (tạo/liệt kê/thu hồi/xem trước/chấp nhận), yêu cầu tham gia (duyệt/từ chối). Phụ thuộc một chiều → `OrganizationsModule`                                                            |
 
 > **Bẫy:** Khi một module cần dùng cho cả api và worker, đừng import cả controller vào worker. Tách `XxxCoreModule` (service + repository) và `XxxHttpModule` (controller) khi cần. Worker chỉ import Core.
+>
+> **Một processor mỗi queue** (M10 B5): BullMQ Worker không lọc job theo tên — hai `@Processor('default')` ở hai module sẽ giành job của nhau. Processor nằm ở `src/worker/` (`DefaultQueueProcessor`), `switch (job.name)` rồi gọi service của `XxxCoreModule`; chỉ `WorkerModule` đăng ký.

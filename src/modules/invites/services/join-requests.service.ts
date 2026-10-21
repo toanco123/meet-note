@@ -4,6 +4,7 @@ import { expectTimestampKey, expectUuidKey } from '../../../common/pagination/ke
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database, Transaction } from '../../../infra/database/database.types.js';
 import { AuditService } from '../../audit/audit.service.js';
+import { NotificationsService } from '../../notifications/services/notifications.service.js';
 import type { UserAuditContext } from '../../audit/audit.types.js';
 import { canGrantRole } from '../../organizations/organization.policy.js';
 import { OrganizationMembersRepository } from '../../organizations/repositories/organization-members.repository.js';
@@ -23,6 +24,7 @@ export class JoinRequestsService {
     private readonly repo: JoinRequestsRepository,
     private readonly members: OrganizationMembersRepository,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async list(
@@ -47,7 +49,7 @@ export class JoinRequestsService {
     requestId: string,
     ctx: UserAuditContext,
   ): Promise<JoinRequestDecisionResponseDto> {
-    return this.db.transaction(async (tx) => {
+    const created = await this.db.transaction(async (tx) => {
       const request = await this.lockPending(orgId, requestId, tx);
       const actorRole = await this.members.lockRoleForShare(orgId, ctx.actorId, tx);
       if (!actorRole) throw Errors.org.notFound();
@@ -69,8 +71,19 @@ export class JoinRequestsService {
         targetId: requestId,
         metadata: { userId: request.userId, after: { role: request.role } },
       });
-      return { id: requestId, status: 'approved' };
+      // Người xin vào ĐÃ là thành viên trong transaction này → FK (org_id, user_id) của thông báo hợp lệ.
+      return this.notifications.recordInTx(tx, [
+        {
+          userId: request.userId,
+          orgId,
+          type: 'org.join_request_approved',
+          payload: { orgName: await this.notifications.orgName(orgId, tx), role: request.role },
+          dedupeKey: `join-request-approved.${requestId}`,
+        },
+      ]);
     });
+    this.notifications.publish(created); // SAU commit
+    return { id: requestId, status: 'approved' };
   }
 
   async reject(

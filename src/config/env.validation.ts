@@ -148,6 +148,14 @@ export class EnvironmentVariables {
   @IsString()
   @MinLength(1)
   REALTIME_REDIS_KEY = 'meetnote:socket.io';
+
+  /**
+   * Tiền tố key BullMQ trong Redis. Như `REALTIME_REDIS_KEY`: hai môi trường / hai file test dùng chung
+   * một Redis thì PHẢI khác — không thì worker của bên này lấy job của bên kia (đọc nhầm database).
+   */
+  @IsString()
+  @MinLength(1)
+  QUEUE_PREFIX = 'meetnote';
 }
 
 /** Dùng cho `ConfigModule.forRoot({ validate })`. Ném lỗi → tiến trình dừng ngay khi khởi động. */
