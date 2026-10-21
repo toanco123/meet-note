@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import { Errors } from '../../../common/errors/errors.js';
 import { decodeCursor, toPage } from '../../../common/pagination/cursor.js';
@@ -7,6 +7,9 @@ import { expectTimestampKey, expectUuidKey } from '../../../common/pagination/ke
 import type { Page } from '../../../common/pagination/pagination.types.js';
 import type { MeetingRow } from '../../../infra/database/schema/index.js';
 import { JobName, meetingJobId } from '../../../infra/queue/jobs.js';
+import { RealtimeRoom } from '../../../infra/realtime/realtime-rooms.js';
+import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
+import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
 import { QueueName } from '../../../infra/queue/queue.module.js';
 import type { MeetingJobData } from '../../../infra/queue/queue.types.js';
 import { channelPolicy, decideChannelPermission } from '../../channels/channel.policy.js';
@@ -32,6 +35,7 @@ export class MeetingsService {
     private readonly repo: MeetingsRepository,
     private readonly channels: ChannelsRepository,
     @InjectQueue(QueueName.Default) private readonly queue: Queue<MeetingJobData>,
+    @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
   ) {}
 
   /** Chi tiết theo quyền xem (04 §3). Không xem được = không tồn tại → 404. */
@@ -116,6 +120,22 @@ export class MeetingsService {
     };
     if (!channelPolicy['channel.read'](access)) throw Errors.channel.notFound();
     assertChannelDecision(decideChannelPermission('channel.content.read', access));
+  }
+
+  /**
+   * Gợi ý realtime "trạng thái meeting vừa đổi" (05 Realtime, M7 B6) — gọi SAU COMMIT, như enqueue.
+   * Tới `user:{chủ}` (chủ thấy ngay meeting mới, chưa ai kịp subscribe) và `meeting:{id}` (người đang
+   * theo dõi). Payload nhỏ: client cần chi tiết thì gọi REST (02 §2). Pipeline M6 gọi lại hàm này
+   * ở mỗi lần chuyển trạng thái.
+   */
+  publishStatus(meeting: Pick<MeetingRow, 'id' | 'ownerId' | 'status' | 'failureCode'>): void {
+    const rooms = [RealtimeRoom.meeting(meeting.id)];
+    if (meeting.ownerId) rooms.push(RealtimeRoom.user(meeting.ownerId));
+    this.realtime.emit(rooms, 'meeting.status', {
+      meetingId: meeting.id,
+      status: meeting.status,
+      failureCode: meeting.failureCode,
+    });
   }
 
   /**

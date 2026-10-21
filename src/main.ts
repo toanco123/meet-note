@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { configureApp } from './bootstrap/configure-app.js';
+import { setupRealtimeTestPage } from './bootstrap/realtime-test-page.js';
 import { buildOpenApiDocument, setupSwagger } from './bootstrap/swagger.js';
 import { type EnvironmentVariables, isSwaggerEnabled } from './config/env.validation.js';
 
@@ -23,6 +24,8 @@ async function bootstrap(): Promise<void> {
   if (isSwaggerEnabled(config.get('NODE_ENV', { infer: true }))) {
     setupSwagger(app, buildOpenApiDocument(app));
   }
+  // Trang thử Socket.IO: chỉ máy dev (staging cũng không), khác Swagger.
+  if (config.get('NODE_ENV', { infer: true }) === 'development') setupRealtimeTestPage(app);
 
   await app.listen(config.get('PORT', { infer: true }));
 }

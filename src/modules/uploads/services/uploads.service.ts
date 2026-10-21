@@ -186,6 +186,8 @@ export class UploadsService {
     // Cả lần đầu lẫn lần gọi lại: meeting còn `queued` thì enqueue (jobId trùng → BullMQ bỏ qua).
     // Lần đầu enqueue lỗi (Redis sập) thì client gọi lại complete là tự sửa được.
     await this.meetings.enqueuePreprocess(meeting, requestId);
+    // Chỉ lần TẠO thật: complete gọi lại (200) không phát lại — event là "trạng thái vừa đổi".
+    if (outcome.created) this.meetings.publishStatus(meeting);
     return { meeting, created: outcome.created };
   }
 
