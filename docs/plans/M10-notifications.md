@@ -1,6 +1,6 @@
 # M10 — Thông báo
 
-- **Trạng thái:** Đang làm (plan đã duyệt 2026-10-21: ★ cho Q1–Q6 — người dùng xác nhận chưa cần Firebase)
+- **Trạng thái:** **Xong ở local** (2026-10-21): B1–B6; CI chờ push / PR #8. Plan đã duyệt 2026-10-21 (★ cho Q1–Q6 — chưa cần Firebase)
 - **Nhánh:** `m10-notifications`
 - **Tài liệu thiết kế liên quan:** [01-overview khối 5](../design/01-overview.md), [03-database `notifications`](../design/03-database.md), [05-api Notifications, Realtime](../design/05-api.md), [06-flows §1.2, §2, §3](../design/06-flows.md), [10-roadmap M10](../design/10-roadmap.md)
 - **Ghi chú:** làm trước M6 / M8 / M9 (đang hoãn) theo yêu cầu người dùng. Thông báo "meeting xử lý xong / lỗi" (M6) và "báo cáo tuần sẵn sàng" (M9) cắm vào khi làm các mốc đó — mốc này dựng cơ chế và dùng các sự kiện ĐÃ CÓ.
@@ -60,15 +60,15 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 - [x] **B5 — Fan-out "meeting được chia sẻ" bằng worker (processor đầu tiên)**
   - Việc: share commit → enqueue `notification.fanout.<dedupe>`; processor kiểm lại (meeting còn trong kênh?), lấy thành viên kênh (trừ người share, khách), INSERT theo lô 500, đẩy realtime sau mỗi lô.
   - Test (Redis thật, worker trong test): share → thành viên nhận, khách / người share không nhận; job chạy 2 lần → không trùng; gỡ share trước khi job chạy → không ai nhận; lỗi giữa chừng → retry không trùng. Đột biến bỏ `ON CONFLICT` / bỏ kiểm lại → đỏ.
-- [ ] **B6 — Đóng mốc**
+- [x] **B6 — Đóng mốc**
   - Việc: `openapi.json`, đối chiếu tài liệu, chạy tay trên Compose (api + worker), ghi "Điều học được".
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở local và CI
-- [ ] Không thông báo trùng, không thông báo "ma"; fan-out idempotent
-- [ ] `openapi.json` đã cập nhật; `docs/design/` khớp code
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (391 unit)
+- [ ] `pnpm test:e2e` xanh ở local và CI — local xanh (544 test); CI: chờ PR #8
+- [x] Không thông báo trùng, không thông báo "ma"; fan-out idempotent
+- [x] `openapi.json` đã cập nhật; `docs/design/` khớp code
 
 ## Điều sẽ học
 
@@ -89,3 +89,4 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 8. **Cô lập queue giữa các file test** như M7 bài học 12 với Socket.IO: mọi file e2e dùng chung container Redis, prefix `meetnote` cố định → worker của file này lấy job của file khác (DB khác). Thêm env `QUEUE_PREFIX`, `setup-e2e` đặt ngẫu nhiên mỗi file. Worker trong test dựng bằng `createTestWorker()` (`Test.createTestingModule({ imports: [WorkerModule] })` + `init()`), chờ kết quả bằng `job.waitUntilFinished(queueEvents)`.
 9. **Fan-out idempotent không cần transaction bao ngoài.** Mỗi lô là một INSERT `ON CONFLICT DO NOTHING RETURNING` → chỉ đẩy realtime cho dòng VỪA tạo; lỗi ở lô 2 thì lô 1 giữ nguyên, lần retry chỉ bù phần thiếu (integration test giả lập lỗi ở lần `insertMany` thứ 2). Người nhận lấy theo keyset `user_id` trên PK `(channel_id, user_id)`; MỖI lô kiểm lại "share còn sống" (`EXISTS` share + meeting / kênh chưa xoá) nên gỡ share giữa chừng → các lô sau rỗng. 5 đột biến (bỏ kiểm meeting đã xoá, bỏ `ON CONFLICT`, không loại khách, không loại người share, `meeting.preprocess` ném lỗi thay vì cất) đều đỏ. Đột biến **lọt**: keyset `gt` → `gte` — vô hại (người cuối lô bị chọn lại, `ON CONFLICT` nuốt), chỉ tốn một dòng mỗi lô.
 10. **jobId có mốc share** (`….{sharedAt ms}`): share → gỡ → share lại trong 24 h (job cũ còn được giữ) vẫn ra job mới, người mới vào kênh được báo; người đã nhận thì `dedupe_key` chặn. Share lặp lại (200, cùng dòng) vẫn enqueue với cùng jobId → nếu lần enqueue trước lỗi (Redis sập sau commit) thì gọi lại share là đủ để bù — "outbox nghèo" như M5.
+11. **Chạy tay trên Compose (B6).** `docker compose up -d --build migrate api worker`, script smoke chạy TRONG container api (`docker compose exec -T api node --input-type=module -`) — cổng 3000 của máy đang bị một dev server khác chiếm, gọi từ trong container thì không phụ thuộc cổng máy. Kết quả: share 201 → member thấy `meeting.shared` qua `GET /notifications` sau ~115 ms (payload đủ tên), share lại 200 không sinh thêm; chủ kênh 1, member 1, khách 0, người share 0; unread member = 2 (`channel.member_added` + `meeting.shared`). Redis dev: 2 job `meeting.preprocess` cũ của M5 nằm ở `delayed` (được cất, không `failed`), 1 job fan-out `completed`. `openapi.json` đổi 354 dòng dù không đổi API: chỉ đổi THỨ TỰ path (module khác import `NotificationsCoreModule` → Nest quét `NotificationsModule` muộn hơn); `jq -S` hai bản giống hệt.
