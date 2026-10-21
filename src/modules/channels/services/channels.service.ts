@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
+import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
 import { isUniqueViolation } from '../../../common/errors/pg-error.js';
 import { decodeCursor, toPage } from '../../../common/pagination/cursor.js';
 import { expectTextKey } from '../../../common/pagination/keys.js';
@@ -38,6 +40,7 @@ export class ChannelsService {
     private readonly repo: ChannelsRepository,
     private readonly orgMembers: OrganizationMembersRepository,
     private readonly audit: AuditService,
+    @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
   ) {}
 
   /**
@@ -166,6 +169,10 @@ export class ChannelsService {
         });
       })
       .catch(mapNameTaken);
+    if (patch.visibility === 'private') {
+      // Công khai → riêng tư: người ngoài kênh mất quyền xem meeting của kênh.
+      this.realtime.revalidateAccess({ kind: 'channel', channelId });
+    }
     return this.getDetail(channelId, ctx.actorId);
   }
 
@@ -212,6 +219,7 @@ export class ChannelsService {
         metadata: { before: { name: channel.name } },
       });
     });
+    this.realtime.revalidateAccess({ kind: 'channel', channelId: access.channel.id });
   }
 
   /**

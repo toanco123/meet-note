@@ -42,11 +42,21 @@ export class TokenService {
   async verifyAccessToken(token: string): Promise<AccessTokenVerification> {
     try {
       // algorithms/issuer/audience đã ghim trong verifyOptions của JwtModule (auth.module.ts).
-      const payload = await this.jwt.verifyAsync<{ sub?: unknown; sid?: unknown }>(token);
-      if (typeof payload.sub !== 'string' || typeof payload.sid !== 'string') {
+      const payload = await this.jwt.verifyAsync<{ sub?: unknown; sid?: unknown; exp?: unknown }>(
+        token,
+      );
+      if (
+        typeof payload.sub !== 'string' ||
+        typeof payload.sid !== 'string' ||
+        typeof payload.exp !== 'number'
+      ) {
         return { ok: false, reason: 'invalid' };
       }
-      return { ok: true, claims: { sub: payload.sub, sid: payload.sid } };
+      return {
+        ok: true,
+        claims: { sub: payload.sub, sid: payload.sid },
+        expiresAt: new Date(payload.exp * 1000),
+      };
     } catch (error) {
       // jsonwebtoken kiểm tra chữ ký TRƯỚC hạn dùng: token giả mạo đã hết hạn vẫn là 'invalid'.
       return { ok: false, reason: error instanceof TokenExpiredError ? 'expired' : 'invalid' };

@@ -1,6 +1,6 @@
 # M6b — Chia sẻ & quyền xem meeting
 
-- **Trạng thái:** **Xong** (2026-10-21): B1–B7, chưa push / mở PR → CI chưa chạy. Plan đã duyệt 2026-10-21 (★ cho Q1–Q6)
+- **Trạng thái:** **Xong** (2026-10-21): B1–B7, PR #6, CI xanh. Plan đã duyệt 2026-10-21 (★ cho Q1–Q6)
 - **Nhánh:** `m6b-meeting-sharing`
 - **Ghi chú:** tách từ M6 (Q1 của [M6-pipeline.md](M6-pipeline.md)). Pipeline (whisper, tóm tắt) **hoãn** theo yêu cầu người dùng 2026-10-21; mốc này không phụ thuộc pipeline: meeting đã có từ M5 (trạng thái `queued`).
 - **Tài liệu thiết kế liên quan:** [01-overview D2, D3, D16](../design/01-overview.md), [03-database `meeting_shares`, §7](../design/03-database.md), [04-authorization §2, §3](../design/04-authorization.md), [05-api Meetings, Channels](../design/05-api.md)
@@ -92,7 +92,7 @@ Mỗi bước = 1 commit, chạy được và có test.
 
 - [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (unit 387)
 - [x] `pnpm test:e2e` xanh ở local (491 test); mọi chỗ khoá đã được đột biến (B4: 3 khoá, 3 kịch bản)
-- [ ] `pnpm test:e2e` xanh trên CI — chạy khi push / mở PR
+- [x] `pnpm test:e2e` xanh trên CI (PR #6)
 - [x] Một điều kiện xem duy nhất (`meetingVisibleTo`), ma trận 04 §3 được test đầy đủ (B2, 6 đột biến)
 - [x] `openapi.json` đã cập nhật (42 path); `docs/design/` khớp code — đối chiếu bằng script (route, mã lỗi, tên index `0008`, phiên bản)
 - [x] Smoke test trên Docker Compose: 24 bước qua HTTP thật (mời → kênh → upload → share / xem / lọc / gỡ / lưu trữ / sửa / xoá)

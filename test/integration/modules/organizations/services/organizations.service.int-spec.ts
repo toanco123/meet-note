@@ -11,6 +11,7 @@ import { OrganizationMembersRepository } from '../../../../../src/modules/organi
 import { OrganizationsRepository } from '../../../../../src/modules/organizations/repositories/organizations.repository.js';
 import { OrganizationsService } from '../../../../../src/modules/organizations/services/organizations.service.js';
 import { addMember, insertOrg, insertUser } from '../../../../support/db-factories.js';
+import { realtimeStub } from '../../../../support/realtime-stub.js';
 import { createTestDb, type TestDb } from '../../../../support/db.js';
 
 describe('OrganizationsService (Postgres thật)', () => {
@@ -27,6 +28,7 @@ describe('OrganizationsService (Postgres thật)', () => {
         OrganizationMembersRepository,
         AuditService,
         { provide: DRIZZLE, useValue: t.db },
+        realtimeStub,
       ],
     }).compile();
     service = moduleRef.get(OrganizationsService);

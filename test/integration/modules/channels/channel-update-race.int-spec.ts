@@ -13,6 +13,7 @@ import {
   insertOrg,
   insertUser,
 } from '../../../support/db-factories.js';
+import { realtimeStub } from '../../../support/realtime-stub.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 import { lockChannelThen, runWhileLocked } from '../../../support/locks.js';
 import { OrganizationMembersRepository } from '../../../../src/modules/organizations/repositories/organization-members.repository.js';
@@ -41,6 +42,7 @@ describe('Race: sửa kênh ‖ thay đổi đồng thời trên kênh đó (Pos
         OrganizationMembersRepository,
         AuditService,
         { provide: DRIZZLE, useValue: t.db },
+        realtimeStub,
       ],
     }).compile();
     service = moduleRef.get(ChannelsService);

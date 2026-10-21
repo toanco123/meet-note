@@ -10,6 +10,7 @@ import { OrganizationMembersService } from '../../../../src/modules/organization
 import { OrganizationsRepository } from '../../../../src/modules/organizations/repositories/organizations.repository.js';
 import { OrganizationsService } from '../../../../src/modules/organizations/services/organizations.service.js';
 import { addMember, insertOrg, insertUser } from '../../../support/db-factories.js';
+import { realtimeStub } from '../../../support/realtime-stub.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 
 describe('Audit log gắn vào thao tác M2 (Postgres thật)', () => {
@@ -27,6 +28,7 @@ describe('Audit log gắn vào thao tác M2 (Postgres thật)', () => {
         OrganizationMembersRepository,
         AuditService,
         { provide: DRIZZLE, useValue: t.db },
+        realtimeStub,
       ],
     }).compile();
     orgs = moduleRef.get(OrganizationsService);

@@ -21,6 +21,7 @@ import {
   insertUser,
   shareMeeting,
 } from '../../../support/db-factories.js';
+import { realtimeStub } from '../../../support/realtime-stub.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 import { interleave } from '../../../support/locks.js';
 
@@ -41,6 +42,7 @@ describe('Share / gỡ share ‖ mất quyền (Postgres thật)', () => {
         MeetingSharesRepository,
         MeetingsRepository,
         { provide: DRIZZLE, useValue: t.db },
+        realtimeStub,
       ],
     }).compile();
     service = moduleRef.get(MeetingSharesService);

@@ -38,7 +38,10 @@ describe('TokenService', () => {
 
       const result = await tokens.verifyAccessToken(issued.token);
 
-      expect(result).toEqual({ ok: true, claims: { sub: 'user-1', sid: 'session-1' } });
+      expect(result).toMatchObject({ ok: true, claims: { sub: 'user-1', sid: 'session-1' } });
+      // `expiresAt` từ claim `exp` (giây) → lệch < 1 s so với hạn lúc ký (M7: socket ngắt đúng lúc này).
+      const verifiedExp = result.ok ? result.expiresAt.getTime() : NaN;
+      expect(Math.abs(verifiedExp - issued.expiresAt.getTime())).toBeLessThan(1000);
       const ttlMs = issued.expiresAt.getTime() - before;
       expect(ttlMs).toBeGreaterThan(898_000);
       expect(ttlMs).toBeLessThanOrEqual(900_000);

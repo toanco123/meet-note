@@ -8,6 +8,7 @@ import { organizationMembers } from '../../../../src/infra/database/schema/index
 import { OrganizationMembersRepository } from '../../../../src/modules/organizations/repositories/organization-members.repository.js';
 import { OrganizationMembersService } from '../../../../src/modules/organizations/services/organization-members.service.js';
 import { addMember, insertOrg, insertUser } from '../../../support/db-factories.js';
+import { realtimeStub } from '../../../support/realtime-stub.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 
 async function outcomeOf(promise: Promise<unknown>): Promise<string> {
@@ -42,6 +43,7 @@ describe('Race: đổi vai trò vs gỡ cùng một thành viên (Postgres thậ
         OrganizationMembersRepository,
         AuditService,
         { provide: DRIZZLE, useValue: t.db },
+        realtimeStub,
       ],
     }).compile();
     service = moduleRef.get(OrganizationMembersService);

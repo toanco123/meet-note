@@ -10,6 +10,7 @@ import { ChannelsRepository } from '../../../../src/modules/channels/repositorie
 import { UploadsRepository } from '../../../../src/modules/uploads/uploads.repository.js';
 import { UploadsCleanupService } from '../../../../src/modules/uploads/services/uploads-cleanup.service.js';
 import { UploadsService } from '../../../../src/modules/uploads/services/uploads.service.js';
+import { realtimeStub } from '../../../support/realtime-stub.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 import { createTestStorage, isMultipartAlive } from '../../../support/storage.js';
 
@@ -39,6 +40,7 @@ describe('UploadsService.init — bù trừ khi ghi DB lỗi (Postgres + RustFS 
           useValue: { add: vi.fn<() => Promise<void>>() },
         },
         { provide: DRIZZLE, useValue: t.db },
+        realtimeStub,
         { provide: OBJECT_STORAGE, useValue: s3.storage },
       ],
     }).compile();

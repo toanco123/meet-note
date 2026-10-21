@@ -14,7 +14,7 @@ Mọi test nằm trong `test/`, **không** đặt trong `src/` (quyết định 
 
 - Unit: `test/unit/**/*.spec.ts`, vd `test/unit/modules/auth/services/token.service.spec.ts`. Test gắn với một file cụ thể mô phỏng đúng đường dẫn của file đó (kể cả thư mục vai trò `services/`…); test theo kịch bản (race) đặt ở cấp module, vd `test/integration/modules/channels/channel-members-race.int-spec.ts`
 - Integration: `test/integration/**/*.int-spec.ts`
-- E2E: `test/e2e/*.e2e-spec.ts`
+- E2E: `test/e2e/<domain>/*.e2e-spec.ts` — gom theo domain khớp `src/modules/` (`auth/`, `organizations/`, `channels/`, `meetings/`, `uploads/`, `realtime/`…); thứ dùng chung toàn app (health, envelope, versioning) ở `platform/`
 
 ## 2. Database thật với Testcontainers
 

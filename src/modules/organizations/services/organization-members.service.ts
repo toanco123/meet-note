@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
+import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
 import { Errors } from '../../../common/errors/errors.js';
 import { decodeCursor, toPage } from '../../../common/pagination/cursor.js';
 import { expectTimestampKey, expectUuidKey } from '../../../common/pagination/keys.js';
@@ -20,6 +22,7 @@ export class OrganizationMembersService {
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly repo: OrganizationMembersRepository,
     private readonly audit: AuditService,
+    @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
   ) {}
 
   async list(orgId: string, query: ListMembersQueryDto): Promise<Page<MemberResponseDto>> {
@@ -62,6 +65,9 @@ export class OrganizationMembersService {
         metadata: { before: { role: target }, after: { role: newRole } },
       });
     });
+    // Admin → member: mất quyền xem meeting KHÔNG CHỦ (M6b Q2).
+    if (newRole === OrgRole.Member)
+      this.realtime.revalidateAccess({ kind: 'user', userId: targetId });
 
     const updated = await this.repo.findMember(orgId, targetId);
     if (!updated) throw Errors.org.memberNotFound(); // bị gỡ ngay sau khi commit — hiếm, nhưng đừng trả 500
@@ -91,6 +97,7 @@ export class OrganizationMembersService {
         metadata: { before: { role: target } },
       });
     });
+    this.realtime.revalidateAccess({ kind: 'user', userId: targetId });
   }
 
   /**
@@ -151,6 +158,7 @@ export class OrganizationMembersService {
         metadata: { before: { role: self.role } },
       });
     });
+    this.realtime.revalidateAccess({ kind: 'user', userId: ctx.actorId });
   }
 
   private async lockActorAndTarget(

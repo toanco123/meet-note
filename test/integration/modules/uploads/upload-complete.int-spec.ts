@@ -7,6 +7,8 @@ import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
 import { meetings, uploads } from '../../../../src/infra/database/schema/index.js';
 import { QueueName } from '../../../../src/infra/queue/queue.module.js';
 import { MultipartUploadNotFoundError } from '../../../../src/infra/storage/storage.errors.js';
+import { REALTIME_PUBLISHER } from '../../../../src/infra/realtime/realtime.module.js';
+import type { RealtimePublisher } from '../../../../src/infra/realtime/realtime.types.js';
 import { OBJECT_STORAGE } from '../../../../src/infra/storage/storage.module.js';
 import { MeetingsRepository } from '../../../../src/modules/meetings/repositories/meetings.repository.js';
 import { MeetingsService } from '../../../../src/modules/meetings/services/meetings.service.js';
@@ -54,6 +56,23 @@ describe('UploadsService.complete (Postgres + RustFS thật)', () => {
     ),
   };
 
+  /** Publisher giả có ghi chép: lúc `emit`, một connection KHÁC có thấy meeting không (= đã commit). */
+  const published: Array<{ rooms: string[]; event: string; payload: unknown; committed: boolean }> =
+    [];
+  const realtime: RealtimePublisher = {
+    emit: (rooms, event, payload) => {
+      const meetingId = (payload as { meetingId: string }).meetingId;
+      void t.db
+        .select({ id: meetings.id })
+        .from(meetings)
+        .where(eq(meetings.id, meetingId))
+        .then(([row]) => published.push({ rooms, event, payload, committed: row !== undefined }));
+    },
+    endSessions: () => undefined,
+    revalidateAccess: () => undefined,
+  };
+  const settle = () => new Promise((r) => setTimeout(r, 100));
+
   beforeAll(async () => {
     t = createTestDb(8);
     const moduleRef = await Test.createTestingModule({
@@ -66,6 +85,7 @@ describe('UploadsService.complete (Postgres + RustFS thật)', () => {
         ChannelsRepository,
         { provide: getQueueToken(QueueName.Default), useValue: queue },
         { provide: DRIZZLE, useValue: t.db },
+        { provide: REALTIME_PUBLISHER, useValue: realtime },
         { provide: OBJECT_STORAGE, useValue: s3.storage },
       ],
     }).compile();
@@ -196,5 +216,28 @@ describe('UploadsService.complete (Postgres + RustFS thật)', () => {
       first.meeting.id,
     ]);
     expect(enqueued.map((e) => e.jobId)).toEqual([`meeting.preprocess.${first.meeting.id}.a1`]);
+  });
+
+  // M7 B6. Đột biến: phát trong transaction → `committed: false`; bỏ điều kiện `created` → lần gọi lại
+  // phát thêm.
+  it('`meeting.status` phát SAU commit, đúng 1 lần (gọi lại không phát), DB lỗi → không phát', async () => {
+    const failing = await readyUpload(6 * MiB);
+    const { complete, upload } = await readyUpload(6 * MiB);
+    published.length = 0;
+    vi.spyOn(repo, 'markCompleted').mockRejectedValueOnce(new Error('DB lỗi'));
+    await expect(failing.complete()).rejects.toThrow('DB lỗi');
+
+    const { meeting } = await complete();
+    await complete();
+    await settle();
+
+    expect(published).toEqual([
+      {
+        rooms: [`meeting:${meeting.id}`, `user:${upload.userId}`],
+        event: 'meeting.status',
+        payload: { meetingId: meeting.id, status: 'queued', failureCode: null },
+        committed: true,
+      },
+    ]);
   });
 });

@@ -22,6 +22,7 @@ import {
   insertOrg,
   insertUser,
 } from '../../../support/db-factories.js';
+import { realtimeStub } from '../../../support/realtime-stub.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 import { lockChannelThen, outcomeOf, runWhileLocked } from '../../../support/locks.js';
 import type { ChannelAccess } from '../../../../src/modules/channels/channels.types.js';
@@ -45,6 +46,7 @@ describe('Race: thành viên kênh (Postgres thật)', () => {
         OrganizationMembersRepository,
         AuditService,
         { provide: DRIZZLE, useValue: t.db },
+        realtimeStub,
       ],
     }).compile();
     service = moduleRef.get(ChannelMembersService);

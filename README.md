@@ -25,7 +25,8 @@ Trạng thái hiện tại:
 | M4 — Kênh                      | Xong (PR #4). Kênh công khai / riêng tư, 4 vai trò, thành viên, tham gia / rời / chuyển chủ kênh, lưu trữ, xoá mềm + dọn dẹp, xoá tổ chức. Kèm: catalog lỗi, envelope `{ data, meta }` |
 | M5 — Upload                    | Xong (PR #5). Upload chunked 8 MiB tới 2 GiB stream thẳng lên S3 (RustFS), resume, complete → meeting `queued` + job sau commit, `Idempotency-Key`, dọn upload hết hạn                 |
 | M6 — Pipeline                  | Hoãn (plan nháp)                                                                                                                                                                       |
-| M6b — Chia sẻ & quyền xem      | Xong (chưa PR). Chia sẻ meeting vào kênh, một điều kiện xem dùng chung, danh sách meeting (theo org / theo kênh), sửa / xoá meeting                                                    |
+| M6b — Chia sẻ & quyền xem      | Xong (PR #6). Chia sẻ meeting vào kênh, một điều kiện xem dùng chung, danh sách meeting (theo org / theo kênh), sửa / xoá meeting                                                      |
+| M7 — Realtime                  | Xong (chưa PR). Socket.IO `/realtime`: xác thực handshake, ngắt khi token hết hạn / phiên bị thu hồi, subscribe meeting theo quyền, mất quyền là rời room, nhiều instance qua Redis    |
 
 Chi tiết từng mốc (các bước, quyết định, bài học) trong [docs/plans/](docs/plans/).
 
@@ -194,7 +195,7 @@ migrations/                    SQL migration (drizzle-kit + viết tay), đã co
 test/
 ├─ unit/                       không cần Docker; mô phỏng cây src/ + `architecture/` (test quy ước)
 ├─ integration/                Postgres/Redis thật: schema, race test, service
-├─ e2e/                        gọi HTTP thật qua toàn bộ app
+├─ e2e/<domain>/               gọi HTTP thật qua toàn bộ app, gom theo domain (auth, channels, meetings…)
 └─ support/                    Testcontainers setup, factory, helper khoá (`runWhileLocked`)
 docs/design/                   thiết kế (DB, quyền, API, luồng, quy ước…)
 docs/plans/                    plan từng mốc (viết trước khi code)

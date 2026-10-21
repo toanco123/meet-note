@@ -15,16 +15,16 @@ Kiểm tra trên npm registry, nodejs.org và Docker Hub ngày **2026-10-13**. `
 
 ## NestJS
 
-| Package                                                                         | Phiên bản |
-| ------------------------------------------------------------------------------- | --------- |
-| @nestjs/core, common, platform-express, testing, websockets, platform-socket.io | 12.1.3    |
-| @nestjs/cli                                                                     | 12.0.8    |
-| @nestjs/schematics                                                              | 12.0.7    |
-| @nestjs/swagger                                                                 | 12.0.2    |
-| @nestjs/config                                                                  | 12.0.1    |
-| @nestjs/schedule                                                                | 12.0.2    |
-| @nestjs/bullmq                                                                  | 12.0.0    |
-| @nestjs/jwt                                                                     | 12.0.3    |
+| Package                                                                         | Phiên bản                                                                                         |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| @nestjs/core, common, platform-express, testing, websockets, platform-socket.io | 12.1.3 (websockets / platform-socket.io: giữ cùng bản core, không lên 12.2.0 dù là `latest` — M7) |
+| @nestjs/cli                                                                     | 12.0.8                                                                                            |
+| @nestjs/schematics                                                              | 12.0.7                                                                                            |
+| @nestjs/swagger                                                                 | 12.0.2                                                                                            |
+| @nestjs/config                                                                  | 12.0.1                                                                                            |
+| @nestjs/schedule                                                                | 12.0.2                                                                                            |
+| @nestjs/bullmq                                                                  | 12.0.0                                                                                            |
+| @nestjs/jwt                                                                     | 12.0.3                                                                                            |
 
 ## Thư viện khác
 
@@ -46,6 +46,7 @@ Kiểm tra trên npm registry, nodejs.org và Docker Hub ngày **2026-10-13**. `
 |              | @vitest/coverage-v8                                               | 5.0.4             | M0               |
 |              | testcontainers, @testcontainers/postgresql, @testcontainers/redis | 12.2.0            | M0               |
 |              | supertest                                                         | 7.3.1             | M0               |
+|              | socket.io-client (dev)                                            | 4.8.4             | M7               |
 | Lint/format  | oxlint                                                            | 1.87.0            | M0               |
 |              | oxlint-tsgolint                                                   | 7.0.2004          | M0               |
 |              | prettier                                                          | 3.9.10            | M0               |

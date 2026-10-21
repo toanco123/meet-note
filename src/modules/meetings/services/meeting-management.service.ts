@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
+import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
 import { Errors } from '../../../common/errors/errors.js';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database, Transaction } from '../../../infra/database/database.types.js';
@@ -21,6 +23,7 @@ export class MeetingManagementService {
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly repo: MeetingsRepository,
     private readonly audit: AuditService,
+    @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
   ) {}
 
   async update(
@@ -62,6 +65,7 @@ export class MeetingManagementService {
         });
       }
     });
+    this.realtime.revalidateAccess({ kind: 'meeting', meetingId });
   }
 
   private async lockManageable(
