@@ -348,12 +348,16 @@ Nếu không có `FOR UPDATE`, 2 cú bấm cùng lúc đều đọc được `co
 
 ### `notifications`
 
-id, user_id FK, org_id NULL, type text, payload jsonb, dedupe_key text NULL, read_at, deleted_at, created_at.
+id, user_id (FK `users` ON DELETE CASCADE), org_id NULL, type text (CHECK `notifications_type_ck`: `channel.member_added`, `channel.ownership_transferred`, `org.join_request_approved`, `meeting.shared` — M6 / M9 thêm loại bằng migration), payload jsonb (id + tên lúc tạo, M10 Q4), dedupe_key text NULL, read_at, deleted_at, created_at. Migration `0009` (M10).
+
+- **FK `notifications_org_member_fk (org_id, user_id)` → `organization_members` ON DELETE CASCADE** (M10 Q3): rời / bị gỡ khỏi tổ chức → thông báo của tổ chức đó bị xoá theo, thay vì JOIN membership ở mọi truy vấn đọc. `org_id` NULL → FK không áp (MATCH SIMPLE).
+
 Index:
 
-- `UNIQUE (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL`: job tạo thông báo chạy lại không sinh bản trùng.
-- `(user_id, created_at DESC, id) WHERE deleted_at IS NULL`.
-- `(user_id) WHERE read_at IS NULL AND deleted_at IS NULL`: đếm số chưa đọc.
+- `notifications_user_dedupe_uq UNIQUE (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL`: thao tác / job tạo thông báo chạy lại không sinh bản trùng.
+- `notifications_user_created_idx (user_id, created_at DESC, id DESC)` — **không partial**: cũng là index phía tham chiếu của FK `user_id` (partial thì FK không dùng được, M5 bài học 2). Lọc `deleted_at IS NULL` lúc đọc.
+- `notifications_user_unread_idx (user_id) WHERE read_at IS NULL AND deleted_at IS NULL`: đếm số chưa đọc.
+- `notifications_org_user_idx (org_id, user_id)`: phía tham chiếu của FK tổ chức.
 
 ### `audit_logs` (M3)
 

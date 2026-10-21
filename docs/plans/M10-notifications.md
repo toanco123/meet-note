@@ -47,7 +47,7 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 
 ## Các bước
 
-- [ ] **B1 — Schema + migration**
+- [x] **B1 — Schema + migration**
   - Test (integration): unique partial `(user_id, dedupe_key)` (NULL không đụng nhau), CHECK `type`, EXPLAIN đếm chưa đọc dùng index partial.
 - [ ] **B2 — Tạo thông báo trong transaction + đẩy sau commit**
   - Việc: `NotificationsService.createInTx(tx, …)` (`ON CONFLICT DO NOTHING`) + gom "việc sau commit"; gắn vào thêm thành viên kênh, chuyển chủ kênh, duyệt yêu cầu vào tổ chức.
@@ -79,4 +79,5 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 
 ## Điều học được / bẫy gặp phải
 
-(Ghi trong lúc làm)
+1. **Q3 hiện thực bằng FK cascade thay vì JOIN mỗi lần đọc.** FK composite `(org_id, user_id)` → `organization_members` ON DELETE CASCADE: rời / bị gỡ khỏi tổ chức → thông báo của tổ chức đó bị xoá theo; `org_id` NULL thì FK không áp (MATCH SIMPLE) nên thông báo ngoài tổ chức vẫn còn. Với người dùng giống "ẩn"; khác biệt duy nhất: quay lại tổ chức thì thông báo cũ không hiện lại. Truy vấn danh sách / đếm không phải JOIN. FK còn chặn luôn bug "tạo thông báo tổ chức cho người không thuộc tổ chức" (23503).
+2. **Suýt lặp lại M5 bài học 2.** Cả ba index bắt đầu bằng `user_id` lúc đầu đều partial → FK `user_id` không có index dùng được (xoá user = quét bảng). Bỏ partial ở index danh sách để một index phục vụ cả hai việc; migration chưa commit → xoá và sinh lại cho sạch. Kiểm index partial "dùng được không" bằng `SET LOCAL enable_seqscan = off` + `EXPLAIN` (ít dòng thì planner luôn seq scan — không nói lên gì).
