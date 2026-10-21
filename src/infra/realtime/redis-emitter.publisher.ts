@@ -1,6 +1,9 @@
 import { Emitter } from '@socket.io/redis-emitter';
 import type { Redis } from 'ioredis';
-import type { RealtimePublisher, SessionEndedReason } from './realtime.types.js';
+import type { AccessScope, RealtimePublisher, SessionEndedReason } from './realtime.types.js';
+
+/** Event giữa các SERVER (không tới client) — gateway của mỗi api instance nghe. */
+export const REALTIME_REVALIDATE_EVENT = 'realtime.revalidate';
 
 /**
  * `@socket.io/redis-emitter`: PUBLISH lệnh vào kênh Redis mà Redis adapter của mọi api instance
@@ -25,5 +28,13 @@ export class RedisEmitterPublisher implements RealtimePublisher {
     // ngắt sau — client kịp biết lý do để refresh token / về màn đăng nhập.
     this.emitter.to(rooms).emit('session.ended', { reason });
     this.emitter.in(rooms).disconnectSockets(true);
+  }
+
+  /**
+   * `serverSideEmit`: tới gateway của MỌI api instance (không tới client). Mỗi instance tự kiểm socket
+   * CỦA MÌNH — chỉ instance giữ socket mới biết socket đó đang ở room nào.
+   */
+  revalidateAccess(scope: AccessScope): void {
+    this.emitter.serverSideEmit(REALTIME_REVALIDATE_EVENT, scope);
   }
 }

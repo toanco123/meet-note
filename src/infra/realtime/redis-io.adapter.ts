@@ -5,7 +5,6 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { Redis } from 'ioredis';
 import type { Server, ServerOptions } from 'socket.io';
 import type { EnvironmentVariables } from '../../config/env.validation.js';
-import { REALTIME_REDIS_KEY } from './realtime.module.js';
 
 /**
  * Socket.IO + Redis adapter (D6, M7 Q3): mọi api instance cùng nghe một kênh Redis → `emit` /
@@ -44,7 +43,9 @@ export class RedisIoAdapter extends IoAdapter {
         callback(null, origin === undefined || allowed.includes(origin));
       },
     } as ServerOptions) as Server;
-    server.adapter(createAdapter(pub, sub, { key: REALTIME_REDIS_KEY }));
+    server.adapter(
+      createAdapter(pub, sub, { key: config.get('REALTIME_REDIS_KEY', { infer: true }) }),
+    );
     return server;
   }
 

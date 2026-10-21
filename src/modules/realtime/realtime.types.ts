@@ -1,5 +1,5 @@
-import type { Namespace, Socket } from 'socket.io';
-import type { SessionEndedReason } from '../../infra/realtime/realtime.types.js';
+import type { Namespace, RemoteSocket, Socket } from 'socket.io';
+import type { AccessScope, SessionEndedReason } from '../../infra/realtime/realtime.types.js';
 
 /** Danh tính gắn vào socket lúc handshake (như `req.user` của REST). */
 export interface SocketUser {
@@ -18,6 +18,13 @@ export interface RealtimeSocketData {
 export interface ServerToClientEvents {
   'session.ended': (payload: { reason: SessionEndedReason }) => void;
   'meeting.status': (payload: MeetingStatusEvent) => void;
+  /** Đã bị cho rời room `meeting:{id}` vì mất quyền xem (M7 Q2). */
+  'meeting.access_revoked': (payload: { meetingId: string }) => void;
+}
+
+/** Event giữa các api instance (qua Redis adapter / emitter), không tới client. */
+export interface ServerSideEvents {
+  'realtime.revalidate': (scope: AccessScope) => void;
 }
 
 /** Payload nhỏ — chỉ là GỢI Ý; client cần chi tiết thì gọi REST (02 §2). */
@@ -33,14 +40,14 @@ export type RealtimeAck<T> = { data: T } | { error: RealtimeErrorData };
 export type RealtimeSocket = Socket<
   Record<string, never>,
   ServerToClientEvents,
-  Record<string, never>,
+  ServerSideEvents,
   RealtimeSocketData
 >;
 
 export type RealtimeNamespace = Namespace<
   Record<string, never>,
   ServerToClientEvents,
-  Record<string, never>,
+  ServerSideEvents,
   RealtimeSocketData
 >;
 
@@ -50,3 +57,6 @@ export interface RealtimeErrorData {
   statusCode: number;
   message: string;
 }
+
+/** Socket trả về từ `fetchSockets()` (có thể ở instance khác; `.local` thì chắc chắn ở đây). */
+export type RemoteRealtimeSocket = RemoteSocket<ServerToClientEvents, RealtimeSocketData>;

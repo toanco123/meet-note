@@ -9,6 +9,7 @@ import { AuditService } from '../../../../src/modules/audit/audit.service.js';
 import { OrganizationMembersRepository } from '../../../../src/modules/organizations/repositories/organization-members.repository.js';
 import { OrganizationMembersService } from '../../../../src/modules/organizations/services/organization-members.service.js';
 import { addMember, insertOrg, insertUser } from '../../../support/db-factories.js';
+import { realtimeStub } from '../../../support/realtime-stub.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 
 async function outcomeOf(promise: Promise<unknown>): Promise<string> {
@@ -39,6 +40,7 @@ describe('Race: chuyển quyền sở hữu cho hai người cùng lúc (Postgre
         OrganizationMembersRepository,
         AuditService,
         { provide: DRIZZLE, useValue: t.db },
+        realtimeStub,
       ],
     }).compile();
     service = moduleRef.get(OrganizationMembersService);

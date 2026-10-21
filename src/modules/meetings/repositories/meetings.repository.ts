@@ -6,6 +6,7 @@ import {
   eq,
   getTableColumns,
   gte,
+  inArray,
   isNotNull,
   isNull,
   lt,
@@ -167,5 +168,27 @@ export class MeetingsRepository {
       .update(meetings)
       .set({ deletedAt: sql`now()` })
       .where(eq(meetings.id, meetingId));
+  }
+
+  /** Trong `meetingIds`, những meeting đang share vào kênh này (realtime: kiểm lại khi kênh đổi). */
+  async filterSharedInChannel(channelId: string, meetingIds: string[]): Promise<string[]> {
+    if (meetingIds.length === 0) return [];
+    const rows = await this.db
+      .select({ id: meetingShares.meetingId })
+      .from(meetingShares)
+      .where(
+        and(eq(meetingShares.channelId, channelId), inArray(meetingShares.meetingId, meetingIds)),
+      );
+    return rows.map((r) => r.id);
+  }
+
+  /** Trong `meetingIds`, những meeting thuộc tổ chức này (realtime: kiểm lại khi xoá tổ chức). */
+  async filterInOrg(orgId: string, meetingIds: string[]): Promise<string[]> {
+    if (meetingIds.length === 0) return [];
+    const rows = await this.db
+      .select({ id: meetings.id })
+      .from(meetings)
+      .where(and(eq(meetings.orgId, orgId), inArray(meetings.id, meetingIds)));
+    return rows.map((r) => r.id);
   }
 }

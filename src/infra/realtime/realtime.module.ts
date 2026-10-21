@@ -1,12 +1,12 @@
 import { Global, Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Redis } from 'ioredis';
+import type { EnvironmentVariables } from '../../config/env.validation.js';
 import { REDIS } from '../redis/redis.module.js';
 import { RedisEmitterPublisher } from './redis-emitter.publisher.js';
 
 /** Namespace duy nhất của app (05 Realtime). */
 export const REALTIME_NAMESPACE = '/realtime';
-/** Kênh Redis của adapter + emitter — PHẢI khớp nhau; có tiền tố riêng như BullMQ (`meetnote`). */
-export const REALTIME_REDIS_KEY = 'meetnote:socket.io';
 /** Inject `@Inject(REALTIME_PUBLISHER) realtime: RealtimePublisher`. */
 export const REALTIME_PUBLISHER = Symbol('REALTIME_PUBLISHER');
 
@@ -19,9 +19,14 @@ export const REALTIME_PUBLISHER = Symbol('REALTIME_PUBLISHER');
   providers: [
     {
       provide: REALTIME_PUBLISHER,
-      inject: [REDIS],
-      useFactory: (redis: Redis) =>
-        new RedisEmitterPublisher(redis, REALTIME_REDIS_KEY, REALTIME_NAMESPACE),
+      inject: [REDIS, ConfigService],
+      // Key PHẢI khớp với Redis adapter (`RedisIoAdapter`) — cùng đọc `REALTIME_REDIS_KEY`.
+      useFactory: (redis: Redis, config: ConfigService<EnvironmentVariables, true>) =>
+        new RedisEmitterPublisher(
+          redis,
+          config.get('REALTIME_REDIS_KEY', { infer: true }),
+          REALTIME_NAMESPACE,
+        ),
     },
   ],
   exports: [REALTIME_PUBLISHER],

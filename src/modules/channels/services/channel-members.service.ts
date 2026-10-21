@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
+import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
 import { decodeCursor, toPage } from '../../../common/pagination/cursor.js';
 import { expectTimestampKey, expectUuidKey } from '../../../common/pagination/keys.js';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
@@ -42,6 +44,7 @@ export class ChannelMembersService {
     private readonly channels: ChannelsService,
     private readonly orgMembers: OrganizationMembersRepository,
     private readonly audit: AuditService,
+    @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
   ) {}
 
   async list(
@@ -151,6 +154,7 @@ export class ChannelMembersService {
         metadata: { userId, before: { role: target } },
       });
     });
+    this.realtime.revalidateAccess({ kind: 'user', userId });
   }
 
   /**
@@ -200,6 +204,7 @@ export class ChannelMembersService {
         metadata: { userId: ctx.actorId, before: { role } },
       });
     });
+    this.realtime.revalidateAccess({ kind: 'user', userId: ctx.actorId });
   }
 
   /**

@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
+import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
 import { OrganizationMembersRepository } from '../repositories/organization-members.repository.js';
 import { Errors } from '../../../common/errors/errors.js';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
@@ -21,6 +23,7 @@ export class OrganizationsService {
     private readonly repo: OrganizationsRepository,
     private readonly members: OrganizationMembersRepository,
     private readonly audit: AuditService,
+    @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
   ) {}
 
   /**
@@ -105,5 +108,6 @@ export class OrganizationsService {
         metadata: { before: { name: current.name } },
       });
     });
+    this.realtime.revalidateAccess({ kind: 'org', orgId });
   }
 }

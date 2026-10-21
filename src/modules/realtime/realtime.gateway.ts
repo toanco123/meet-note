@@ -15,10 +15,13 @@ import { TokenService } from '../auth/services/token.service.js';
 import { isUuid } from '../../common/validation/uuid.js';
 import { toConnectError, toRealtimeError } from './realtime-errors.js';
 import { RealtimeSubscriptionsService } from './realtime-subscriptions.service.js';
+import { REALTIME_REVALIDATE_EVENT } from '../../infra/realtime/redis-emitter.publisher.js';
 import { RealtimeRoom } from '../../infra/realtime/realtime-rooms.js';
+import type { AccessScope } from '../../infra/realtime/realtime.types.js';
 import { REALTIME_NAMESPACE } from '../../infra/realtime/realtime.module.js';
 import type {
   RealtimeAck,
+  RemoteRealtimeSocket,
   RealtimeNamespace,
   RealtimeSocket,
   SocketUser,
@@ -57,6 +60,11 @@ export class RealtimeGateway implements OnGatewayInit<RealtimeNamespace>, OnGate
         },
       );
     });
+    namespace.on(REALTIME_REVALIDATE_EVENT, (scope) => {
+      this.revalidate(scope).catch((error: unknown) =>
+        this.logger.error({ err: error, scope }, 'Kiểm lại quyền subscription lỗi'),
+      );
+    });
   }
 
   async handleConnection(socket: RealtimeSocket): Promise<void> {
@@ -83,6 +91,14 @@ export class RealtimeGateway implements OnGatewayInit<RealtimeNamespace>, OnGate
         throw Errors.meeting.notFound();
       }
       await socket.join(RealtimeRoom.meeting(meetingId));
+      // KIỂM LẦN HAI sau khi vào room: một thay đổi làm mất quyền có thể commit + phát "kiểm lại"
+      // ĐÚNG lúc giữa lần kiểm đầu và `join` — lệnh kiểm lại chạy khi socket chưa ở trong room nên
+      // bỏ sót. Kiểm sau join: thay đổi commit trước lần kiểm này → thấy ngay; commit sau → lệnh
+      // kiểm lại (phát sau commit) thấy socket đã ở trong room. Không còn khe nào lọt.
+      if (!(await this.subscriptions.canView(socket.data.user.id, meetingId))) {
+        await socket.leave(RealtimeRoom.meeting(meetingId));
+        throw Errors.meeting.notFound();
+      }
       return { data: { meetingId } };
     } catch (error) {
       return { error: toRealtimeError(error) };
@@ -102,6 +118,45 @@ export class RealtimeGateway implements OnGatewayInit<RealtimeNamespace>, OnGate
     } catch (error) {
       return { error: toRealtimeError(error) };
     }
+  }
+
+  /**
+   * Kiểm lại quyền của socket CỦA INSTANCE NÀY (`.local`) trong phạm vi bị ảnh hưởng (M7 Q2). Socket
+   * không còn xem được → rời room + nhận `meeting.access_revoked`. Mọi instance cùng nhận lệnh
+   * (`serverSideEmit`), mỗi instance chỉ lo socket của mình.
+   */
+  private async revalidate(scope: AccessScope): Promise<void> {
+    if (scope.kind === 'user') {
+      const sockets = await this.namespace.in(RealtimeRoom.user(scope.userId)).local.fetchSockets();
+      for (const socket of sockets) {
+        for (const room of socket.rooms) {
+          const meetingId = RealtimeRoom.meetingIdOf(room);
+          if (meetingId) await this.recheck(socket, meetingId);
+        }
+      }
+      return;
+    }
+    const meetingIds =
+      scope.kind === 'meeting'
+        ? [scope.meetingId]
+        : await this.subscriptions.meetingsInScope(scope, this.locallySubscribedMeetings());
+    for (const meetingId of meetingIds) {
+      const sockets = await this.namespace.in(RealtimeRoom.meeting(meetingId)).local.fetchSockets();
+      for (const socket of sockets) await this.recheck(socket, meetingId);
+    }
+  }
+
+  private async recheck(socket: RemoteRealtimeSocket, meetingId: string): Promise<void> {
+    if (await this.subscriptions.canView(socket.data.user.id, meetingId)) return;
+    socket.leave(RealtimeRoom.meeting(meetingId));
+    socket.emit('meeting.access_revoked', { meetingId });
+  }
+
+  /** Meeting đang có ít nhất một subscriber Ở INSTANCE NÀY (adapter giữ danh sách room cục bộ). */
+  private locallySubscribedMeetings(): string[] {
+    return [...this.namespace.adapter.rooms.keys()]
+      .map((room) => RealtimeRoom.meetingIdOf(room))
+      .filter((id): id is string => id !== undefined);
   }
 
   /**

@@ -139,6 +139,15 @@ export class EnvironmentVariables {
     { each: true },
   )
   REALTIME_CORS_ORIGINS: string[] = [];
+
+  /**
+   * Kênh Redis của Socket.IO adapter + emitter. Hai môi trường (hoặc hai file test chạy song song)
+   * dùng chung một Redis thì PHẢI khác key — không thì thấy event của nhau, và `fetchSockets` xuyên
+   * instance chờ phản hồi của server bên kia (M7 bài học 12).
+   */
+  @IsString()
+  @MinLength(1)
+  REALTIME_REDIS_KEY = 'meetnote:socket.io';
 }
 
 /** Dùng cho `ConfigModule.forRoot({ validate })`. Ném lỗi → tiến trình dừng ngay khi khởi động. */

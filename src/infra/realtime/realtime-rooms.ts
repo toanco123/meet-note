@@ -8,4 +8,7 @@ export const RealtimeRoom = {
   user: (userId: string) => `user:${userId}`,
   session: (sessionId: string) => `session:${sessionId}`,
   meeting: (meetingId: string) => `meeting:${meetingId}`,
+  /** Ngược lại của `meeting(...)`: room không phải room meeting → `undefined`. */
+  meetingIdOf: (room: string): string | undefined =>
+    room.startsWith('meeting:') ? room.slice('meeting:'.length) : undefined,
 } as const;

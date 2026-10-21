@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
+import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
 import { Errors } from '../../../common/errors/errors.js';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database, Transaction } from '../../../infra/database/database.types.js';
@@ -21,6 +23,7 @@ export class MeetingSharesService {
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly repo: MeetingSharesRepository,
     private readonly meetings: MeetingsRepository,
+    @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
   ) {}
 
   /** Lần đầu `created: true` (201); đã share từ trước → `false` (200, cùng nội dung — Q3). */
@@ -78,6 +81,8 @@ export class MeetingSharesService {
       assertChannelDecision(decision);
       await this.repo.remove(meetingId, channelId, tx);
     });
+    // Sau commit: người xem chỉ thấy meeting qua kênh vừa gỡ → rời room meeting (M7 Q2).
+    this.realtime.revalidateAccess({ kind: 'meeting', meetingId });
   }
 
   /**
