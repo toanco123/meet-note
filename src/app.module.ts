@@ -9,6 +9,7 @@ import { InvitesModule } from './modules/invites/invites.module.js';
 import { MeModule } from './modules/me/me.module.js';
 import { OrganizationsModule } from './modules/organizations/organizations.module.js';
 import { MeetingsModule } from './modules/meetings/meetings.module.js';
+import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { UploadsModule } from './modules/uploads/uploads.module.js';
 
 /** Root module của tiến trình api (HTTP + WebSocket). */
@@ -25,6 +26,7 @@ import { UploadsModule } from './modules/uploads/uploads.module.js';
     UploadsModule,
     MeetingsModule,
     AuditLogsModule,
+    RealtimeModule,
   ],
 })
 export class AppModule {}

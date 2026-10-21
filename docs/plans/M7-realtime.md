@@ -50,7 +50,7 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 
 ## Các bước
 
-- [ ] **B1 — Gateway + xác thực handshake**
+- [x] **B1 — Gateway + xác thực handshake**
   - Việc: cài dependency; `RealtimeModule`, gateway namespace `/realtime`; middleware handshake dùng lại `TokenService.verifyAccessToken` + `SessionsService.isActive` (cùng 2 lớp như `JwtAuthGuard`); tự join `user:{id}`, `session:{sid}`.
   - Test (e2e, `socket.io-client` thật): token đúng → kết nối; thiếu / sai / hết hạn / phiên đã thu hồi → `connect_error` đúng mã.
 - [ ] **B2 — Ngắt khi token hết hạn / phiên bị thu hồi (Q1)**
@@ -87,4 +87,5 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 
 ## Điều học được / bẫy gặp phải
 
-(Ghi trong lúc làm)
+1. **`@nestjs/websockets` / `@nestjs/platform-socket.io`: `latest` là 12.2.0 (phát hành 2 ngày trước), core của dự án là 12.1.3** → cài 12.1.3 cho cùng bản với core. Các gói `@nestjs/*` lệch minor là nguồn lỗi DI / metadata khó thấy; nâng thì nâng cả bộ một lần.
+2. **Xác thực ở middleware của namespace, không ở `handleConnection`.** Từ chối trong `handleConnection` (disconnect) thì client đã nhận `connect` một nhịp — đủ để client tưởng là thành công, và socket có thể đã vào room. Middleware từ chối → `connect_error` mang `err.data.code` (cùng mã REST). Đột biến bỏ lớp "phiên còn sống" → token của phiên đã logout kết nối được (`OK` thay vì `AUTH_SESSION_REVOKED`).

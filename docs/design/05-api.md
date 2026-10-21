@@ -125,8 +125,8 @@ Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReport
 
 ## Realtime (Socket.IO, namespace `/realtime`)
 
-- Kết nối: `io('/realtime', { auth: { token: '<access JWT>' } })`. Middleware xác thực trong handshake. Token sai thì từ chối kết nối.
-- Server tự join `user:{userId}`. Client gửi `subscribe { meetingId }`, server kiểm tra quyền xem rồi mới join `meeting:{meetingId}`.
+- Kết nối: `io('/realtime', { auth: { token: '<access JWT>' } })` (token trong `auth`, KHÔNG trong query string — query string nằm trong log của proxy). Middleware của namespace xác thực trong handshake, cùng hai lớp với REST: chữ ký + hạn JWT, rồi phiên còn sống. Bị từ chối → client nhận `connect_error` với `err.data = { code, statusCode, message }`, cùng mã với REST: `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED` (M7 B1).
+- Server tự join `user:{userId}` và `session:{sessionId}` (để ngắt đúng phiên khi logout — M7 Q1). Client gửi `subscribe { meetingId }`, server kiểm tra quyền xem rồi mới join `meeting:{meetingId}`.
 
 | Event (server → client) | Room                             | Payload                               |
 | ----------------------- | -------------------------------- | ------------------------------------- |
