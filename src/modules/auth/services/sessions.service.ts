@@ -4,6 +4,9 @@ import type { EnvironmentVariables } from '../../../config/env.validation.js';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database } from '../../../infra/database/database.types.js';
 import type { SessionRevokedReason, SessionRow } from '../../../infra/database/schema/index.js';
+import { RealtimeRoom } from '../../../infra/realtime/realtime-rooms.js';
+import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
+import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
 import { SessionsRepository } from '../sessions.repository.js';
 import { hashRefreshToken, TokenService } from './token.service.js';
 import { Errors } from '../../../common/errors/errors.js';
@@ -25,6 +28,7 @@ export class SessionsService {
     private readonly repo: SessionsRepository,
     private readonly tokens: TokenService,
     private readonly config: ConfigService<EnvironmentVariables, true>,
+    @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
   ) {}
 
   /** Đăng nhập / đăng ký thành công → mở phiên mới + cấp cặp token. */
@@ -114,6 +118,8 @@ export class SessionsService {
         this.logger.warn(
           `Phát hiện refresh token bị dùng lại → thu hồi phiên ${outcome.sessionId}`,
         );
+        // Kẻ trộm (hoặc chủ thật) đang mở socket bằng access token của phiên này → ngắt ngay.
+        this.realtime.endSessions([RealtimeRoom.session(outcome.sessionId)], 'session_revoked');
         throw Errors.auth.refreshTokenReused();
       case 'invalid':
         throw Errors.auth.refreshTokenInvalid();
@@ -121,12 +127,20 @@ export class SessionsService {
   }
 
   /** @returns false nếu phiên không tồn tại, không thuộc user này, hoặc đã bị thu hồi từ trước. */
-  revoke(sessionId: string, userId: string, reason: SessionRevokedReason): Promise<boolean> {
-    return this.repo.revokeSession({ sessionId, userId, reason, at: new Date() });
+  /**
+   * Thu hồi xong (đã commit — câu UPDATE tự commit) → ngắt mọi socket của phiên đó, ở mọi api
+   * instance (M7 Q1). Không ngắt thì logout xong socket vẫn nhận event tới khi access token hết hạn.
+   */
+  async revoke(sessionId: string, userId: string, reason: SessionRevokedReason): Promise<boolean> {
+    const revoked = await this.repo.revokeSession({ sessionId, userId, reason, at: new Date() });
+    if (revoked) this.realtime.endSessions([RealtimeRoom.session(sessionId)], 'session_revoked');
+    return revoked;
   }
 
-  revokeAll(userId: string): Promise<number> {
-    return this.repo.revokeAllSessions(userId, 'logout_all', new Date());
+  async revokeAll(userId: string): Promise<number> {
+    const count = await this.repo.revokeAllSessions(userId, 'logout_all', new Date());
+    if (count > 0) this.realtime.endSessions([RealtimeRoom.user(userId)], 'session_revoked');
+    return count;
   }
 
   /** Phiên còn sống, mới dùng gần nhất trước. */

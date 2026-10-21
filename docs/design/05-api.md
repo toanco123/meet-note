@@ -128,11 +128,12 @@ Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReport
 - Kết nối: `io('/realtime', { auth: { token: '<access JWT>' } })` (token trong `auth`, KHÔNG trong query string — query string nằm trong log của proxy). Middleware của namespace xác thực trong handshake, cùng hai lớp với REST: chữ ký + hạn JWT, rồi phiên còn sống. Bị từ chối → client nhận `connect_error` với `err.data = { code, statusCode, message }`, cùng mã với REST: `AUTH_TOKEN_MISSING`, `AUTH_TOKEN_INVALID`, `AUTH_TOKEN_EXPIRED`, `AUTH_SESSION_REVOKED` (M7 B1).
 - Server tự join `user:{userId}` và `session:{sessionId}` (để ngắt đúng phiên khi logout — M7 Q1). Client gửi `subscribe { meetingId }`, server kiểm tra quyền xem rồi mới join `meeting:{meetingId}`.
 
-| Event (server → client) | Room                             | Payload                               |
-| ----------------------- | -------------------------------- | ------------------------------------- |
-| `meeting.progress`      | `meeting:{id}`                   | `{ meetingId, stage, percent }`       |
-| `meeting.status`        | `meeting:{id}`, `user:{ownerId}` | `{ meetingId, status, failureCode? }` |
-| `notification.created`  | `user:{id}`                      | Notification DTO                      |
-| `report.ready`          | thông qua notification           |                                       |
+| Event (server → client) | Room                               | Payload                                                                                     |
+| ----------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| `session.ended`         | socket bị ngắt (riêng từng socket) | `{ reason: "token_expired" \| "session_revoked" }` — gửi NGAY TRƯỚC khi server ngắt (M7 B2) |
+| `meeting.progress`      | `meeting:{id}`                     | `{ meetingId, stage, percent }`                                                             |
+| `meeting.status`        | `meeting:{id}`, `user:{ownerId}`   | `{ meetingId, status, failureCode? }`                                                       |
+| `notification.created`  | `user:{id}`                        | Notification DTO                                                                            |
+| `report.ready`          | thông qua notification             |                                                                                             |
 
-> **Bẫy:** Access token hết hạn khi socket vẫn đang mở. Server lưu `exp` lúc handshake và chủ động ngắt khi hết hạn, client kết nối lại bằng token mới. Nếu không làm vậy, user bị thu hồi quyền vẫn nhận event.
+> **Bẫy:** Access token hết hạn khi socket vẫn đang mở. Server lưu `exp` lúc handshake và chủ động ngắt khi hết hạn (`session.ended { reason: token_expired }`), client refresh qua REST rồi kết nối lại bằng token mới. Phiên bị thu hồi (logout, logout-all, xoá phiên ở `/me/sessions`, phát hiện reuse refresh token) → ngắt NGAY mọi socket của phiên đó (room `session:{sid}`; logout-all: `user:{id}`) qua Redis, đúng cả khi socket ở instance khác (M7 B2).

@@ -79,7 +79,7 @@ meetnote/
 │  │  ├─ redis/                  #   kết nối ioredis dùng chung
 │  │  ├─ queue/                  #   tên queue, BullMQ config, job payload types
 │  │  ├─ storage/                #   (M5) S3 client, ObjectStorage interface
-│  │  ├─ realtime/               #   (M7) emitter interface (api: server, worker: redis-emitter)
+│  │  ├─ realtime/               #   (M7) RealtimePublisher (redis-emitter, dùng cho cả api + worker), RedisIoAdapter, tên room
 │  │  ├─ speech/                 #   (M6) SpeechToText: whisper.cpp + Fake
 │  │  └─ llm/                    #   (M6) Summarizer: provider + Fake
 │  ├─ modules/                   # domain modules (mỗi module 1 thư mục)

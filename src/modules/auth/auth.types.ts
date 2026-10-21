@@ -15,7 +15,13 @@ export interface IssuedToken {
 }
 
 export type AccessTokenVerification =
-  { ok: true; claims: AccessTokenClaims } | { ok: false; reason: 'expired' | 'invalid' };
+  | {
+      ok: true;
+      claims: AccessTokenClaims;
+      /** `exp` của token — kết nối sống lâu (WebSocket, M7) phải tự ngắt đúng lúc này. */
+      expiresAt: Date;
+    }
+  | { ok: false; reason: 'expired' | 'invalid' };
 
 // ── Phiên đăng nhập ───────────────────────────────────────────────────────────
 

@@ -53,13 +53,14 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 - [x] **B1 — Gateway + xác thực handshake**
   - Việc: cài dependency; `RealtimeModule`, gateway namespace `/realtime`; middleware handshake dùng lại `TokenService.verifyAccessToken` + `SessionsService.isActive` (cùng 2 lớp như `JwtAuthGuard`); tự join `user:{id}`, `session:{sid}`.
   - Test (e2e, `socket.io-client` thật): token đúng → kết nối; thiếu / sai / hết hạn / phiên đã thu hồi → `connect_error` đúng mã.
-- [ ] **B2 — Ngắt khi token hết hạn / phiên bị thu hồi (Q1)**
+- [x] **B2 — Ngắt khi token hết hạn / phiên bị thu hồi (Q1)**
   - Việc: hẹn giờ ngắt theo `exp`; logout, logout-all, phát hiện reuse → sau commit ngắt `session:{sid}` (hoặc mọi phiên của user).
   - Test: token TTL ngắn → bị ngắt đúng lúc; logout ở REST → socket của phiên đó bị ngắt, phiên khác còn sống.
+  - **Điều chỉnh so với plan:** Redis adapter + `RealtimePublisher` (redis-emitter) chuyển từ B4 lên B2 — xem bài học 3. B4 còn: test 2 instance thật, worker phát event, CORS.
 - [ ] **B3 — Subscribe meeting theo quyền xem**
   - Việc: `subscribe` / `unsubscribe` (ack, Q4), kiểm bằng `meetingVisibleTo` (M6b).
   - Test: ma trận người xem → ack ok / `NOT_FOUND`; payload sai → `VALIDATION_FAILED`; subscribe xong mới nhận event của room.
-- [ ] **B4 — Nhiều instance: Redis adapter + emitter**
+- [ ] **B4 — Nhiều instance: kiểm chứng 2 instance + worker + CORS** (adapter / emitter đã có từ B2)
   - Việc: adapter cho api, `RealtimeEmitter` (server / redis-emitter), kết nối Redis pub/sub riêng.
   - Test: **2 api instance** trong cùng test — client ở instance B nhận event phát từ instance A; worker emitter (application context, không HTTP) phát → client nhận; `disconnectSockets` của B2 đúng xuyên instance.
 - [ ] **B5 — Mất quyền là rời room (Q2)**
@@ -89,3 +90,5 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 
 1. **`@nestjs/websockets` / `@nestjs/platform-socket.io`: `latest` là 12.2.0 (phát hành 2 ngày trước), core của dự án là 12.1.3** → cài 12.1.3 cho cùng bản với core. Các gói `@nestjs/*` lệch minor là nguồn lỗi DI / metadata khó thấy; nâng thì nâng cả bộ một lần.
 2. **Xác thực ở middleware của namespace, không ở `handleConnection`.** Từ chối trong `handleConnection` (disconnect) thì client đã nhận `connect` một nhịp — đủ để client tưởng là thành công, và socket có thể đã vào room. Middleware từ chối → `connect_error` mang `err.data.code` (cùng mã REST). Đột biến bỏ lớp "phiên còn sống" → token của phiên đã logout kết nối được (`OK` thay vì `AUTH_SESSION_REVOKED`).
+3. **Vòng phụ thuộc gateway ↔ auth, gỡ bằng một cổng phát qua Redis.** Thu hồi phiên (`SessionsService`) phải ngắt socket; nhưng gateway lại cần `SessionsService` để xác thực handshake → inject thẳng qua lại là vòng. Gỡ: mọi lệnh phát / ngắt đi qua interface `RealtimePublisher` (`src/infra/realtime/`) hiện thực bằng `@socket.io/redis-emitter` — không phụ thuộc gateway, đi xuyên mọi api instance, và worker dùng y nguyên. Hệ quả: server phải có Redis adapter mới nhận được lệnh từ emitter → adapter chuyển từ B4 lên B2. Một đường duy nhất cho api lẫn worker, không có kiểu "ở api gọi server, ở worker gọi emitter".
+4. **Kết nối sống lâu hơn token.** Handshake chỉ kiểm lúc vào cửa; socket mở 1 giờ với token 15 phút thì phải tự ngắt đúng `exp` (`setTimeout`, huỷ khi socket tự ngắt trước để không giữ timer rác). `TokenService.verifyAccessToken` trả thêm `expiresAt` cho việc này — test cũ so nguyên object kết quả đỏ, sửa thành khẳng định thêm `expiresAt` (lệch < 1 s vì `exp` tính bằng giây). Thu hồi phiên → `session.ended` rồi `disconnectSockets(true)`: hai lệnh PUBLISH trên cùng kết nối Redis nên tới mỗi instance đúng thứ tự. 4 đột biến (bỏ hẹn giờ; bỏ ngắt ở revoke / revokeAll / reuse) đều đỏ đúng ca.

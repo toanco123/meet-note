@@ -10,7 +10,8 @@ import { Errors } from '../../common/errors/errors.js';
 import { SessionsService } from '../auth/services/sessions.service.js';
 import { TokenService } from '../auth/services/token.service.js';
 import { toConnectError } from './realtime-errors.js';
-import { RealtimeRoom } from './realtime-rooms.js';
+import { RealtimeRoom } from '../../infra/realtime/realtime-rooms.js';
+import { REALTIME_NAMESPACE } from '../../infra/realtime/realtime.module.js';
 import type { RealtimeNamespace, RealtimeSocket, SocketUser } from './realtime.types.js';
 
 /**
@@ -21,7 +22,7 @@ import type { RealtimeNamespace, RealtimeSocket, SocketUser } from './realtime.t
  * thấy `connect` rồi mới `disconnect`, và có thể đã kịp vào room. Middleware từ chối → client nhận
  * `connect_error` với `err.data.code` (M7 Q4).
  */
-@WebSocketGateway({ namespace: '/realtime' })
+@WebSocketGateway({ namespace: REALTIME_NAMESPACE })
 export class RealtimeGateway implements OnGatewayInit<RealtimeNamespace>, OnGatewayConnection {
   private readonly logger = new Logger(RealtimeGateway.name);
 
@@ -50,6 +51,23 @@ export class RealtimeGateway implements OnGatewayInit<RealtimeNamespace>, OnGate
   async handleConnection(socket: RealtimeSocket): Promise<void> {
     const { user } = socket.data;
     await socket.join([RealtimeRoom.user(user.id), RealtimeRoom.session(user.sessionId)]);
+    this.disconnectWhenTokenExpires(socket, user.tokenExpiresAt);
+  }
+
+  /**
+   * Kết nối sống lâu hơn access token (15 phút). Không tự ngắt → token hết hạn (vd user bị thu hồi
+   * quyền, đổi mật khẩu…) mà socket vẫn nhận event mãi. Ngắt đúng `exp`; client kết nối lại bằng
+   * token mới (đã refresh qua REST). Huỷ hẹn giờ khi socket tự ngắt trước, không giữ timer rác.
+   */
+  private disconnectWhenTokenExpires(socket: RealtimeSocket, expiresAt: Date): void {
+    const timer = setTimeout(
+      () => {
+        socket.emit('session.ended', { reason: 'token_expired' });
+        socket.disconnect(true);
+      },
+      Math.max(0, expiresAt.getTime() - Date.now()),
+    );
+    socket.once('disconnect', () => clearTimeout(timer));
   }
 
   /**
@@ -67,6 +85,6 @@ export class RealtimeGateway implements OnGatewayInit<RealtimeNamespace>, OnGate
     }
     const { sub, sid } = verified.claims;
     if (!(await this.sessions.isActive(sid, sub))) throw Errors.auth.sessionRevoked();
-    return { id: sub, sessionId: sid };
+    return { id: sub, sessionId: sid, tokenExpiresAt: verified.expiresAt };
   }
 }

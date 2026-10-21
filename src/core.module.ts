@@ -5,6 +5,7 @@ import { DatabaseModule } from './infra/database/database.module.js';
 import { LoggerModule } from './infra/logger/logger.module.js';
 import { QueueModule } from './infra/queue/queue.module.js';
 import { RedisModule } from './infra/redis/redis.module.js';
+import { RealtimeInfraModule } from './infra/realtime/realtime.module.js';
 import { StorageModule } from './infra/storage/storage.module.js';
 
 /**
@@ -25,6 +26,7 @@ import { StorageModule } from './infra/storage/storage.module.js';
     RedisModule,
     QueueModule,
     StorageModule,
+    RealtimeInfraModule,
   ],
   exports: [LoggerModule, QueueModule, StorageModule],
 })

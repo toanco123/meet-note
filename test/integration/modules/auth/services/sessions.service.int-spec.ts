@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDb, type TestDb } from '../../../../support/db.js';
 import type { AppException } from '../../../../../src/common/errors/app.exception.js';
 import { DRIZZLE } from '../../../../../src/infra/database/database.module.js';
+import { REALTIME_PUBLISHER } from '../../../../../src/infra/realtime/realtime.module.js';
 import { refreshTokens, sessions, users } from '../../../../../src/infra/database/schema/index.js';
 import { jwtModuleOptions } from '../../../../../src/modules/auth/jwt-options.js';
 import { SessionsRepository } from '../../../../../src/modules/auth/sessions.repository.js';
@@ -47,6 +48,11 @@ describe('SessionsService (Postgres thật)', () => {
         TokenService,
         { provide: DRIZZLE, useValue: t.db },
         { provide: ConfigService, useValue: { get: (key: string) => CONFIG[key] } },
+        // Realtime (M7): ngắt socket khi thu hồi phiên — ở đây chỉ cần không làm hỏng luồng auth.
+        {
+          provide: REALTIME_PUBLISHER,
+          useValue: { emit: () => undefined, endSessions: () => undefined },
+        },
       ],
     }).compile();
     service = moduleRef.get(SessionsService);
@@ -94,7 +100,10 @@ describe('SessionsService (Postgres thật)', () => {
     const issued = await service.create(userId, { userAgent: 'vitest', ip: '127.0.0.1' });
 
     const verified = await tokens.verifyAccessToken(issued.accessToken.token);
-    expect(verified).toEqual({ ok: true, claims: { sub: userId, sid: issued.sessionId } });
+    expect(verified).toMatchObject({ ok: true, claims: { sub: userId, sid: issued.sessionId } });
+    // `exp` của JWT tính bằng GIÂY → lệch tối đa < 1 s so với hạn đã cấp (M7: socket ngắt đúng lúc này).
+    const expiresAt = verified.ok ? verified.expiresAt.getTime() : NaN;
+    expect(Math.abs(expiresAt - issued.accessToken.expiresAt.getTime())).toBeLessThan(1000);
     expect((await sessionOf(issued.sessionId))?.revokedAt).toBeNull();
     expect((await tokenRowOf(issued.refreshToken.token))?.sessionId).toBe(issued.sessionId);
   });
