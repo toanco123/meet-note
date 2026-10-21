@@ -47,3 +47,19 @@ export class MeetingResponseDto {
     };
   }
 }
+
+export class MeetingChannelRefDto {
+  id: string;
+
+  /** @example "Kỹ thuật" */
+  name: string;
+}
+
+/** Chi tiết: thêm các kênh chứa meeting mà người gọi thấy được. */
+export class MeetingDetailResponseDto extends MeetingResponseDto {
+  channels: MeetingChannelRefDto[];
+
+  static withChannels(row: MeetingRow, channels: MeetingChannelRefDto[]): MeetingDetailResponseDto {
+    return { ...MeetingResponseDto.from(row), channels };
+  }
+}

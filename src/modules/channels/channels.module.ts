@@ -24,5 +24,7 @@ import { ChannelPermissionGuard } from './guards/channel-permission.guard.js';
     ChannelAccessGuard,
     ChannelPermissionGuard,
   ],
+  // M6b: meetings dùng `findAccess` (lọc theo kênh) và guard kênh (`/channels/:id/meetings`).
+  exports: [ChannelsRepository, ChannelAccessGuard, ChannelPermissionGuard],
 })
 export class ChannelsModule {}

@@ -4123,27 +4123,78 @@
         ]
       }
     },
-    "/v1/orgs/{orgId}/meetings/{meetingId}": {
+    "/v1/orgs/{orgId}/meetings": {
       "get": {
-        "description": "M5: chỉ chủ cuộc họp xem được (để theo dõi trạng thái sau khi upload); người khác\nnhận 404. M6 mở rộng cho người xem được qua kênh.",
-        "operationId": "Meetings_get",
+        "description": "Gồm: cuộc họp của bạn, cuộc họp được chia sẻ vào kênh bạn là thành viên hoặc kênh công\nkhai, và (Owner / Admin tổ chức) cuộc họp không còn chủ. Lọc `channelId` cần đọc được nội dung\nkênh đó.",
+        "operationId": "Meetings_list",
         "parameters": [
           {
-            "name": "orgId",
-            "required": true,
-            "in": "path",
-            "description": "Id tổ chức",
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/MeetingStatus"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": false,
+            "in": "query",
+            "description": "Chỉ meeting được chia sẻ vào kênh này. Phải đọc được nội dung kênh (không thì 403 / 404).",
             "schema": {
               "format": "uuid",
               "type": "string"
             }
           },
           {
-            "name": "meetingId",
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Thời điểm họp từ (gồm cả mốc này), ISO 8601.",
+            "schema": {
+              "example": "2026-10-01T00:00:00+07:00",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Thời điểm họp tới (KHÔNG gồm mốc này), ISO 8601.",
+            "schema": {
+              "example": "2026-11-01T00:00:00+07:00",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
             "required": true,
             "in": "path",
+            "description": "Id tổ chức",
             "schema": {
-              "type": "string"
+              "format": "uuid"
             }
           }
         ],
@@ -4160,7 +4211,104 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/MeetingResponseDto"
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MeetingResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).\n\nKhông đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Danh sách cuộc họp bạn xem được, mới họp trước.",
+        "tags": [
+          "Meetings"
+        ],
+        "x-paginated": true
+      }
+    },
+    "/v1/orgs/{orgId}/meetings/{meetingId}": {
+      "get": {
+        "description": "Người không xem được nhận 404 (như không tồn tại). `channels`: các kênh chứa cuộc họp\nmà bạn thấy được.",
+        "operationId": "Meetings_get",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MeetingDetailResponseDto"
                     },
                     "meta": {
                       "$ref": "#/components/schemas/ResponseMetaDto"
@@ -5719,6 +5867,88 @@
           "title",
           "recordedAt",
           "createdAt"
+        ]
+      },
+      "MeetingChannelRefDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Kỹ thuật"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "MeetingDetailResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "`queued` → chờ xử lý (M6 chạy ffmpeg / Whisper / tóm tắt).",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MeetingStatus"
+              }
+            ]
+          },
+          "ownerId": {
+            "type": "string",
+            "nullable": true,
+            "description": "`null` = chủ đã rời tổ chức."
+          },
+          "durationMs": {
+            "type": "number",
+            "nullable": true,
+            "description": "Độ dài (ms), có sau khi xử lý."
+          },
+          "language": {
+            "type": "string",
+            "nullable": true,
+            "description": "Ngôn ngữ Whisper phát hiện."
+          },
+          "failureCode": {
+            "type": "string",
+            "nullable": true,
+            "description": "Mã lỗi khi `status = failed`."
+          },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "example": "Giao ban kỹ thuật tuần 42"
+          },
+          "recordedAt": {
+            "type": "string",
+            "example": "2026-10-19T02:00:00.000Z"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-19T02:05:00.000Z"
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MeetingChannelRefDto"
+            }
+          }
+        },
+        "required": [
+          "status",
+          "ownerId",
+          "durationMs",
+          "language",
+          "failureCode",
+          "id",
+          "title",
+          "recordedAt",
+          "createdAt",
+          "channels"
         ]
       },
       "AuditAction": {

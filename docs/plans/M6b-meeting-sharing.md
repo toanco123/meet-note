@@ -72,7 +72,7 @@ Mỗi bước = 1 commit, chạy được và có test.
 - [x] **B2 — Điều kiện xem dùng chung**
   - Việc: `visibleTo(userId)` + bảng test **toàn bộ ma trận**: chủ / thành viên kênh riêng tư được share / khách / thành viên org ngoài kênh công khai / ngoài kênh riêng tư / OrgAdm (kênh công khai, kênh riêng tư, meeting không chủ) / kênh lưu trữ / kênh đã xoá / meeting đã xoá / org khác.
   - Đột biến: bỏ từng vế (`deleted_at` của kênh, `visibility = 'public'`, điều kiện thành viên) → đúng ca tương ứng đỏ.
-- [ ] **B3 — `GET /meetings/:id` theo quyền xem + `GET /meetings`**
+- [x] **B3 — `GET /meetings/:id` theo quyền xem + `GET /meetings`**
   - Việc: thay `findOwned`; danh sách cursor `(recorded_at DESC, id DESC)` + bộ lọc; chi tiết kèm `channels`.
   - Test (e2e): ma trận người gọi → 200 / 404; phân trang không lặp / không sót khi nhiều meeting cùng `recorded_at`; lọc theo kênh không lộ meeting mà người gọi không xem được qua đường khác.
 - [ ] **B4 — Share / gỡ share**
@@ -106,3 +106,6 @@ Mỗi bước = 1 commit, chạy được và có test.
 
 1. **Biểu thức phân quyền có TIỀN ĐIỀU KIỆN — test phải nói rõ ra.** Test ma trận ban đầu khẳng định "người org khác không thấy gì" và đỏ: biểu thức `meetingVisibleTo` không tự kiểm người xem có thuộc org, nên người org khác query vào org này vẫn thấy meeting kênh công khai (+ meeting không chủ nếu khai `orgRole` owner). Không phải lỗi: `OrgMemberGuard` chặn người ngoài (404) và cấp `orgRole` thật; thêm một subquery membership mỗi dòng là thừa. Nhưng điều đó phải được ghi ở docstring + 04 §3 + một test khẳng định hành vi khi bỏ qua guard, để không ai đem biểu thức dùng ở chỗ không có guard (vd job worker ở M9) mà tưởng an toàn.
 2. **Ma trận so TẬP, không so từng ô "thấy / không thấy".** Mỗi người xem → tập tên meeting thấy được, so nguyên tập: thấy thừa cũng đỏ. 6 đột biến (bỏ "kênh chưa xoá", bỏ nhánh kênh công khai, bỏ nhánh thành viên kênh, bỏ meeting không chủ cho OrgAdm, bỏ "meeting chưa xoá", cho OrgAdm đọc kênh riêng tư) đều đỏ đúng những người xem bị ảnh hưởng.
+3. **Lọc theo kênh là một đường lộ dữ liệu riêng.** `GET /meetings?channelId=K` chỉ ghép thêm "được share vào K" vào điều kiện xem thì vẫn sai: người thấy meeting M qua kênh công khai, lọc `channelId` = kênh riêng tư K mình không ở trong, nhận lại M → biết M nằm trong K. Service kiểm quyền đọc nội dung K TRƯỚC (cùng quyết định với route `/channels/:id/...` của M4: không thấy → 404, OrgAdm + riêng tư → 403). Đột biến bỏ bước kiểm → test lọc kênh đỏ.
+4. **Test phân trang xanh giả vì biên trang rơi đúng chỗ hết nhóm.** 25 meeting = 5 mốc `recorded_at` × 5; với `limit: 10` biên trang luôn rơi sau một nhóm trọn vẹn → đột biến bỏ tie-breaker `id` khỏi cursor (`recorded_at < …`) vẫn xanh. Đổi `limit: 7` (biên rơi giữa nhóm) → đột biến đỏ, mất 6/25 dòng. Kích thước trang trong test keyset phải KHÔNG chia hết kích thước nhóm trùng khoá.
+5. **Dữ liệu test phải cô lập theo đúng quy tắc đang test.** Test danh sách dùng chung org với các test khác thấy thừa meeting ở kênh công khai — đúng quy tắc xem, sai cách dựng test. Mỗi test danh sách tạo org riêng.

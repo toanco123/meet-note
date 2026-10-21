@@ -10,6 +10,7 @@ import { MultipartUploadNotFoundError } from '../../../../src/infra/storage/stor
 import { OBJECT_STORAGE } from '../../../../src/infra/storage/storage.module.js';
 import { MeetingsRepository } from '../../../../src/modules/meetings/meetings.repository.js';
 import { MeetingsService } from '../../../../src/modules/meetings/meetings.service.js';
+import { ChannelsRepository } from '../../../../src/modules/channels/repositories/channels.repository.js';
 import { UploadsRepository } from '../../../../src/modules/uploads/uploads.repository.js';
 import { UploadsCleanupService } from '../../../../src/modules/uploads/services/uploads-cleanup.service.js';
 import {
@@ -62,6 +63,7 @@ describe('UploadsService.complete (Postgres + RustFS thật)', () => {
         UploadsRepository,
         MeetingsRepository,
         MeetingsService,
+        ChannelsRepository,
         { provide: getQueueToken(QueueName.Default), useValue: queue },
         { provide: DRIZZLE, useValue: t.db },
         { provide: OBJECT_STORAGE, useValue: s3.storage },

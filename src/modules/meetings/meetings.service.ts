@@ -2,11 +2,22 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import { Errors } from '../../common/errors/errors.js';
+import { decodeCursor, toPage } from '../../common/pagination/cursor.js';
+import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
+import type { Page } from '../../common/pagination/pagination.types.js';
 import type { MeetingRow } from '../../infra/database/schema/index.js';
 import { JobName, meetingJobId } from '../../infra/queue/jobs.js';
 import { QueueName } from '../../infra/queue/queue.module.js';
 import type { MeetingJobData } from '../../infra/queue/queue.types.js';
+import { channelPolicy, decideChannelPermission } from '../channels/channel.policy.js';
+import { assertChannelDecision } from '../channels/channel-decisions.js';
+import type { ChannelAccess } from '../channels/channels.types.js';
+import { ChannelsRepository } from '../channels/repositories/channels.repository.js';
+import type { OrgMembershipContext } from '../organizations/organizations.types.js';
+import type { ListMeetingsQueryDto } from './dto/list-meetings-query.dto.js';
+import { MeetingDetailResponseDto, MeetingResponseDto } from './dto/meeting-response.dto.js';
 import { MeetingsRepository } from './meetings.repository.js';
+import type { MeetingViewer } from './meetings.types.js';
 
 @Injectable()
 export class MeetingsService {
@@ -14,13 +25,70 @@ export class MeetingsService {
 
   constructor(
     private readonly repo: MeetingsRepository,
+    private readonly channels: ChannelsRepository,
     @InjectQueue(QueueName.Default) private readonly queue: Queue<MeetingJobData>,
   ) {}
 
-  async getOwned(orgId: string, userId: string, meetingId: string): Promise<MeetingRow> {
-    const meeting = await this.repo.findOwned(orgId, userId, meetingId);
+  /** Chi tiết theo quyền xem (04 §3). Không xem được = không tồn tại → 404. */
+  async getVisible(
+    membership: OrgMembershipContext,
+    userId: string,
+    meetingId: string,
+  ): Promise<MeetingDetailResponseDto> {
+    const viewer = viewerOf(membership, userId);
+    const meeting = await this.repo.findVisible(membership.orgId, viewer, meetingId);
     if (!meeting) throw Errors.meeting.notFound();
-    return meeting;
+    const channels = await this.repo.listVisibleChannels(meeting.id, viewer);
+    return MeetingDetailResponseDto.withChannels(meeting, channels);
+  }
+
+  async list(
+    membership: OrgMembershipContext,
+    userId: string,
+    query: ListMeetingsQueryDto,
+  ): Promise<Page<MeetingResponseDto>> {
+    if (query.channelId)
+      await this.assertChannelContentReadable(membership, userId, query.channelId);
+    const after = query.cursor ? decodeCursor(query.cursor, 2) : undefined;
+    const rows = await this.repo.listVisible({
+      orgId: membership.orgId,
+      viewer: viewerOf(membership, userId),
+      channelId: query.channelId,
+      status: query.status,
+      from: query.from ? new Date(query.from) : undefined,
+      to: query.to ? new Date(query.to) : undefined,
+      after: after && { recordedAt: expectTimestampKey(after[0]), id: expectUuidKey(after[1]) },
+      limit: query.limit,
+    });
+    const page = toPage(rows, query.limit, (row) => [row.recordedAtKey, row.id]);
+    return {
+      data: page.data.map((row) => MeetingResponseDto.from(row)),
+      nextCursor: page.nextCursor,
+    };
+  }
+
+  /**
+   * Lọc theo kênh mà không kiểm quyền kênh = LỘ nội dung kênh riêng tư: người xem thấy meeting M qua
+   * một kênh công khai, lọc `channelId` = kênh riêng tư K mình không ở trong → biết M nằm trong K.
+   * Cùng quyết định với route `/channels/:id/...` của M4: không thấy kênh → 404; OrgAdm thấy
+   * metadata nhưng không đọc nội dung kênh riêng tư → 403.
+   */
+  private async assertChannelContentReadable(
+    membership: OrgMembershipContext,
+    userId: string,
+    channelId: string,
+  ): Promise<void> {
+    const row = await this.channels.findAccess(membership.orgId, channelId, userId);
+    if (!row) throw Errors.channel.notFound();
+    const access: ChannelAccess = {
+      orgId: membership.orgId,
+      userId,
+      orgRole: membership.role,
+      channelRole: row.channelRole,
+      channel: { id: row.id, visibility: row.visibility, archivedAt: row.archivedAt },
+    };
+    if (!channelPolicy['channel.read'](access)) throw Errors.channel.notFound();
+    assertChannelDecision(decideChannelPermission('channel.content.read', access));
   }
 
   /**
@@ -47,4 +115,8 @@ export class MeetingsService {
       this.logger.error({ err: error, meetingId: meeting.id }, 'Enqueue meeting.preprocess lỗi');
     }
   }
+}
+
+function viewerOf(membership: OrgMembershipContext, userId: string): MeetingViewer {
+  return { userId, orgRole: membership.role };
 }
