@@ -5,11 +5,9 @@ import {
   desc,
   eq,
   getTableColumns,
-  gte,
   inArray,
   isNotNull,
   isNull,
-  lt,
   or,
   sql,
 } from 'drizzle-orm';
@@ -24,6 +22,7 @@ import {
   meetingShares,
 } from '../../../infra/database/schema/index.js';
 import { isOrgRoleAtLeast, OrgRole } from '../../organizations/organization.policy.js';
+import { visibleMeetingCandidates } from '../meeting-list-candidates.js';
 import { meetingVisibleTo } from '../meeting-visibility.js';
 import type {
   ChannelMeetingRow,
@@ -33,6 +32,7 @@ import type {
   MeetingChannelRef,
   MeetingListRow,
   MeetingViewer,
+  VisibleChannels,
 } from '../meetings.types.js';
 
 @Injectable()
@@ -66,28 +66,38 @@ export class MeetingsRepository {
   /**
    * Danh sách meeting xem được, mới họp trước: keyset `(recorded_at DESC, id DESC)`. Lấy `limit + 1`
    * dòng để `toPage` biết còn trang sau. `id` là tie-breaker: nhiều meeting cùng `recorded_at`.
+   *
+   * M11 B5: hai câu — (1) kênh thấy được; (2) meeting có id trong ỨNG VIÊN của các luồng có trần
+   * (`visibleMeetingCandidates`). `= ANY(ARRAY(…))` ép tính ứng viên TRƯỚC (InitPlan) rồi tra PK —
+   * với `IN (…)` planner từng chọn đi lùi cả index org và bỏ qua ứng viên (bài học 11). Không lọc
+   * lại bằng `meetingVisibleTo` ở đây: chi phí lọc từng dòng ăn mất phần thắng; tương đương với
+   * điều kiện xem dùng chung được kiểm bằng test đối chiếu (oracle) trên ma trận người xem.
    */
-  listVisible(p: ListVisibleMeetingsParams): Promise<MeetingListRow[]> {
+  async listVisible(p: ListVisibleMeetingsParams): Promise<MeetingListRow[]> {
+    const n = p.limit + 1;
+    const candidates = visibleMeetingCandidates(this.db, p, n, await this.visibleChannels(p));
+    if (!candidates) return [];
     return this.db
       .select({ ...getTableColumns(meetings), recordedAtKey: timestampKey(meetings.recordedAt) })
       .from(meetings)
-      .where(
-        and(
-          eq(meetings.orgId, p.orgId),
-          meetingVisibleTo(p.viewer),
-          p.status ? eq(meetings.status, p.status) : undefined,
-          p.from ? gte(meetings.recordedAt, p.from) : undefined,
-          p.to ? lt(meetings.recordedAt, p.to) : undefined,
-          p.channelId
-            ? sql`exists (select 1 from ${meetingShares} where ${meetingShares.meetingId} = ${meetings.id} and ${meetingShares.channelId} = ${p.channelId})`
-            : undefined,
-          p.after
-            ? sql`(${meetings.recordedAt}, ${meetings.id}) < (${p.after.recordedAt}::timestamptz, ${p.after.id}::uuid)`
-            : undefined,
-        ),
-      )
+      .where(and(sql`${meetings.id} = any(array(${candidates}))`, eq(meetings.orgId, p.orgId)))
       .orderBy(desc(meetings.recordedAt), desc(meetings.id))
-      .limit(p.limit + 1);
+      .limit(n);
+  }
+
+  /** Kênh người xem thấy nội dung (chưa xoá; công khai hoặc là thành viên) + tổng số kênh của org. */
+  private async visibleChannels(p: ListVisibleMeetingsParams): Promise<VisibleChannels> {
+    const isMember = sql`exists (select 1 from ${channelMembers} where ${channelMembers.channelId} = ${channels.id} and ${channelMembers.userId} = ${p.viewer.userId})`;
+    const [row] = await this.db
+      .select({
+        ids: sql<
+          string[]
+        >`coalesce(array_agg(${channels.id}) filter (where (${channels.visibility} = 'public' or ${isMember})${p.channelId ? sql` and ${channels.id} = ${p.channelId}` : sql``}), '{}')`,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(channels)
+      .where(and(eq(channels.orgId, p.orgId), isNull(channels.deletedAt)));
+    return { ids: row?.ids ?? [], total: row?.total ?? 0 };
   }
 
   /**
@@ -158,8 +168,18 @@ export class MeetingsRepository {
     return row;
   }
 
+  /**
+   * Sửa `recordedAt` → chép sang mọi share của meeting trong CÙNG `executor` (transaction của
+   * caller, meeting đã khoá `FOR UPDATE`): danh sách theo kênh không bao giờ thấy thứ tự cũ (M11 B5).
+   */
   async update(meetingId: string, patch: MeetingPatch, executor: DbExecutor): Promise<void> {
     await executor.update(meetings).set(patch).where(eq(meetings.id, meetingId));
+    if (patch.recordedAt !== undefined) {
+      await executor
+        .update(meetingShares)
+        .set({ recordedAt: patch.recordedAt })
+        .where(eq(meetingShares.meetingId, meetingId));
+    }
   }
 
   /** Xoá MỀM (Q6): share giữ nguyên nhưng hết hiệu lực vì điều kiện xem đòi `deleted_at IS NULL`. */

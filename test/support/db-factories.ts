@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { sql } from 'drizzle-orm';
 import type { Database } from '../../src/infra/database/database.types.js';
 import {
   type ChannelRoleValue,
@@ -161,5 +162,12 @@ export async function shareMeeting(
   channelId: string,
   sharedBy: string | null = null,
 ): Promise<void> {
-  await db.insert(meetingShares).values({ orgId, meetingId, channelId, sharedBy });
+  await db.insert(meetingShares).values({
+    orgId,
+    meetingId,
+    channelId,
+    sharedBy,
+    // Bản chép của meeting (M11 B5) — như service share làm.
+    recordedAt: sql`(select ${meetings.recordedAt} from ${meetings} where ${meetings.id} = ${meetingId})`,
+  });
 }

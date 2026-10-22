@@ -4,12 +4,14 @@ import { CreateBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { GenericContainer } from 'testcontainers';
 import type { TestProject } from 'vitest/node';
 import { runMigrations } from '../../src/infra/database/migrate.js';
+import { provisionLoginRoles } from '../../src/infra/database/provision-roles.js';
 import {
   createDatabase,
   POSTGRES_IMAGE,
   REDIS_IMAGE,
   RUSTFS_IMAGE,
   TEMPLATE_DATABASE,
+  TEST_DB_PASSWORDS,
   withDatabase,
 } from './database.js';
 
@@ -73,6 +75,8 @@ export default async function setup(project: TestProject) {
   // runMigrations tự đóng pool sau khi xong — template phải KHÔNG còn kết nối nào
   // thì CREATE DATABASE ... TEMPLATE mới chạy được.
   await runMigrations(withDatabase(adminUrl, TEMPLATE_DATABASE));
+  // Role thuộc CẢ cluster: tạo một lần, mọi database clone từ template đều dùng được (M11 B6).
+  await provisionLoginRoles(adminUrl, TEST_DB_PASSWORDS);
 
   project.provide('postgresAdminUrl', adminUrl);
   project.provide('redisUrl', redis.getConnectionUrl());

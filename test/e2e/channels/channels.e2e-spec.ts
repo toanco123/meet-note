@@ -5,12 +5,12 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { encodeCursor } from '../../../src/common/pagination/cursor.js';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { auditLogs, channels } from '../../../src/infra/database/schema/index.js';
 import { createTestApp } from '../../support/app.js';
 import { addChannelMember, addMember } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 interface ChannelBody {
   id: string;
@@ -56,7 +56,7 @@ describe('Kênh: tạo / xem / sửa / liệt kê (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
     [owner, orgAdmin, alice, bob, carol, gina, outsider, stranger] = await Promise.all([
       registerUser(app),
       registerUser(app),

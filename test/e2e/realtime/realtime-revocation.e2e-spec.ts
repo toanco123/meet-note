@@ -3,7 +3,6 @@ import type { Socket } from 'socket.io-client';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { RealtimeGateway } from '../../../src/modules/realtime/realtime.gateway.js';
 import { createTestApp } from '../../support/app.js';
@@ -16,6 +15,7 @@ import {
 } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
 import { connectRealtime, nextEvent, portOf } from '../../support/realtime.js';
+import { fixtureDb } from '../../support/db.js';
 
 /**
  * MẤT QUYỀN XEM → RỜI ROOM NGAY (M7 Q2, B5). Mỗi loại thay đổi đi qua REST thật (đúng điểm phát
@@ -33,7 +33,7 @@ describe('Realtime: mất quyền xem meeting là rời room (e2e)', () => {
     app = await createTestApp();
     await app.listen(0);
     port = portOf(app);
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
   });
 
   afterAll(async () => {

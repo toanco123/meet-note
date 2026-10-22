@@ -4,12 +4,12 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { sessions, users } from '../../../src/infra/database/schema/index.js';
 import { REFRESH_TOKEN_PATTERN } from '../../../src/modules/auth/services/token.service.js';
 import { createTestApp } from '../../support/app.js';
 import { DEFAULT_PASSWORD, registerUser, uniqueEmail } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 describe('Auth: register + login (e2e)', () => {
   let app: INestApplication<App>;
@@ -18,7 +18,7 @@ describe('Auth: register + login (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
   });
 
   afterAll(async () => {

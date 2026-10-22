@@ -11,6 +11,10 @@
 | redis       | image                    | BullMQ, Socket.IO adapter/emitter (pub/sub), cache ngắn hạn                                                                           | 1                                                                                       |
 | rustfs      | image                    | Object storage S3 (file ghi âm, audio đã chuẩn hoá)                                                                                   | 1                                                                                       |
 
+Ngữ cảnh tổ chức (M11 B7): middleware HTTP mở `OrgContext` rỗng cho mỗi request, `OrgMemberGuard` điền org → pool đặt `app.org_id` cho RLS (03 §0). Đường không qua `/orgs/:orgId` mà đọc bảng có RLS (realtime) bọc `OrgContext.runInOrg`.
+
+Mỗi tiến trình kết nối Postgres bằng role riêng (M11 B6, 03 §0): `migrate` = chủ schema, api = `meetnote_api_login` (chỉ DML, bị RLS), worker = `meetnote_worker_login` (chỉ DML, `BYPASSRLS`).
+
 > **Bẫy:** Không chạy migration lúc api khởi động. Khi có 2 instance, cả hai cùng migrate và đua nhau. Migration là một bước riêng trong pipeline deploy.
 
 ## 2. Sơ đồ giao tiếp
@@ -138,6 +142,7 @@ channels/
 | `DatabaseModule` (global)      | api, worker                       | Pool `pg`, instance Drizzle, helper `withTransaction`                                                                                                                                        |
 | `RedisModule`                  | api, worker                       | Kết nối ioredis cho cache/pub-sub                                                                                                                                                            |
 | `QueueModule`                  | api (producer), worker (consumer) | Kết nối BullMQ, khai báo queue, kiểu payload                                                                                                                                                 |
+| `RateLimitModule`              | api                               | `@nestjs/throttler` + `RedisThrottlerStorage` (Lua, sliding log); `AppThrottlerGuard` đăng ký ở `AuthModule` ngay sau `JwtAuthGuard` (M11 B3)                                                |
 | `HealthModule`                 | api                               | `/health/live`, `/health/ready` (DB + Redis)                                                                                                                                                 |
 | `AuthModule`                   | api                               | Đăng ký, đăng nhập, refresh rotation, logout, guard JWT global                                                                                                                               |
 | `UsersModule`                  | api                               | Dữ liệu người dùng (`UsersRepository`). Không có controller, không phụ thuộc module khác                                                                                                     |

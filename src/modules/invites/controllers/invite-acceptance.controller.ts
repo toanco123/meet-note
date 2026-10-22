@@ -1,4 +1,6 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { RateLimit } from '../../../infra/rate-limit/rate-limits.js';
 import { ApiTags } from '@nestjs/swagger';
 import { Public } from '../../../common/auth/public.decorator.js';
 import { ApiErrorResponses } from '../../../common/swagger/api-error-responses.decorator.js';
@@ -32,7 +34,8 @@ export class InviteAcceptanceController {
    */
   @Post('accept')
   @HttpCode(HttpStatus.OK)
-  @ApiErrorResponses(401, 404, 409, 410)
+  @Throttle(RateLimit.inviteAccept)
+  @ApiErrorResponses(401, 404, 409, 410, 429)
   accept(
     @Param('token') token: string,
     @UserAuditCtx() audit: UserAuditContext,

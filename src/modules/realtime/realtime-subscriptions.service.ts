@@ -1,13 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import { OrgContext } from '../../infra/database/org-context.js';
 import type { AccessScope } from '../../infra/realtime/realtime.types.js';
 import { MeetingsRepository } from '../meetings/repositories/meetings.repository.js';
 import { OrganizationsRepository } from '../organizations/repositories/organizations.repository.js';
 
 /**
  * Ai được ở trong room `meeting:{id}`: đúng điều kiện xem của REST (`meetingVisibleTo`, M6b) — một
- * nguồn sự thật cho cả hai đường. Socket không có org trên path như REST → tự tìm org của meeting,
- * rồi membership của người gọi trong org đó bằng CHÍNH hàm `OrgMemberGuard` dùng (`findMembership`:
- * loại org đã xoá) — biểu thức xem có tiền điều kiện "người xem thuộc org" (M6b bài học 1).
+ * nguồn sự thật cho cả hai đường.
+ *
+ * Socket không có org trên path như REST, và bảng meeting có RLS (M11 B7): ngoài ngữ cảnh tổ chức
+ * thì không đọc được meeting để biết nó thuộc org nào. Nên đi ngược: các tổ chức người gọi ĐANG
+ * thuộc (`organization_members` không có RLS; loại org đã xoá như `OrgMemberGuard`) → thử trong
+ * ngữ cảnh từng tổ chức. Tiền điều kiện "người xem thuộc org" (M6b bài học 1) đúng theo cách dựng;
+ * vừa bị gỡ khỏi org → org đó không còn trong danh sách → không thấy nữa.
  */
 @Injectable()
 export class RealtimeSubscriptionsService {
@@ -17,16 +22,13 @@ export class RealtimeSubscriptionsService {
   ) {}
 
   async canView(userId: string, meetingId: string): Promise<boolean> {
-    const meeting = await this.meetings.findById(meetingId);
-    if (!meeting) return false;
-    const membership = await this.orgs.findMembership(meeting.orgId, userId);
-    if (!membership) return false;
-    const visible = await this.meetings.findVisible(
-      meeting.orgId,
-      { userId, orgRole: membership.role },
-      meetingId,
-    );
-    return visible !== undefined;
+    for (const org of await this.orgs.listForUser(userId)) {
+      const visible = await OrgContext.runInOrg(org.id, () =>
+        this.meetings.findVisible(org.id, { userId, orgRole: org.role }, meetingId),
+      );
+      if (visible) return true;
+    }
+    return false;
   }
 
   /**
@@ -37,8 +39,10 @@ export class RealtimeSubscriptionsService {
     scope: Extract<AccessScope, { kind: 'channel' | 'org' }>,
     subscribed: string[],
   ): Promise<string[]> {
-    return scope.kind === 'channel'
-      ? this.meetings.filterSharedInChannel(scope.channelId, subscribed)
-      : this.meetings.filterInOrg(scope.orgId, subscribed);
+    return OrgContext.runInOrg(scope.orgId, () =>
+      scope.kind === 'channel'
+        ? this.meetings.filterSharedInChannel(scope.channelId, subscribed)
+        : this.meetings.filterInOrg(scope.orgId, subscribed),
+    );
   }
 }

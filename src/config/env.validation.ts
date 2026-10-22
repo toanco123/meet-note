@@ -57,6 +57,26 @@ export class EnvironmentVariables {
   @Max(100)
   DATABASE_POOL_MAX = 10;
 
+  /**
+   * Timeout phía Postgres cho MỌI connection của tiến trình (M11 Q1, M3 bài học 5) — request lỗi
+   * 503 thay vì treo. Worker đặt `DATABASE_STATEMENT_TIMEOUT_MS` dài hơn (job theo lô). Migration
+   * dùng connection riêng, không bị giới hạn.
+   */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  DATABASE_LOCK_TIMEOUT_MS = 3_000;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  DATABASE_STATEMENT_TIMEOUT_MS = 15_000;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  DATABASE_IDLE_TX_TIMEOUT_MS = 30_000;
+
   @Matches(/^rediss?:\/\//, { message: 'REDIS_URL phải bắt đầu bằng redis:// hoặc rediss://' })
   REDIS_URL: string;
 
@@ -156,6 +176,29 @@ export class EnvironmentVariables {
   @IsString()
   @MinLength(1)
   QUEUE_PREFIX = 'meetnote';
+
+  /** Tắt được để test e2e (đăng ký hàng loạt user từ 127.0.0.1) không vướng giới hạn (M11 B3). */
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase() === 'true' : value,
+  )
+  @IsBoolean()
+  RATE_LIMIT_ENABLED = true;
+
+  /** Tiền tố khoá rate limit trong Redis — tách môi trường / file test như `QUEUE_PREFIX`. */
+  @IsString()
+  @MinLength(1)
+  RATE_LIMIT_PREFIX = 'meetnote:rate-limit';
+
+  /**
+   * Số tầng reverse proxy đứng trước api (Express `trust proxy`). 0 = không tin `X-Forwarded-For`
+   * (client tự gửi được header này → giả IP để thoát rate limit). Đặt ĐÚNG số tầng: thừa một tầng
+   * là lại tin giá trị do client gửi.
+   */
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(10)
+  TRUST_PROXY_HOPS = 0;
 }
 
 /** Dùng cho `ConfigModule.forRoot({ validate })`. Ném lỗi → tiến trình dừng ngay khi khởi động. */

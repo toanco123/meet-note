@@ -9,6 +9,27 @@
 - **Tenant consistency bằng composite FK:** bảng con mang theo `org_id` và FK `(x_id, org_id)` trỏ tới `UNIQUE (id, org_id)` của bảng cha. Như vậy DB **không cho phép** share meeting của org A vào kênh của org B, kể cả khi code có bug.
 - Xoá mềm bằng `deleted_at`. Unique index kèm `WHERE deleted_at IS NULL` để tên đã xoá dùng lại được.
 
+### Role của Postgres (M11 B6, migration `0011_app_roles`)
+
+| Role                    | Loại                                          | Dùng bởi                             | Quyền                                                                                                                                                         |
+| ----------------------- | --------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `meetnote` (chủ schema) | LOGIN                                         | `migrate` (`MIGRATION_DATABASE_URL`) | Chủ mọi bảng: DDL, migration                                                                                                                                  |
+| `meetnote_app`          | NHÓM, NOLOGIN                                 | —                                    | `SELECT, INSERT, UPDATE, DELETE` mọi bảng + sequence; trừ `UPDATE, DELETE` trên `audit_logs`. `ALTER DEFAULT PRIVILEGES` → bảng của migration sau tự có quyền |
+| `meetnote_worker`       | NHÓM, NOLOGIN                                 | —                                    | Như `meetnote_app`                                                                                                                                            |
+| `meetnote_api_login`    | LOGIN, thuộc `meetnote_app`                   | api                                  | Kế thừa quyền nhóm; bị RLS (M11 B7)                                                                                                                           |
+| `meetnote_worker_login` | LOGIN, thuộc `meetnote_worker`, **BYPASSRLS** | worker                               | Kế thừa quyền nhóm; job xuyên tổ chức                                                                                                                         |
+
+Role nhóm + GRANT nằm trong migration (không mật khẩu); user đăng nhập do `provisionLoginRoles` (script migrate khi có `DB_API_PASSWORD` + `DB_WORKER_PASSWORD`) tạo / cập nhật. **Bẫy:** thuộc tính role (`LOGIN`, `BYPASSRLS`, `SUPERUSER`…) KHÔNG kế thừa qua membership — chỉ GRANT trên đối tượng kế thừa → `BYPASSRLS` đặt trên user đăng nhập của worker. Bảng chỉ-ghi-thêm mới phải `REVOKE UPDATE, DELETE` tường minh (default privileges cấp đủ DML). DB managed: role chạy migration có thể không có `CREATEROLE` / không đặt được `BYPASSRLS` (cần superuser) → tạo role bằng tài khoản quản trị của nhà cung cấp.
+
+### RLS: ranh giới tổ chức (M11 B7, migration `0012_rls_org_isolation`)
+
+Lớp phòng thủ THỨ HAI (lớp một: guard + `org_id` trong mọi query + composite FK). Bảng có RLS (`ENABLE` + `FORCE`): `channels`, `channel_members`, `meetings`, `meeting_shares`, `uploads` — policy `org_id = app_current_org_id()` cho cả `USING` (đọc / sửa / xoá) lẫn `WITH CHECK` (ghi). `app_current_org_id()` = `nullif(current_setting('app.org_id', true), '')::uuid`: chưa đặt / rỗng → NULL → không thấy dòng nào.
+
+- `app.org_id` do pool của app (`OrgContextPool` trong `createPgPool`) đặt mỗi lần cho mượn connection, từ `OrgContext` (`AsyncLocalStorage`): middleware HTTP mở ngữ cảnh rỗng, `OrgMemberGuard` điền org sau khi xác nhận thành viên; realtime bọc `runInOrg`. Chỉ gửi `set_config` khi giá trị ĐỔI so với lần trước trên connection (~1 round-trip ≈ 150 µs mỗi lần đổi tổ chức; thời gian thực thi query không đổi đáng kể — đo ở plan M11).
+- Policy chỉ giữ ranh giới tổ chức, KHÔNG chứa quy tắc xem meeting (04 §3 ở code).
+- Không RLS: bảng tài khoản (`users`, `sessions`…), `organizations` / `organization_members` (đăng nhập, "tổ chức của tôi" đọc xuyên tổ chức), `notifications` (theo người dùng), `invites` / `join_requests` (chấp nhận link mời chưa là thành viên), `audit_logs`, `idempotency_keys`.
+- Superuser và role `BYPASSRLS` (worker) luôn được miễn — vì thế api không được chạy bằng superuser (B6). Kiểm tra FK / cascade (gỡ thành viên → xoá `channel_members`) là thao tác toàn vẹn tham chiếu, không bị RLS chặn.
+
 ### Extension & đối tượng tạo bằng SQL viết tay (migration `0000_extensions`)
 
 ```sql
@@ -264,7 +285,7 @@ PUT part là **idempotent**: `INSERT … ON CONFLICT (upload_id, part_number) DO
 | source_object_key, audio_object_key | text                                                                                       |                                                                                                                                                                                                                                                  |
 | created_at, updated_at, deleted_at  | timestamptz                                                                                |                                                                                                                                                                                                                                                  |
 
-Index: `meetings_org_owner_created_idx (org_id, owner_id, created_at DESC NULLS FIRST, id DESC NULLS FIRST)` — **không partial**, vì còn phục vụ khoá ngoại `meetings_owner_fk` (xoá một thành viên phải tìm mọi meeting của họ, kể cả đã xoá mềm; Postgres không tự tạo index cho phía tham chiếu); `meetings_org_recorded_idx (org_id, recorded_at)` (báo cáo tuần).
+Index: `meetings_org_owner_created_idx (org_id, owner_id, created_at DESC NULLS FIRST, id DESC NULLS FIRST)` — **không partial**, vì còn phục vụ khoá ngoại `meetings_owner_fk` (xoá một thành viên phải tìm mọi meeting của họ, kể cả đã xoá mềm; Postgres không tự tạo index cho phía tham chiếu); `meetings_org_recorded_idx (org_id, recorded_at)` (báo cáo tuần; luồng "một lượt" của danh sách meeting). M11 B5 thêm cho danh sách meeting: `meetings_org_owner_recorded_idx (org_id, owner_id, recorded_at DESC NULLS FIRST, id DESC NULLS FIRST) WHERE deleted_at IS NULL` (luồng "của mình"), `meetings_org_ownerless_recorded_idx (org_id, recorded_at DESC NULLS FIRST, id DESC NULLS FIRST) WHERE owner_id IS NULL AND deleted_at IS NULL` (luồng "không chủ" của OrgAdm).
 
 **Chuyển trạng thái = UPDATE có điều kiện** (optimistic, không giữ khoá lâu):
 
@@ -277,14 +298,14 @@ WHERE id = $1 AND status = 'preprocessing' RETURNING id;
 
 ### `meeting_shares`
 
-meeting_id, channel_id, org_id, shared_by NULL (FK `users` ON DELETE SET NULL), shared_at. PK `meeting_shares_pk (meeting_id, channel_id)` (M6b, migration `0008`).
+meeting_id, channel_id, org_id, shared_by NULL (FK `users` ON DELETE SET NULL), shared_at, **recorded_at** (M11 B5, migration `0010`: BẢN CHÉP `meetings.recorded_at` — ghi khi share từ dòng meeting đã khoá, `MeetingsRepository.update` cập nhật cùng transaction khi sửa `recordedAt`; migration thêm cột NULL → backfill → `SET NOT NULL`). PK `meeting_shares_pk (meeting_id, channel_id)` (M6b, migration `0008`).
 Có 2 composite FK, cả hai **ON DELETE CASCADE**:
 
 - `meeting_shares_meeting_fk (meeting_id, org_id)` → `meetings(id, org_id)`
 - `meeting_shares_channel_fk (channel_id, org_id)` → `channels(id, org_id)`
 
 Như vậy không thể share chéo org. Purge kênh (xoá cứng) tự gỡ share, meeting còn nguyên (D3). Chủ meeting rời org: `owner_id` NULL, share giữ nguyên.
-Index: `meeting_shares_channel_shared_idx (channel_id, shared_at DESC, meeting_id DESC)` — danh sách meeting theo kênh, cũng là index phía tham chiếu của FK kênh. Phía meeting đã có PK bắt đầu bằng `meeting_id`.
+Index: `meeting_shares_channel_shared_idx (channel_id, shared_at DESC, meeting_id DESC)` — danh sách meeting theo kênh, cũng là index phía tham chiếu của FK kênh; `meeting_shares_channel_recorded_idx (channel_id, recorded_at DESC NULLS FIRST, meeting_id DESC NULLS FIRST)` — luồng "theo từng kênh" của danh sách meeting theo org (M11 B5). Phía meeting đã có PK bắt đầu bằng `meeting_id`.
 
 ### `transcript_segments`
 
@@ -380,6 +401,8 @@ Dùng cho các POST không tự idempotent, theo header `Idempotency-Key` (`@Ide
 - Dọn dòng hết hạn: `IdempotencyRepository.deleteExpiredBatch` theo lô (`SKIP LOCKED`), lên lịch cùng job dọn upload ở M6.
 
 ## 7. Thứ tự khoá chung (M4) và tóm tắt chỗ cần transaction / khoá
+
+> **Timeout cho mọi connection (M11 B1)** — đặt trong `createPgPool`, gửi lúc mở connection: `lock_timeout` 3 s (lỗi `55P03` → HTTP 503), `statement_timeout` 15 s (worker 60 s; `57014` → 503), `idle_in_transaction_session_timeout` 30 s (Postgres cắt session, nhả khoá). `lock_timeout` < idle timeout là BẮT BUỘC: khi lệnh của connection B chờ khoá do transaction A giữ, A cũng đang "idle in transaction" — idle timeout ngắn hơn thì Postgres giết A thay vì cho B lỗi. Job purge vẫn đặt `lock_timeout` riêng bằng `set_config` (ngắn hơn). Migration dùng connection riêng, không bị giới hạn. Pool cũng tắt JIT (`-c jit=off`, M11 B5): app OLTP, ước lượng chi phí phồng làm Postgres compile JIT ~17 ms cho câu chỉ đọc vài buffer.
 
 **Mọi thao tác khoá nhiều loại dòng phải theo đúng thứ tự sau** (khoá ngược thứ tự → hai transaction có thể chờ nhau vòng tròn → Postgres giết một bên với `40P01`):
 

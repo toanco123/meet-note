@@ -1,6 +1,6 @@
 # M10 — Thông báo
 
-- **Trạng thái:** **Xong ở local** (2026-10-21): B1–B6; CI chờ push / PR #8. Plan đã duyệt 2026-10-21 (★ cho Q1–Q6 — chưa cần Firebase)
+- **Trạng thái:** **Xong** (2026-10-21): B1–B6, PR #8, CI xanh. Plan đã duyệt 2026-10-21 (★ cho Q1–Q6 — chưa cần Firebase)
 - **Nhánh:** `m10-notifications`
 - **Tài liệu thiết kế liên quan:** [01-overview khối 5](../design/01-overview.md), [03-database `notifications`](../design/03-database.md), [05-api Notifications, Realtime](../design/05-api.md), [06-flows §1.2, §2, §3](../design/06-flows.md), [10-roadmap M10](../design/10-roadmap.md)
 - **Ghi chú:** làm trước M6 / M8 / M9 (đang hoãn) theo yêu cầu người dùng. Thông báo "meeting xử lý xong / lỗi" (M6) và "báo cáo tuần sẵn sàng" (M9) cắm vào khi làm các mốc đó — mốc này dựng cơ chế và dùng các sự kiện ĐÃ CÓ.
@@ -66,7 +66,7 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 ## Tiêu chí hoàn thành
 
 - [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (391 unit)
-- [ ] `pnpm test:e2e` xanh ở local và CI — local xanh (544 test); CI: chờ PR #8
+- [x] `pnpm test:e2e` xanh ở local và CI (544 test; CI trên PR #8)
 - [x] Không thông báo trùng, không thông báo "ma"; fan-out idempotent
 - [x] `openapi.json` đã cập nhật; `docs/design/` khớp code
 

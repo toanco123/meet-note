@@ -4,13 +4,13 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { uploads } from '../../../src/infra/database/schema/index.js';
 import { createTestApp } from '../../support/app.js';
 import { addMember, insertMeeting } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
 import { createTestStorage, isMultipartAlive } from '../../support/storage.js';
+import { fixtureDb } from '../../support/db.js';
 
 const MiB = 1024 * 1024;
 const GiB = 1024 * MiB;
@@ -52,7 +52,7 @@ describe('Upload: khởi tạo / trạng thái / huỷ (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
     [owner, orgAdmin, alice, bob, stranger] = await Promise.all([
       registerUser(app),
       registerUser(app),

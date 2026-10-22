@@ -3,12 +3,12 @@ import { and, eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { auditLogs } from '../../../src/infra/database/schema/index.js';
 import { createTestApp } from '../../support/app.js';
 import { addChannelMember, addMember } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 describe('Tổ chức: rời / gỡ khi còn làm chủ kênh, xoá tổ chức (e2e)', () => {
   let app: INestApplication<App>;
@@ -46,7 +46,7 @@ describe('Tổ chức: rời / gỡ khi còn làm chủ kênh, xoá tổ chức 
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
   });
 
   afterAll(async () => {

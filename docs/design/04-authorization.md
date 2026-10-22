@@ -67,7 +67,9 @@ User (thành viên org) được xem meeting M **chưa xoá** khi thoả **một
 
 Org Owner / Admin **không** đọc nội dung kênh riêng tư mình không ở trong (D2) — điều 2 không có nhánh OrgAdm.
 
-Hiện thực (M6b B2): **một** biểu thức SQL `meetingVisibleTo(viewer)` trong `src/modules/meetings/meeting-visibility.ts` (`EXISTS` lồng nhau), test bằng toàn bộ ma trận người xem. Chi tiết, danh sách, danh sách theo kênh, và sau này search (M8), báo cáo (M9) đều ghép đúng biểu thức này. **Tiền điều kiện:** người xem là thành viên org đang query và `orgRole` là vai trò thật — `OrgMemberGuard` bảo đảm; biểu thức không tự kiểm membership.
+Hiện thực (M6b B2): **một** biểu thức SQL `meetingVisibleTo(viewer)` trong `src/modules/meetings/meeting-visibility.ts` (`EXISTS` lồng nhau), test bằng toàn bộ ma trận người xem. Chi tiết, danh sách theo kênh, và sau này search (M8), báo cáo (M9) đều ghép đúng biểu thức này. **Ngoại lệ có kiểm soát (M11 B5): danh sách meeting theo org** dùng cách viết TƯƠNG ĐƯƠNG — sinh ứng viên từ các luồng keyset có trần (`meeting-list-candidates.ts`: của mình / qua kênh thấy được / không chủ cho OrgAdm), mỗi luồng là một điều 1–4 ở trên — vì ghép `meetingVisibleTo` làm chi phí tỷ lệ tổng số share của org ở mọi request (đo: 29–40 ms → < 4 ms, plan M11). `meetingVisibleTo` vẫn là ĐỊNH NGHĨA: test đối chiếu (`meeting-list-oracle.int-spec.ts`) so `listVisible` với nó trên ma trận người xem × bộ lọc × duyệt hết trang; đổi quy tắc xem thì sửa cả hai, test đối chiếu đỏ nếu lệch. **Tiền điều kiện:** người xem là thành viên org đang query và `orgRole` là vai trò thật — `OrgMemberGuard` bảo đảm; biểu thức không tự kiểm membership.
+
+> **Lớp phòng thủ thứ hai — RLS (M11 B7).** Ngoài các tầng dưới đây, Postgres tự giữ ranh giới tổ chức trên `channels`, `channel_members`, `meetings`, `meeting_shares`, `uploads` (03 §0): request trong `/orgs/:orgId` chỉ đọc / ghi được dòng của đúng org đó, kể cả khi một query trong code quên `org_id`. RLS KHÔNG thay các tầng dưới (vai trò, quyền kênh, điều kiện xem meeting vẫn ở code).
 
 ## 4. Cách hiện thực trong NestJS (nhiều tầng)
 

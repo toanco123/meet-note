@@ -85,6 +85,14 @@ export const meetings = pgTable(
       t.id.desc().nullsFirst(),
     ),
     index('meetings_org_recorded_idx').on(t.orgId, t.recordedAt),
+    // Danh sách meeting (M11 B5) gộp các luồng keyset `(recorded_at DESC, id DESC)` có trần:
+    // "của mình" và "không chủ" (Owner / Admin org). `DESC NULLS FIRST` khớp `ORDER BY … DESC`.
+    index('meetings_org_owner_recorded_idx')
+      .on(t.orgId, t.ownerId, t.recordedAt.desc().nullsFirst(), t.id.desc().nullsFirst())
+      .where(sql`${t.deletedAt} is null`),
+    index('meetings_org_ownerless_recorded_idx')
+      .on(t.orgId, t.recordedAt.desc().nullsFirst(), t.id.desc().nullsFirst())
+      .where(sql`${t.ownerId} is null and ${t.deletedAt} is null`),
     check('meetings_status_ck', inValues(t.status, MEETING_STATUSES)),
     check('meetings_title_length_ck', sql`char_length(${t.title}) between 1 and 200`),
     check('meetings_attempt_ck', sql`${t.attempt} >= 1`),
@@ -108,6 +116,12 @@ export const meetingShares = pgTable(
     orgId: uuid().notNull(),
     /** Người share. NULL nếu tài khoản bị xoá — share vẫn giữ (meeting vẫn thuộc kênh). */
     sharedBy: uuid(),
+    /**
+     * BẢN CHÉP `meetings.recorded_at` (phi chuẩn hoá có chủ đích, M11 B5): danh sách meeting đi theo
+     * từng kênh thấy được với keyset `(recorded_at, meeting_id)` trên index của bảng này — không phải
+     * quét mọi share. Ghi khi share, cập nhật trong CÙNG transaction khi sửa `recordedAt` của meeting.
+     */
+    recordedAt: timestamp({ withTimezone: true }).notNull(),
     sharedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -134,6 +148,12 @@ export const meetingShares = pgTable(
       t.channelId,
       t.sharedAt.desc(),
       t.meetingId.desc(),
+    ),
+    // Luồng "meeting qua từng kênh thấy được" của danh sách meeting (M11 B5).
+    index('meeting_shares_channel_recorded_idx').on(
+      t.channelId,
+      t.recordedAt.desc().nullsFirst(),
+      t.meetingId.desc().nullsFirst(),
     ),
   ],
 );

@@ -25,7 +25,7 @@ describe('Schema invites / join requests / audit (Postgres thật)', () => {
   let userId: string;
 
   beforeAll(async () => {
-    t = createTestDb();
+    t = createTestDb(10, process.env.DATABASE_URL); // user của api: lớp quyền của audit_logs
     const owner = await insertUser(t.db);
     userId = (await insertUser(t.db)).id;
     orgId = (await insertOrg(t.db, owner.id)).id;
@@ -130,21 +130,38 @@ describe('Schema invites / join requests / audit (Postgres thật)', () => {
       ).resolves.toBeDefined();
     });
 
-    it.each([
+    const mutations = [
       [
         'UPDATE',
-        (id: number) =>
-          t.db.update(auditLogs).set({ action: 'sửa lén' }).where(eq(auditLogs.id, id)),
+        (db: TestDb['db'], id: number) =>
+          db.update(auditLogs).set({ action: 'sửa lén' }).where(eq(auditLogs.id, id)),
       ],
-      ['DELETE', (id: number) => t.db.delete(auditLogs).where(eq(auditLogs.id, id))],
-      ['TRUNCATE', () => t.db.execute(sql`truncate audit_logs`)],
-    ])('%s bị trigger từ chối (23001)', async (_op, mutate) => {
+      [
+        'DELETE',
+        (db: TestDb['db'], id: number) => db.delete(auditLogs).where(eq(auditLogs.id, id)),
+      ],
+      ['TRUNCATE', (db: TestDb['db']) => db.execute(sql`truncate audit_logs`)],
+    ] as const;
+
+    // Hai lớp (M11 B6): user của app không có quyền sửa / xoá / truncate (42501) — chặn TRƯỚC khi
+    // tới trigger; trigger (23001) vẫn chặn cả chủ schema.
+    it.each(mutations)('%s bằng user của app → thiếu quyền (42501)', async (_op, mutate) => {
       const log = await insertLog();
-      const error = await pgErrorOf(mutate(log.id));
-      expect(error?.code).toBe('23001');
-      // Dòng log vẫn còn nguyên.
+      expect((await pgErrorOf(mutate(t.db, log.id)))?.code).toBe('42501');
       const [still] = await t.db.select().from(auditLogs).where(eq(auditLogs.id, log.id));
       expect(still?.action).toBe('test.action');
+    });
+
+    it.each(mutations)('%s bằng chủ schema → trigger từ chối (23001)', async (_op, mutate) => {
+      const owner = createTestDb(1, process.env.TEST_ADMIN_DATABASE_URL);
+      try {
+        const log = await insertLog();
+        expect((await pgErrorOf(mutate(owner.db, log.id)))?.code).toBe('23001');
+        const [still] = await t.db.select().from(auditLogs).where(eq(auditLogs.id, log.id));
+        expect(still?.action).toBe('test.action');
+      } finally {
+        await owner.close();
+      }
     });
   });
 

@@ -7,7 +7,7 @@ x-app: &app
     context: .
     dockerfile: docker/Dockerfile
   image: meetnote:local
-  environment:
+  environment: &app-env
     NODE_ENV: development # bật Swagger; production thì tắt
     LOG_LEVEL: info
     DATABASE_URL: postgres://meetnote:meetnote@postgres:5432/meetnote
@@ -72,6 +72,12 @@ services:
   migrate:
     <<: *app
     command: ['node', 'dist/scripts/migrate.js']
+    environment:
+      <<: *app-env
+      # Chạy bằng CHỦ schema (DATABASE_URL chung ở trên); tạo / cập nhật user đăng nhập của api,
+      # worker (M11 B6). Mật khẩu chỉ cho local — production lấy từ secret.
+      DB_API_PASSWORD: dev-api-password
+      DB_WORKER_PASSWORD: dev-worker-password
     restart: 'no'
     depends_on:
       postgres:
@@ -80,6 +86,10 @@ services:
   api:
     <<: *app
     command: ['node', '--enable-source-maps', 'dist/main.js']
+    environment:
+      <<: *app-env
+      # Không superuser, chỉ DML, bị RLS (M11 B6–B7).
+      DATABASE_URL: postgres://meetnote_api_login:dev-api-password@postgres:5432/meetnote
     ports:
       - '3000:3000'
     depends_on:
@@ -98,6 +108,10 @@ services:
   worker:
     <<: *app
     command: ['node', '--enable-source-maps', 'dist/worker.js']
+    environment:
+      <<: *app-env
+      DATABASE_URL: postgres://meetnote_worker_login:dev-worker-password@postgres:5432/meetnote
+      DATABASE_STATEMENT_TIMEOUT_MS: '60000' # job theo lô chạy lâu hơn request (M11 B1)
     depends_on:
       migrate:
         condition: service_completed_successfully

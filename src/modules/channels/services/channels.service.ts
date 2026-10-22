@@ -171,7 +171,7 @@ export class ChannelsService {
       .catch(mapNameTaken);
     if (patch.visibility === 'private') {
       // Công khai → riêng tư: người ngoài kênh mất quyền xem meeting của kênh.
-      this.realtime.revalidateAccess({ kind: 'channel', channelId });
+      this.realtime.revalidateAccess({ kind: 'channel', channelId, orgId: access.orgId });
     }
     return this.getDetail(channelId, ctx.actorId);
   }
@@ -219,7 +219,11 @@ export class ChannelsService {
         metadata: { before: { name: channel.name } },
       });
     });
-    this.realtime.revalidateAccess({ kind: 'channel', channelId: access.channel.id });
+    this.realtime.revalidateAccess({
+      kind: 'channel',
+      channelId: access.channel.id,
+      orgId: access.orgId,
+    });
   }
 
   /**

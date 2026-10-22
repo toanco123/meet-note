@@ -1,3 +1,5 @@
+import { Throttle } from '@nestjs/throttler';
+import { RateLimit } from '../../infra/rate-limit/rate-limits.js';
 import {
   Body,
   Controller,
@@ -49,7 +51,8 @@ export class UploadsController {
   @Post()
   @RequireOrgPermission('org.upload')
   @Idempotent()
-  @ApiErrorResponses(400)
+  @Throttle(RateLimit.uploadInit)
+  @ApiErrorResponses(400, 429)
   async init(
     @Param('orgId') orgId: string,
     @CurrentUser() user: AuthUser,

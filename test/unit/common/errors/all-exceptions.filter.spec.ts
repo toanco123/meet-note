@@ -58,6 +58,18 @@ describe('mapException', () => {
     expect(mapException(drizzleError)).toMatchObject({ status: 409, code: 'CONFLICT' });
   });
 
+  it.each([
+    ['55P03', 'chờ khoá quá lock_timeout'],
+    ['57014', 'câu lệnh quá statement_timeout'],
+  ])('lỗi Postgres %s (%s) → 503 + Retry-After', (code) => {
+    const pgError = Object.assign(new Error('canceling statement'), { code, severity: 'ERROR' });
+    expect(mapException(new Error('Failed query', { cause: pgError }))).toMatchObject({
+      status: 503,
+      code: 'SERVICE_UNAVAILABLE',
+      retryAfterSeconds: 1,
+    });
+  });
+
   it('lỗi 4xx từ body-parser (expose=true) giữ status gốc', () => {
     const tooLarge = Object.assign(new Error('request entity too large'), {
       status: 413,

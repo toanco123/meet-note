@@ -115,7 +115,7 @@ Database dev là Postgres trong Docker Compose. Phải bật hạ tầng trướ
 | -------- | ------------------------------------------------------ |
 | Host     | `localhost`                                            |
 | Cổng     | `5432`                                                 |
-| User     | `meetnote`                                             |
+| User     | `meetnote` (chủ schema — app dùng user riêng, 03 §0)   |
 | Mật khẩu | `meetnote` (chỉ dùng cho dev)                          |
 | Database | `meetnote`                                             |
 | URL      | `postgres://meetnote:meetnote@localhost:5432/meetnote` |

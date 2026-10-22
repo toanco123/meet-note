@@ -4,7 +4,6 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { hashOpaqueToken } from '../../../src/common/crypto/opaque-token.js';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import {
   auditLogs,
@@ -13,6 +12,7 @@ import {
 } from '../../../src/infra/database/schema/index.js';
 import { createTestApp } from '../../support/app.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 describe('Link mời: xem trước + chấp nhận (e2e)', () => {
   let app: INestApplication<App>;
@@ -23,7 +23,7 @@ describe('Link mời: xem trước + chấp nhận (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
     owner = await registerUser(app);
     orgId = (
       await http()

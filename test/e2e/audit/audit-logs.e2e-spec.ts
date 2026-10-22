@@ -3,11 +3,11 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { encodeCursor } from '../../../src/common/pagination/cursor.js';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { createTestApp } from '../../support/app.js';
 import { addMember } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 interface LogBody {
   id: number;
@@ -32,7 +32,7 @@ describe('GET /v1/orgs/:orgId/audit-logs (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
     [owner, admin, member] = await Promise.all([
       registerUser(app, { displayName: 'Chủ Audit' }),
       registerUser(app),

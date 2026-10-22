@@ -30,6 +30,13 @@ export interface ListVisibleMeetingsParams {
 /** Dòng danh sách: kèm khoá cursor `recorded_at` do Postgres in (không qua JS `Date`). */
 export type MeetingListRow = MeetingRow & { recordedAtKey: string };
 
+/** Kênh (chưa xoá) của org mà người xem THẤY nội dung (điều 2 / 3 của 04 §3) — M11 B5. */
+export interface VisibleChannels {
+  ids: string[];
+  /** Tổng số kênh chưa xoá của org — chọn hình dạng luồng "qua kênh" (k² < K). */
+  total: number;
+}
+
 /** Kênh chứa meeting mà người xem thấy được (metadata). */
 export interface MeetingChannelRef {
   id: string;

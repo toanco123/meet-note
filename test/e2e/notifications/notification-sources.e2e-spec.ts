@@ -4,7 +4,6 @@ import type { Socket } from 'socket.io-client';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { notifications } from '../../../src/infra/database/schema/index.js';
 import { REALTIME_PUBLISHER } from '../../../src/infra/realtime/realtime.module.js';
@@ -13,6 +12,7 @@ import { createTestApp } from '../../support/app.js';
 import { addChannelMember, addMember, insertChannel } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
 import { connectRealtime, nextEvent, portOf } from '../../support/realtime.js';
+import { fixtureDb } from '../../support/db.js';
 
 /**
  * Nguồn thông báo trong M10 (Q1) đi qua REST thật: đúng dòng trong DB (lưu trong transaction của
@@ -28,7 +28,7 @@ describe('Thông báo: các nguồn trong transaction (e2e)', () => {
   beforeAll(async () => {
     app = await createTestApp();
     await app.listen(0);
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
   });
 
   afterAll(async () => {

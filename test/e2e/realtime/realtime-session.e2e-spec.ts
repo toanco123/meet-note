@@ -5,7 +5,6 @@ import type { Socket } from 'socket.io-client';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { refreshTokens } from '../../../src/infra/database/schema/index.js';
 import {
@@ -16,6 +15,7 @@ import {
 import { createTestApp } from '../../support/app.js';
 import { bearer, registerUser, type TestUser, type TokenPair } from '../../support/factories.js';
 import { connectRealtime, portOf } from '../../support/realtime.js';
+import { fixtureDb } from '../../support/db.js';
 
 interface Watched {
   socket: Socket;
@@ -57,7 +57,7 @@ describe('Realtime: ngắt khi token hết hạn / phiên bị thu hồi (e2e)',
     app = await createTestApp();
     await app.listen(0);
     port = portOf(app);
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
   });
 
   afterAll(async () => {

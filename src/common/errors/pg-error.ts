@@ -4,6 +4,10 @@ import type { PgLikeError } from './errors.types.js';
 export const PG_UNIQUE_VIOLATION = '23505';
 export const PG_FOREIGN_KEY_VIOLATION = '23503';
 export const PG_CHECK_VIOLATION = '23514';
+/** `lock_timeout`: chờ khoá quá hạn (M11 B1). */
+export const PG_LOCK_NOT_AVAILABLE = '55P03';
+/** `statement_timeout` (hoặc huỷ câu lệnh): chạy quá hạn (M11 B1). */
+export const PG_QUERY_CANCELED = '57014';
 
 /**
  * Drizzle (≥ 0.44) bọc lỗi driver trong DrizzleQueryError, lỗi gốc của `pg` nằm ở `.cause`.

@@ -15,16 +15,17 @@ Kiểm tra trên npm registry, nodejs.org và Docker Hub ngày **2026-10-13**. `
 
 ## NestJS
 
-| Package                                                                         | Phiên bản                                                                                         |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| @nestjs/core, common, platform-express, testing, websockets, platform-socket.io | 12.1.3 (websockets / platform-socket.io: giữ cùng bản core, không lên 12.2.0 dù là `latest` — M7) |
-| @nestjs/cli                                                                     | 12.0.8                                                                                            |
-| @nestjs/schematics                                                              | 12.0.7                                                                                            |
-| @nestjs/swagger                                                                 | 12.0.2                                                                                            |
-| @nestjs/config                                                                  | 12.0.1                                                                                            |
-| @nestjs/schedule                                                                | 12.0.2                                                                                            |
-| @nestjs/bullmq                                                                  | 12.0.0                                                                                            |
-| @nestjs/jwt                                                                     | 12.0.3                                                                                            |
+| Package                                                                         | Phiên bản                                                                                                        |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| @nestjs/core, common, platform-express, testing, websockets, platform-socket.io | 12.1.3 (websockets / platform-socket.io: giữ cùng bản core, không lên 12.2.0 dù là `latest` — M7)                |
+| @nestjs/cli                                                                     | 12.0.8                                                                                                           |
+| @nestjs/schematics                                                              | 12.0.7                                                                                                           |
+| @nestjs/swagger                                                                 | 12.0.2                                                                                                           |
+| @nestjs/config                                                                  | 12.0.1                                                                                                           |
+| @nestjs/schedule                                                                | 12.0.2                                                                                                           |
+| @nestjs/bullmq                                                                  | 12.0.0                                                                                                           |
+| @nestjs/jwt                                                                     | 12.0.3                                                                                                           |
+| @nestjs/throttler                                                               | 6.7.1 (M11; CJS, không có dependency runtime; storage mặc định trong bộ nhớ → thay bằng `RedisThrottlerStorage`) |
 
 ## Thư viện khác
 

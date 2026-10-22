@@ -1,10 +1,13 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 import { ApiNoContentResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import type { AuthUser } from '../../common/auth/auth.types.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import { Public } from '../../common/auth/public.decorator.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
+import { CredentialThrottle } from '../../infra/rate-limit/credential-throttle.decorator.js';
+import { RateLimit } from '../../infra/rate-limit/rate-limits.js';
 import { AuthService } from './services/auth.service.js';
 import { AuthTokensResponseDto } from './dto/auth-tokens-response.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -28,7 +31,8 @@ export class AuthController {
    */
   @Public()
   @Post('register')
-  @ApiErrorResponses(400, 409)
+  @Throttle(RateLimit.register)
+  @ApiErrorResponses(400, 409, 429)
   async register(@Body() dto: RegisterDto, @Req() req: Request): Promise<AuthTokensResponseDto> {
     return AuthTokensResponseDto.from(await this.auth.register(dto, sessionMetaOf(req)));
   }
@@ -37,11 +41,14 @@ export class AuthController {
    * Đăng nhập bằng email + mật khẩu.
    *
    * @remarks Sai email hoặc sai mật khẩu đều trả CÙNG 401 `AUTH_INVALID_CREDENTIALS`.
+   * Giới hạn: 30 lần / phút mỗi IP, 5 lần / phút mỗi (IP, email), 20 lần / giờ mỗi email → 429.
    */
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiErrorResponses(400, 401)
+  @Throttle(RateLimit.login)
+  @CredentialThrottle()
+  @ApiErrorResponses(400, 401, 429)
   async login(@Body() dto: LoginDto, @Req() req: Request): Promise<AuthTokensResponseDto> {
     return AuthTokensResponseDto.from(await this.auth.login(dto, sessionMetaOf(req)));
   }
@@ -56,7 +63,8 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiErrorResponses(400, 401)
+  @Throttle(RateLimit.refresh)
+  @ApiErrorResponses(400, 401, 429)
   async refresh(@Body() dto: RefreshTokenDto): Promise<AuthTokensResponseDto> {
     return AuthTokensResponseDto.from(await this.sessions.rotate(dto.refreshToken));
   }

@@ -4,7 +4,6 @@ import type { Socket } from 'socket.io-client';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { REALTIME_PUBLISHER } from '../../../src/infra/realtime/realtime.module.js';
 import type { RealtimePublisher } from '../../../src/infra/realtime/realtime.types.js';
@@ -18,6 +17,7 @@ import {
 } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
 import { connectRealtime, nextEvent, portOf } from '../../support/realtime.js';
+import { fixtureDb } from '../../support/db.js';
 
 /** `subscribe { meetingId }` → room `meeting:{id}` CHỈ khi xem được (điều kiện xem của M6b) — M7 B3. */
 describe('Realtime: subscribe meeting theo quyền xem (e2e)', () => {
@@ -43,7 +43,7 @@ describe('Realtime: subscribe meeting theo quyền xem (e2e)', () => {
     app = await createTestApp();
     await app.listen(0);
     port = portOf(app);
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
     for (const k of ['owner', 'orgAdmin', 'author', 'chMember', 'outsider', 'stranger'] as const) {
       u[k] = await registerUser(app);
     }

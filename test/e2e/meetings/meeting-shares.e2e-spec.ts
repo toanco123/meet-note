@@ -4,7 +4,6 @@ import { and, eq, inArray } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { channels, meetingShares } from '../../../src/infra/database/schema/index.js';
 import { createTestApp } from '../../support/app.js';
@@ -16,6 +15,7 @@ import {
   shareMeeting,
 } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 /** Ma trận share / gỡ share qua HTTP thật (04 §2, M6b Q2 – Q4). */
 describe('Meetings: chia sẻ vào kênh / gỡ (e2e)', () => {
@@ -49,7 +49,7 @@ describe('Meetings: chia sẻ vào kênh / gỡ (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
     for (const k of [
       'owner',
       'orgAdmin',

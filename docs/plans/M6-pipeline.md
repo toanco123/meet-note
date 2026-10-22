@@ -3,6 +3,7 @@
 - **Trạng thái:** **Hoãn** (người dùng 2026-10-21: làm sau). Plan nháp, chưa duyệt Q1–Q6. Phần chia sẻ / quyền xem tách sang [M6b](M6b-meeting-sharing.md)
 - **Nhánh:** `m6-pipeline`
 - **Lưu ý từ M10 B5:** worker đã có `DefaultQueueProcessor` (`src/worker/default-queue.processor.ts`) cho queue `default`. Trong lúc M6 hoãn, nó **cất** `meeting.preprocess` về `delayed` 1 giờ (`moveToDelayed` + `DelayedError`, không tính lần thử) thay vì làm job `failed`. Làm M6 thì thay nhánh đó bằng xử lý thật — job đang cất sẽ chạy ở lượt kế tiếp.
+- **Lưu ý từ M11 B7 (RLS):** job dọn dẹp (`ChannelsPurgeService`, `UploadsCleanupService`) hiện đăng ký trong module của api; chạy trong api (user bị RLS, không có ngữ cảnh tổ chức) chúng sẽ không thấy dòng nào. Lên lịch chúng trong WORKER (`meetnote_worker_login`, `BYPASSRLS`).
 - **Tài liệu thiết kế liên quan:** [01-overview D5, D6](../design/01-overview.md), [02-architecture §1, §4](../design/02-architecture.md), [03-database §4 `transcript_segments`, `meeting_summaries`](../design/03-database.md), [05-api Meetings](../design/05-api.md), [06-flows §1.2](../design/06-flows.md), [08-testing §5](../design/08-testing.md), [10-roadmap M6](../design/10-roadmap.md)
 
 ## Mục tiêu

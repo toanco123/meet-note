@@ -43,6 +43,22 @@ export const Errors = {
     duplicate: () => conflict(ErrorCode.Conflict, 'Dữ liệu đã tồn tại.'),
     referenceInvalid: () =>
       conflict(ErrorCode.Conflict, 'Dữ liệu tham chiếu không hợp lệ hoặc đang được sử dụng.'),
+    /**
+     * DB bận: chờ khoá quá `lock_timeout` / câu lệnh quá `statement_timeout` (M11 Q1). Tạm thời —
+     * thử lại thường được — nên 503 + `Retry-After`, không phải 409 (xung đột dữ liệu) hay 500.
+     */
+    rateLimited: () =>
+      new AppException(
+        ErrorCode.RateLimited,
+        HttpStatus.TOO_MANY_REQUESTS,
+        'Bạn thao tác quá nhanh. Vui lòng thử lại sau.',
+      ),
+    databaseBusy: () =>
+      new AppException(
+        ErrorCode.ServiceUnavailable,
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'Hệ thống đang bận. Vui lòng thử lại sau giây lát.',
+      ),
     /** Không lộ stack / SQL cho client; chi tiết nằm trong log server. */
     internal: () =>
       new AppException(

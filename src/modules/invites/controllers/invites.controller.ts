@@ -1,3 +1,5 @@
+import { Throttle } from '@nestjs/throttler';
+import { RateLimit } from '../../../infra/rate-limit/rate-limits.js';
 import {
   Body,
   Controller,
@@ -34,7 +36,8 @@ export class InvitesController {
    */
   @Post()
   @RequireOrgPermission('org.invite.manage')
-  @ApiErrorResponses(400)
+  @Throttle(RateLimit.inviteCreate)
+  @ApiErrorResponses(400, 429)
   create(
     @Param('orgId') orgId: string,
     @Body() dto: CreateInviteDto,
