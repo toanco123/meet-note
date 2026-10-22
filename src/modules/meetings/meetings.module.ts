@@ -1,7 +1,6 @@
-import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
-import { QueueName } from '../../infra/queue/queue.module.js';
 import { ChannelsModule } from '../channels/channels.module.js';
+import { MeetingsCoreModule } from './meetings-core.module.js';
 import { NotificationsCoreModule } from '../notifications/notifications-core.module.js';
 import { OrganizationsModule } from '../organizations/organizations.module.js';
 import { ChannelMeetingsController } from './controllers/channel-meetings.controller.js';
@@ -17,12 +16,7 @@ import { MeetingsService } from './services/meetings.service.js';
  * M6 tách phần không-HTTP (repository, service, queue) ra `MeetingsCoreModule` cho worker dùng.
  */
 @Module({
-  imports: [
-    OrganizationsModule,
-    ChannelsModule,
-    NotificationsCoreModule,
-    BullModule.registerQueue({ name: QueueName.Default }),
-  ],
+  imports: [OrganizationsModule, ChannelsModule, NotificationsCoreModule, MeetingsCoreModule],
   controllers: [MeetingsController, ChannelMeetingsController],
   providers: [
     MeetingsRepository,

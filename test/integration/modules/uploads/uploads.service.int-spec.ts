@@ -3,6 +3,8 @@ import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
 import { QueueName } from '../../../../src/infra/queue/queue.module.js';
+import { BullMqPipelineScheduler } from '../../../../src/modules/meetings/bullmq-pipeline.scheduler.js';
+import { PIPELINE_SCHEDULER } from '../../../../src/modules/meetings/pipeline.tokens.js';
 import { OBJECT_STORAGE } from '../../../../src/infra/storage/storage.module.js';
 import { MeetingsRepository } from '../../../../src/modules/meetings/repositories/meetings.repository.js';
 import { MeetingsService } from '../../../../src/modules/meetings/services/meetings.service.js';
@@ -39,6 +41,8 @@ describe('UploadsService.init — bù trừ khi ghi DB lỗi (Postgres + RustFS 
           provide: getQueueToken(QueueName.Default),
           useValue: { add: vi.fn<() => Promise<void>>() },
         },
+        { provide: getQueueToken(QueueName.Transcription), useValue: { add: vi.fn() } },
+        { provide: PIPELINE_SCHEDULER, useClass: BullMqPipelineScheduler },
         { provide: DRIZZLE, useValue: t.db },
         realtimeStub,
         { provide: OBJECT_STORAGE, useValue: s3.storage },

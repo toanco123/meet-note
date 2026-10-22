@@ -5,6 +5,10 @@ import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/bootstrap/configure-app.js';
 import { buildOpenApiDocument, setupSwagger } from '../../src/bootstrap/swagger.js';
 import { createPgPool, PG_POOL } from '../../src/infra/database/database.module.js';
+import { SUMMARIZER } from '../../src/infra/llm/llm.module.js';
+import type { Summarizer } from '../../src/infra/llm/llm.types.js';
+import { SPEECH_TO_TEXT } from '../../src/infra/speech/speech.module.js';
+import type { SpeechToText } from '../../src/infra/speech/speech.types.js';
 import { WorkerModule } from '../../src/worker.module.js';
 
 export interface TestAppOptions {
@@ -37,9 +41,17 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<INest
  * Tiến trình worker trong test (như worker.ts: application context, không HTTP) — chạy processor
  * thật trên Redis thật, cùng DB / prefix queue của file test. Đóng bằng `close()` (chờ job đang chạy).
  */
-export async function createTestWorker(): Promise<INestApplicationContext> {
+export async function createTestWorker(
+  overrides: { speech?: SpeechToText; summarizer?: Summarizer } = {},
+): Promise<INestApplicationContext> {
   // Như compose: worker kết nối bằng user RIÊNG (BYPASSRLS — job xuyên tổ chức, M11 B7).
-  const moduleRef = await Test.createTestingModule({ imports: [WorkerModule] })
+  let builder = Test.createTestingModule({ imports: [WorkerModule] });
+  // Bộ nhận dạng / tóm tắt giả có hành vi riêng (lỗi N lần, treo…) cho từng test (M6 B5).
+  if (overrides.speech)
+    builder = builder.overrideProvider(SPEECH_TO_TEXT).useValue(overrides.speech);
+  if (overrides.summarizer)
+    builder = builder.overrideProvider(SUMMARIZER).useValue(overrides.summarizer);
+  const moduleRef = await builder
     .overrideProvider(PG_POOL)
     .useFactory({
       factory: () =>

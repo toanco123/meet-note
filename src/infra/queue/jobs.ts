@@ -1,6 +1,8 @@
 /** Tên job: `domain.action`. Một queue có nhiều tên job; processor (M6) `switch (job.name)`. */
 export const JobName = {
   MeetingPreprocess: 'meeting.preprocess',
+  MeetingTranscribe: 'meeting.transcribe',
+  MeetingSummarize: 'meeting.summarize',
   NotificationFanout: 'notification.fanout',
 } as const;
 export type JobName = (typeof JobName)[keyof typeof JobName];

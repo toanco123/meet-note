@@ -6,6 +6,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DRIZZLE } from '../../../../src/infra/database/database.module.js';
 import { meetings, uploads } from '../../../../src/infra/database/schema/index.js';
 import { QueueName } from '../../../../src/infra/queue/queue.module.js';
+import { BullMqPipelineScheduler } from '../../../../src/modules/meetings/bullmq-pipeline.scheduler.js';
+import { PIPELINE_SCHEDULER } from '../../../../src/modules/meetings/pipeline.tokens.js';
 import { MultipartUploadNotFoundError } from '../../../../src/infra/storage/storage.errors.js';
 import { REALTIME_PUBLISHER } from '../../../../src/infra/realtime/realtime.module.js';
 import type { RealtimePublisher } from '../../../../src/infra/realtime/realtime.types.js';
@@ -84,6 +86,9 @@ describe('UploadsService.complete (Postgres + RustFS thật)', () => {
         MeetingsService,
         ChannelsRepository,
         { provide: getQueueToken(QueueName.Default), useValue: queue },
+        // M6 B5: MeetingsService enqueue qua scheduler THẬT (jobId, retry từng bước) → queue giả ở trên.
+        { provide: getQueueToken(QueueName.Transcription), useValue: { add: vi.fn() } },
+        { provide: PIPELINE_SCHEDULER, useClass: BullMqPipelineScheduler },
         { provide: DRIZZLE, useValue: t.db },
         { provide: REALTIME_PUBLISHER, useValue: realtime },
         { provide: OBJECT_STORAGE, useValue: s3.storage },
@@ -139,7 +144,7 @@ describe('UploadsService.complete (Postgres + RustFS thật)', () => {
     expect(enqueued).toEqual([
       {
         name: 'meeting.preprocess',
-        data: { meetingId: meeting.id, requestId: 'req-1' },
+        data: { meetingId: meeting.id, attempt: 1, requestId: 'req-1' },
         jobId: `meeting.preprocess.${meeting.id}.a1`,
         meetingVisible: true,
       },

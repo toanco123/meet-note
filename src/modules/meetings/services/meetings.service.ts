@@ -1,17 +1,12 @@
-import { InjectQueue } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { Queue } from 'bullmq';
 import { Errors } from '../../../common/errors/errors.js';
 import { decodeCursor, toPage } from '../../../common/pagination/cursor.js';
 import { expectTimestampKey, expectUuidKey } from '../../../common/pagination/keys.js';
 import type { Page } from '../../../common/pagination/pagination.types.js';
 import type { MeetingRow } from '../../../infra/database/schema/index.js';
-import { JobName, meetingJobId } from '../../../infra/queue/jobs.js';
 import { RealtimeRoom } from '../../../infra/realtime/realtime-rooms.js';
 import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
 import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
-import { QueueName } from '../../../infra/queue/queue.module.js';
-import type { MeetingJobData } from '../../../infra/queue/queue.types.js';
 import { channelPolicy, decideChannelPermission } from '../../channels/channel.policy.js';
 import { assertChannelDecision } from '../../channels/channel-decisions.js';
 import type { ChannelAccess } from '../../channels/channels.types.js';
@@ -25,7 +20,8 @@ import {
   MeetingResponseDto,
 } from '../dto/meeting-response.dto.js';
 import { MeetingsRepository } from '../repositories/meetings.repository.js';
-import type { MeetingViewer } from '../meetings.types.js';
+import type { MeetingViewer, PipelineScheduler } from '../meetings.types.js';
+import { PIPELINE_SCHEDULER } from '../pipeline.tokens.js';
 
 @Injectable()
 export class MeetingsService {
@@ -34,7 +30,7 @@ export class MeetingsService {
   constructor(
     private readonly repo: MeetingsRepository,
     private readonly channels: ChannelsRepository,
-    @InjectQueue(QueueName.Default) private readonly queue: Queue<MeetingJobData>,
+    @Inject(PIPELINE_SCHEDULER) private readonly pipeline: PipelineScheduler,
     @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
   ) {}
 
@@ -149,15 +145,11 @@ export class MeetingsService {
   async enqueuePreprocess(meeting: MeetingRow, requestId: string | null): Promise<void> {
     if (meeting.status !== 'queued') return;
     try {
-      await this.queue.add(
-        JobName.MeetingPreprocess,
-        { meetingId: meeting.id, requestId },
-        {
-          jobId: meetingJobId(JobName.MeetingPreprocess, meeting.id, meeting.attempt),
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 10_000 },
-        },
-      );
+      await this.pipeline.enqueue('preprocess', {
+        meetingId: meeting.id,
+        attempt: meeting.attempt,
+        requestId,
+      });
     } catch (error) {
       this.logger.error({ err: error, meetingId: meeting.id }, 'Enqueue meeting.preprocess lỗi');
     }

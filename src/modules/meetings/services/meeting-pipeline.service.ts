@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database } from '../../../infra/database/database.types.js';
+import type { MeetingFailureCode } from '../../../infra/database/schema/index.js';
 import { LlmPermanentError } from '../../../infra/llm/llm.errors.js';
 import { SUMMARIZER } from '../../../infra/llm/llm.module.js';
 import type { MeetingSummaryContent, Summarizer } from '../../../infra/llm/llm.types.js';
@@ -25,11 +26,8 @@ import type {
   PipelineScheduler,
   PipelineStep,
 } from '../meetings.types.js';
+import { PIPELINE_OPTIONS, PIPELINE_SCHEDULER } from '../pipeline.tokens.js';
 import { MeetingPipelineRepository } from '../repositories/meeting-pipeline.repository.js';
-
-/** Inject `PipelineScheduler` (B5: BullMQ) và `PipelineOptions`. */
-export const PIPELINE_SCHEDULER = Symbol('PIPELINE_SCHEDULER');
-export const PIPELINE_OPTIONS = Symbol('PIPELINE_OPTIONS');
 
 /** Transcript rỗng (im lặng / không nhận dạng được) → không gọi LLM. */
 const EMPTY_SUMMARY: MeetingSummaryContent = {
@@ -214,6 +212,14 @@ export class MeetingPipelineService {
         return true;
       });
     });
+  }
+
+  /**
+   * Đưa meeting về `failed` (processor B5): lỗi vĩnh viễn, hoặc hết lượt retry. Điều kiện `attempt`:
+   * sự kiện của lần chạy cũ tới muộn không đè lên lần chạy lại.
+   */
+  fail(job: PipelineJob, code: MeetingFailureCode, message: string): Promise<boolean> {
+    return this.repo.fail(job.meetingId, job.attempt, code, message);
   }
 
   /**

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { getQueueToken } from '@nestjs/bullmq';
 import type { INestApplication, INestApplicationContext } from '@nestjs/common';
 import { type Queue, QueueEvents } from 'bullmq';
@@ -6,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import type { Socket } from 'socket.io-client';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { notifications } from '../../../src/infra/database/schema/index.js';
 import { JobName } from '../../../src/infra/queue/jobs.js';
@@ -112,23 +111,11 @@ describe('Thông báo: fan-out "meeting được chia sẻ" qua worker (e2e)', (
     ]).toEqual([1, 1, 0, 0, 1]);
   });
 
-  // M6 (pipeline) còn hoãn: job M5 đã enqueue không được thành `failed` (jobId cũ sẽ chặn enqueue lại).
-  it('`meeting.preprocess` (chưa có pipeline) → cất về `delayed`, không tính lần thử; tên job lạ → `failed` ngay', async () => {
-    const parked = await queue.add(
-      JobName.MeetingPreprocess,
-      { meetingId: randomUUID(), requestId: null },
-      { jobId: `${JobName.MeetingPreprocess}.${randomUUID()}.a1`, attempts: 3 },
-    );
+  // M6 B5: `meeting.preprocess` giờ có pipeline thật (test ở e2e/meetings/meeting-pipeline); job tên lạ
+  // vẫn phải fail NGAY dù cấu hình nhiều lượt.
+  it('tên job lạ → `failed` ngay (UnrecoverableError), không retry', async () => {
     const unknown = await queue.add('khong.ton.tai', {}, { attempts: 3 });
-
     await expect(unknown.waitUntilFinished(events, 10_000)).rejects.toThrow('Job không xác định');
-    await vi.waitFor(async () => expect(await parked.getState()).toBe('delayed'), {
-      timeout: 10_000,
-    });
-    const [parkedNow, unknownNow] = [
-      await queue.getJob(parked.id!),
-      await queue.getJob(unknown.id!),
-    ];
-    expect([parkedNow?.attemptsMade, unknownNow?.attemptsMade]).toEqual([0, 1]);
+    expect((await queue.getJob(unknown.id!))?.attemptsMade).toBe(1);
   });
 });

@@ -3,6 +3,11 @@
 /** `meeting.preprocess` / `meeting.transcribe` / `meeting.summarize` (M6). */
 export interface MeetingJobData {
   meetingId: string;
+  /**
+   * Lần chạy pipeline — fencing token (M6 Q6): job của lần chạy cũ bị loại. Job M5 enqueue trước M6
+   * không có trường này → coi là 1 (đúng với jobId `…a1` của chúng).
+   */
+  attempt?: number;
   /** Nối log của request đã tạo job với log của worker. */
   requestId: string | null;
 }

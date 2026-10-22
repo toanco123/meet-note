@@ -186,6 +186,16 @@ export class EnvironmentVariables {
   @MinLength(1)
   FFPROBE_PATH = 'ffprobe';
 
+  /**
+   * Queue mà worker này nghe (M6): `default` (ngắn) và / hoặc `transcription` (whisper, nặng).
+   * `WorkerModule` đọc thẳng `process.env` lúc import (danh sách processor là metadata tĩnh) — khai
+   * báo ở đây để có tài liệu + kiểm định dạng.
+   */
+  @Matches(/^(default|transcription)(,(default|transcription))*$/, {
+    message: 'WORKER_QUEUES: danh sách cách nhau bằng dấu phẩy, gồm default / transcription',
+  })
+  WORKER_QUEUES = 'default,transcription';
+
   /** Nhận dạng giọng nói của worker (M6): `whisper` (whisper.cpp) hoặc `fake` (dev / test). */
   @IsIn(['whisper', 'fake'])
   SPEECH_PROVIDER: 'whisper' | 'fake' = 'whisper';
