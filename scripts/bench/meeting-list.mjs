@@ -9,6 +9,7 @@
 import 'reflect-metadata';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
+import { createPgPool } from '../../dist/infra/database/database.module.js';
 import { runMigrations } from '../../dist/infra/database/migrate.js';
 import * as schema from '../../dist/infra/database/schema/index.js';
 import { MeetingsRepository } from '../../dist/modules/meetings/repositories/meetings.repository.js';
@@ -73,11 +74,11 @@ select id, owner_id, recorded_at,
 from meetings;
 
 -- Mỗi meeting share vào 1 kênh, ~20% thêm kênh thứ hai → ~120k share.
-insert into meeting_shares (meeting_id, channel_id, org_id, shared_by, shared_at)
-select m.id, c.id, o.id, m.owner_id, m.recorded_at + interval '1 hour'
+insert into meeting_shares (meeting_id, channel_id, org_id, shared_by, shared_at, recorded_at)
+select m.id, c.id, o.id, m.owner_id, m.recorded_at + interval '1 hour', m.recorded_at
 from m, o, c where c.n = m.c1
 union all
-select m.id, c.id, o.id, m.owner_id, m.recorded_at + interval '2 hours'
+select m.id, c.id, o.id, m.owner_id, m.recorded_at + interval '2 hours', m.recorded_at
 from m, o, c where c.n = m.c2 and m.c2 <> m.c1
 on conflict do nothing;
 `;
@@ -92,7 +93,15 @@ async function main() {
   await admin.connect();
   await admin.query(`create database ${dbName}`);
   console.log(`DB tạm: ${dbName}`);
-  const pool = new pg.Pool({ connectionString: dbUrl, max: 2 });
+  // CHÍNH pool của app (timeout, jit=off, …) — đo đúng cấu hình api chạy thật.
+  const pool = createPgPool({
+    connectionString: dbUrl,
+    max: 2,
+    applicationName: 'bench',
+    lockTimeoutMs: 3_000,
+    statementTimeoutMs: 600_000, // seed + vacuum chạy lâu
+    idleInTransactionTimeoutMs: 30_000,
+  });
   try {
     await runMigrations(dbUrl);
     const started = Date.now();
@@ -106,12 +115,13 @@ async function main() {
     ).rows[0];
     console.log(`Sinh dữ liệu ${((Date.now() - started) / 1000).toFixed(1)} s:`, counts);
 
-    let captured;
+    /** MỌI câu SQL của một lần gọi `listVisible` (từ M11 B5 là hai câu) — đo tổng, không chỉ câu cuối. */
+    let captured = [];
     const db = drizzle({
       client: pool,
       schema,
       casing: 'snake_case',
-      logger: { logQuery: (query, params) => (captured = { query, params }) },
+      logger: { logQuery: (query, params) => captured.push({ query, params }) },
     });
     const repo = new MeetingsRepository(db);
     const orgId = (await pool.query('select id from organizations')).rows[0].id;
@@ -132,27 +142,41 @@ async function main() {
 
     const results = [];
     const measure = async (profile, page, params) => {
-      await repo.listVisible(params); // warm-up + bắt câu SQL
-      const { query, params: binds } = captured;
+      captured = [];
+      await repo.listVisible(params); // warm-up + bắt các câu SQL
+      const queries = captured;
       const times = [];
       let buffers = 0;
       let rows = 0;
-      let planText = '';
       for (let i = 0; i < RUNS; i++) {
-        const [explained] = (
-          await pool.query(`explain (analyze, buffers, format json) ${query}`, binds)
-        ).rows[0]['QUERY PLAN'];
-        times.push(explained['Execution Time']);
-        buffers = explained.Plan['Shared Hit Blocks'] + explained.Plan['Shared Read Blocks'];
-        rows = explained.Plan['Actual Rows'];
+        let total = 0;
+        buffers = 0;
+        for (const { query, params: binds } of queries) {
+          const [explained] = (
+            await pool.query(`explain (analyze, buffers, format json) ${query}`, binds)
+          ).rows[0]['QUERY PLAN'];
+          total += explained['Execution Time'];
+          buffers += explained.Plan['Shared Hit Blocks'] + explained.Plan['Shared Read Blocks'];
+          rows = explained.Plan['Actual Rows']; // của câu cuối (danh sách)
+        }
+        times.push(total);
       }
       if (PLANS) {
-        planText = (await pool.query(`explain (analyze, buffers) ${query}`, binds)).rows
-          .map((r) => r['QUERY PLAN'])
-          .join('\n');
-        console.log(`\n### ${profile.name} — ${page}\n${planText}`);
+        for (const { query, params: binds } of queries) {
+          const planText = (await pool.query(`explain (analyze, buffers) ${query}`, binds)).rows
+            .map((r) => r['QUERY PLAN'])
+            .join('\n');
+          console.log(`\n### ${profile.name} — ${page}\n${planText}`);
+        }
       }
-      results.push({ profile: profile.name, page, ms: median(times), buffers, rows });
+      results.push({
+        profile: profile.name,
+        page,
+        ms: median(times),
+        buffers,
+        rows,
+        queries: queries.length,
+      });
     };
 
     for (const profile of profiles) {
@@ -169,10 +193,12 @@ async function main() {
       await measure(profile, 'lọc status=failed', { ...base, status: 'failed' });
     }
 
-    console.log('\n| Người xem | Trang | Trung vị (ms) | Buffers | Dòng trả |');
-    console.log('| --- | --- | ---: | ---: | ---: |');
+    console.log(`\n| Người xem | Trang | Trung vị (ms, mọi câu) | Buffers | Dòng trả | Số câu |`);
+    console.log('| --- | --- | ---: | ---: | ---: | ---: |');
     for (const r of results) {
-      console.log(`| ${r.profile} | ${r.page} | ${r.ms.toFixed(2)} | ${r.buffers} | ${r.rows} |`);
+      console.log(
+        `| ${r.profile} | ${r.page} | ${r.ms.toFixed(2)} | ${r.buffers} | ${r.rows} | ${r.queries} |`,
+      );
     }
   } finally {
     await pool.end();

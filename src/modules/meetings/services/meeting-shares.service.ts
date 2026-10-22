@@ -48,7 +48,13 @@ export class MeetingSharesService {
       if (!meeting || meeting.ownerId !== userId) throw Errors.meeting.notFound();
       assertChannelDecision(decideChannelPermission('channel.meeting.share', access));
 
-      const values = { meetingId, channelId, orgId: membership.orgId, sharedBy: userId };
+      const values = {
+        meetingId,
+        channelId,
+        orgId: membership.orgId,
+        sharedBy: userId,
+        recordedAt: meeting.recordedAt,
+      };
       const inserted = await this.repo.insert(values, tx);
       const sharedAt =
         inserted?.sharedAt ?? (await this.repo.find(meetingId, channelId, tx))?.sharedAt;

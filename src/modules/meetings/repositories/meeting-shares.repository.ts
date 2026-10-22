@@ -45,7 +45,7 @@ export class MeetingSharesRepository {
   /** Meeting chưa xoá. Chờ xong việc xoá đang chạy rồi đọc LẠI (`deleted_at` mới) — read committed. */
   async lockMeeting(orgId: string, meetingId: string, executor: DbExecutor) {
     const [row] = await executor
-      .select({ id: meetings.id, ownerId: meetings.ownerId })
+      .select({ id: meetings.id, ownerId: meetings.ownerId, recordedAt: meetings.recordedAt })
       .from(meetings)
       .where(and(eq(meetings.id, meetingId), eq(meetings.orgId, orgId), isNull(meetings.deletedAt)))
       .for('share');
@@ -54,7 +54,14 @@ export class MeetingSharesRepository {
 
   /** `undefined` = đã share từ trước (ON CONFLICT DO NOTHING) — idempotent (M6b Q3). */
   async insert(
-    values: { meetingId: string; channelId: string; orgId: string; sharedBy: string },
+    values: {
+      meetingId: string;
+      channelId: string;
+      orgId: string;
+      sharedBy: string;
+      /** Chép từ dòng meeting ĐÃ KHOÁ (`lockMeeting`) — sửa `recordedAt` đồng thời phải chờ. */
+      recordedAt: Date;
+    },
     executor: DbExecutor,
   ): Promise<{ sharedAt: Date } | undefined> {
     const [row] = await executor

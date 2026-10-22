@@ -28,6 +28,9 @@ export function createPgPool(options: PgPoolOptions): Pool {
     lock_timeout: options.lockTimeoutMs,
     statement_timeout: options.statementTimeoutMs,
     idle_in_transaction_session_timeout: options.idleInTransactionTimeoutMs,
+    // App OLTP: JIT chỉ đáng với truy vấn phân tích chạy lâu. Ước lượng chi phí phồng (vd danh sách
+    // meeting ~3M "cost") làm Postgres compile JIT ~17 ms cho câu chỉ đọc 9 buffer (M11 B5).
+    options: '-c jit=off',
   });
   // BẪY: không lắng nghe 'error' thì một client rảnh bị DB ngắt (restart, failover)
   // sẽ phát 'error' không ai bắt → crash cả tiến trình.
