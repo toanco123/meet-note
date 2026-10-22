@@ -22,6 +22,14 @@ export function createTestDb(max = 10): TestDb {
     if ((error as { code?: string }).code === '57P01' && pool.ending) return;
     throw error;
   });
+  // Như `createPgPool` (M11 B1): connection đang được MƯỢN (test race bị kẹt lúc teardown) không có
+  // listener 'error' → `57P01` thành uncaught exception, che mất lỗi thật của test. Câu lệnh kế
+  // tiếp của người mượn vẫn thấy lỗi.
+  pool.on('connect', (client) => {
+    client.on('error', (error) => {
+      if ((error as { code?: string }).code !== '57P01') throw error;
+    });
+  });
   const db = drizzle({ client: pool, schema, casing: 'snake_case' });
   return { db, pool, close: () => endPool(pool) };
 }

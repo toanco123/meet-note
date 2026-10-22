@@ -33,7 +33,17 @@ export async function waitForLockWaiters(
     if ((result.rows[0]?.n ?? 0) >= count) return;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  throw new Error(`Sau ${timeoutMs}ms vẫn chưa có ${count} transaction chờ khoá`);
+  // Chập chờn khi chạy cả bộ song song (M11 B2, M10 bài học 4) — chưa rõ nguyên nhân: in trạng thái
+  // mọi backend của database này để lần sau biết transaction kia đang kẹt ở đâu.
+  const backends = await db.execute(sql`
+    select pid, state, wait_event_type, wait_event,
+           (now() - xact_start)::text as in_tx, left(query, 160) as query
+    from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid()
+  `);
+  throw new Error(
+    `Sau ${timeoutMs}ms vẫn chưa có ${count} transaction chờ khoá. Backend:\n` +
+      JSON.stringify(backends.rows, null, 2),
+  );
 }
 
 /**
