@@ -3,14 +3,26 @@ import {
   CompleteMultipartUploadCommand,
   CreateBucketCommand,
   CreateMultipartUploadCommand,
+  GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  PutObjectCommand,
   S3Client,
   S3ServiceException,
   UploadPartCommand,
 } from '@aws-sdk/client-s3';
-import { MultipartUploadNotFoundError } from './storage.errors.js';
-import type { CompletedPart, ObjectStorage, UploadPartInput } from './storage.types.js';
+import { createHash } from 'node:crypto';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { MultipartUploadNotFoundError, ObjectNotFoundError } from './storage.errors.js';
+import type {
+  CompletedPart,
+  DownloadedObject,
+  ObjectStorage,
+  UploadPartInput,
+} from './storage.types.js';
 
 /** Adapter `ObjectStorage` cho mọi server tương thích S3 (AWS, RustFS). */
 export class S3ObjectStorage implements ObjectStorage {
@@ -88,6 +100,53 @@ export class S3ObjectStorage implements ObjectStorage {
       if (isS3Error(error, 'NotFound', 404)) return undefined;
       throw error;
     }
+  }
+
+  /**
+   * `pipeline(body → băm → file)`: dữ liệu chảy theo từng chunk, có backpressure (ổ đĩa chậm thì S3
+   * chờ), lỗi ở BẤT KỲ khâu nào huỷ cả chuỗi và đóng file. Tự nối `.pipe()` thì lỗi giữa chừng có
+   * thể để lại stream treo / file mở.
+   */
+  async downloadToFile(key: string, path: string, signal?: AbortSignal): Promise<DownloadedObject> {
+    const out = await this.client
+      .send(new GetObjectCommand({ Bucket: this.bucket, Key: key }), { abortSignal: signal })
+      .catch((error: unknown) => {
+        if (isS3Error(error, 'NoSuchKey', 404))
+          throw new ObjectNotFoundError(key, { cause: error });
+        throw error;
+      });
+    if (!(out.Body instanceof Readable)) throw new Error('S3 GetObject không trả stream (Node)');
+    const hash = createHash('sha256');
+    let sizeBytes = 0;
+    const tap = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        hash.update(chunk);
+        sizeBytes += chunk.length;
+        callback(null, chunk);
+      },
+    });
+    await pipeline(out.Body, tap, createWriteStream(path), { signal });
+    return { sizeBytes, sha256: hash.digest('hex') };
+  }
+
+  async uploadFile(
+    key: string,
+    path: string,
+    contentType: string,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    // Body là stream thì S3 phải biết độ dài trước — không có thì SDK buffer cả file (như M5).
+    const { size } = await stat(path);
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: createReadStream(path),
+        ContentLength: size,
+        ContentType: contentType,
+      }),
+      { abortSignal: signal },
+    );
   }
 
   /** Dev / test (`S3_CREATE_BUCKET=true`): tạo bucket nếu chưa có. Gọi lại an toàn. */

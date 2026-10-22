@@ -10,3 +10,14 @@ export class MultipartUploadNotFoundError extends Error {
     this.name = 'MultipartUploadNotFoundError';
   }
 }
+
+/** Object không có (key sai / đã xoá). */
+export class ObjectNotFoundError extends Error {
+  constructor(
+    readonly key: string,
+    options?: ErrorOptions,
+  ) {
+    super(`Object không tồn tại: ${key}`, options);
+    this.name = 'ObjectNotFoundError';
+  }
+}

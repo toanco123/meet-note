@@ -1,8 +1,14 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { S3ServiceException } from '@aws-sdk/client-s3';
-import { afterAll, describe, expect, it } from 'vitest';
-import { MultipartUploadNotFoundError } from '../../../../src/infra/storage/storage.errors.js';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  MultipartUploadNotFoundError,
+  ObjectNotFoundError,
+} from '../../../../src/infra/storage/storage.errors.js';
 import { createTestStorage } from '../../../support/storage.js';
 
 const MiB = 1024 * 1024;
@@ -140,5 +146,55 @@ describe('S3ObjectStorage với RustFS thật', () => {
 
   it('headObject của key không tồn tại → undefined', async () => {
     expect(await storage.headObject(newKey())).toBeUndefined();
+  });
+});
+
+describe('S3ObjectStorage: tải / đẩy FILE bằng stream (M6 B2)', () => {
+  const { storage, close } = createTestStorage();
+  let dir: string;
+
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'meetnote-s3-file-'));
+  });
+
+  afterAll(async () => {
+    close();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  // Đột biến: bỏ `hash.update` trong khâu băm → sha256 sai (đỏ).
+  it('đẩy rồi tải lại 24 MiB: nội dung, kích thước, sha256 (tính TRONG lúc tải) khớp file gốc', async () => {
+    const source = join(dir, 'nguon.bin');
+    const content = randomBytes(24 * 1024 * 1024);
+    await writeFile(source, content);
+    const key = `test/m6/${randomUUID()}.bin`;
+
+    await storage.uploadFile(key, source, 'application/octet-stream');
+    const downloaded = await storage.downloadToFile(key, join(dir, 'tai-ve.bin'));
+
+    expect(downloaded).toEqual({
+      sizeBytes: content.length,
+      sha256: createHash('sha256').update(content).digest('hex'),
+    });
+    expect((await readFile(join(dir, 'tai-ve.bin'))).equals(content)).toBe(true);
+  });
+
+  it('object không có → ObjectNotFoundError (không phải lỗi SDK trần)', async () => {
+    const error = await storage
+      .downloadToFile(`test/m6/khong-co-${randomUUID()}`, join(dir, 'x.bin'))
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ObjectNotFoundError);
+  });
+
+  it('huỷ giữa chừng (AbortSignal) → reject, không treo', async () => {
+    const source = join(dir, 'lon.bin');
+    await writeFile(source, randomBytes(8 * 1024 * 1024));
+    const key = `test/m6/${randomUUID()}.bin`;
+    await storage.uploadFile(key, source, 'application/octet-stream');
+    const controller = new AbortController();
+    controller.abort(new Error('worker đang tắt'));
+    await expect(
+      storage.downloadToFile(key, join(dir, 'huy.bin'), controller.signal),
+    ).rejects.toThrow('Request aborted'); // thông điệp của AWS SDK khi abortSignal kích hoạt
   });
 });

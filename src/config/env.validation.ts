@@ -177,6 +177,15 @@ export class EnvironmentVariables {
   @MinLength(1)
   QUEUE_PREFIX = 'meetnote';
 
+  /** Binary của ffmpeg / ffprobe (M6) — mặc định tìm trong PATH (Homebrew / apt / apk). */
+  @IsString()
+  @MinLength(1)
+  FFMPEG_PATH = 'ffmpeg';
+
+  @IsString()
+  @MinLength(1)
+  FFPROBE_PATH = 'ffprobe';
+
   /** Tắt được để test e2e (đăng ký hàng loạt user từ 127.0.0.1) không vướng giới hạn (M11 B3). */
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.toLowerCase() === 'true' : value,
