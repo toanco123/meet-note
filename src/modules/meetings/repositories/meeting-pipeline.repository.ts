@@ -196,12 +196,13 @@ export class MeetingPipelineRepository {
    * sự kiện của lần chạy CŨ tới muộn không được đè lên lần chạy lại.
    */
   async fail(
+    executor: DbExecutor,
     meetingId: string,
     attempt: number,
     code: MeetingFailureCode,
     message: string,
-  ): Promise<boolean> {
-    const rows = await this.db
+  ): Promise<{ orgId: string; ownerId: string | null; title: string } | undefined> {
+    const [row] = await executor
       .update(meetings)
       .set({
         status: 'failed',
@@ -218,7 +219,7 @@ export class MeetingPipelineRepository {
           notInArray(meetings.status, ['completed', 'failed']),
         ),
       )
-      .returning({ id: meetings.id });
-    return rows.length > 0;
+      .returning({ orgId: meetings.orgId, ownerId: meetings.ownerId, title: meetings.title });
+    return row;
   }
 }

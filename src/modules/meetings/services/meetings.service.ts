@@ -4,7 +4,6 @@ import { decodeCursor, toPage } from '../../../common/pagination/cursor.js';
 import { expectTimestampKey, expectUuidKey } from '../../../common/pagination/keys.js';
 import type { Page } from '../../../common/pagination/pagination.types.js';
 import type { MeetingRow } from '../../../infra/database/schema/index.js';
-import { RealtimeRoom } from '../../../infra/realtime/realtime-rooms.js';
 import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
 import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
 import { channelPolicy, decideChannelPermission } from '../../channels/channel.policy.js';
@@ -21,6 +20,7 @@ import {
 } from '../dto/meeting-response.dto.js';
 import { MeetingsRepository } from '../repositories/meetings.repository.js';
 import type { MeetingViewer, PipelineScheduler } from '../meetings.types.js';
+import { publishMeetingStatus } from '../meeting-events.js';
 import { PIPELINE_SCHEDULER } from '../pipeline.tokens.js';
 
 @Injectable()
@@ -125,13 +125,7 @@ export class MeetingsService {
    * ở mỗi lần chuyển trạng thái.
    */
   publishStatus(meeting: Pick<MeetingRow, 'id' | 'ownerId' | 'status' | 'failureCode'>): void {
-    const rooms = [RealtimeRoom.meeting(meeting.id)];
-    if (meeting.ownerId) rooms.push(RealtimeRoom.user(meeting.ownerId));
-    this.realtime.emit(rooms, 'meeting.status', {
-      meetingId: meeting.id,
-      status: meeting.status,
-      failureCode: meeting.failureCode,
-    });
+    publishMeetingStatus(this.realtime, meeting);
   }
 
   /**

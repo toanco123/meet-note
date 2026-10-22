@@ -32,6 +32,9 @@ import {
 } from '../../../support/db-factories.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 import { createTestStorage } from '../../../support/storage.js';
+import { realtimeStub } from '../../../support/realtime-stub.js';
+import { NotificationsRepository } from '../../../../src/modules/notifications/notifications.repository.js';
+import { NotificationsService } from '../../../../src/modules/notifications/services/notifications.service.js';
 
 const OPTIONS: PipelineOptions = {
   maxDurationMs: 4 * 3600_000,
@@ -110,6 +113,8 @@ describe('MeetingPipelineService (Postgres + RustFS + ffmpeg thật)', () => {
       over.summarizer ?? new FakeSummarizer(),
       rec.scheduler,
       { ...OPTIONS, ...over.options },
+      realtimeStub.useValue,
+      new NotificationsService(new NotificationsRepository(t.db), realtimeStub.useValue),
     );
     return { service, calls: rec.calls };
   }
@@ -262,8 +267,11 @@ describe('MeetingPipelineService (Postgres + RustFS + ffmpeg thật)', () => {
     await service.preprocess(m.job);
     await service.transcribe(m.job);
     const error = await service.summarize(m.job).catch((e: unknown) => e);
-    const staleEvent = await repo().fail(m.id, 0, 'SUMMARIZE_FAILED', 'x'); // sự kiện của lần chạy cũ
-    const failed = await repo().fail(m.id, 1, 'SUMMARIZE_FAILED', 'Không tạo được bản tóm tắt.');
+    // sự kiện của lần chạy cũ tới muộn → không đè
+    const staleEvent = Boolean(await repo().fail(t.db, m.id, 0, 'SUMMARIZE_FAILED', 'x'));
+    const failed = Boolean(
+      await repo().fail(t.db, m.id, 1, 'SUMMARIZE_FAILED', 'Không tạo được bản tóm tắt.'),
+    );
     const after = await row(m.id);
     expect([
       (error as PermanentPipelineError).code,

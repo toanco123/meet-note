@@ -4,7 +4,11 @@ import { join } from 'node:path';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database } from '../../../infra/database/database.types.js';
-import type { MeetingFailureCode } from '../../../infra/database/schema/index.js';
+import type {
+  MeetingFailureCode,
+  MeetingStatus,
+  NotificationRow,
+} from '../../../infra/database/schema/index.js';
 import { LlmPermanentError } from '../../../infra/llm/llm.errors.js';
 import { SUMMARIZER } from '../../../infra/llm/llm.module.js';
 import type { MeetingSummaryContent, Summarizer } from '../../../infra/llm/llm.types.js';
@@ -13,9 +17,14 @@ import { MediaTools } from '../../../infra/media/media-tools.js';
 import { SpeechModelMissingError } from '../../../infra/speech/speech.errors.js';
 import { SPEECH_TO_TEXT } from '../../../infra/speech/speech.module.js';
 import type { SpeechToText } from '../../../infra/speech/speech.types.js';
+import { RealtimeRoom } from '../../../infra/realtime/realtime-rooms.js';
+import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
+import type { RealtimePublisher } from '../../../infra/realtime/realtime.types.js';
 import { ObjectNotFoundError } from '../../../infra/storage/storage.errors.js';
 import { OBJECT_STORAGE } from '../../../infra/storage/storage.module.js';
 import type { ObjectStorage } from '../../../infra/storage/storage.types.js';
+import { NotificationsService } from '../../notifications/services/notifications.service.js';
+import { publishMeetingStatus } from '../meeting-events.js';
 import { PermanentPipelineError } from '../meeting-pipeline.errors.js';
 import type {
   ClaimedMeeting,
@@ -60,6 +69,8 @@ export class MeetingPipelineService {
     @Inject(SUMMARIZER) private readonly summarizer: Summarizer,
     @Inject(PIPELINE_SCHEDULER) private readonly scheduler: PipelineScheduler,
     @Inject(PIPELINE_OPTIONS) private readonly options: PipelineOptions,
+    @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Tải file gốc (kiểm sha256 trong lúc tải) → probe → WAV 16 kHz mono → đẩy lên S3. */
@@ -73,6 +84,9 @@ export class MeetingPipelineService {
       lease,
     );
     if (!meeting) return this.skip('preprocess', job);
+    // `queued` → `preprocessing` vừa commit (câu claim tự commit). Lần retry phát lại cùng trạng
+    // thái — vô hại, client xử lý idempotent.
+    this.publishStatus(meeting, 'preprocessing');
     return this.runStage('preprocess', meeting, job, () =>
       withTempDir(async (dir) => {
         const source = join(dir, 'source');
@@ -106,11 +120,13 @@ export class MeetingPipelineService {
         // Khoá ổn định theo meeting: chạy lại GHI ĐÈ cùng object, không để lại bản thừa.
         const audioObjectKey = `orgs/${meeting.orgId}/meetings/${meeting.id}/audio.wav`;
         await this.storage.uploadFile(audioObjectKey, wav, 'audio/wav', run.signal);
-        return this.db.transaction((tx) =>
-          this.repo.completePreprocess(tx, meeting.id, meeting.stageToken, {
+        return this.db.transaction(async (tx) =>
+          (await this.repo.completePreprocess(tx, meeting.id, meeting.stageToken, {
             durationMs: probe.durationMs,
             audioObjectKey,
-          }),
+          }))
+            ? []
+            : false,
         );
       }),
     );
@@ -133,12 +149,25 @@ export class MeetingPipelineService {
         if (!meeting.audioObjectKey) throw new Error('Meeting ở chặng transcribe mà thiếu audio');
         const wav = join(dir, 'audio.wav');
         await this.storage.downloadToFile(meeting.audioObjectKey, wav, run.signal);
+        // whisper báo tiến độ dày (mỗi vài %) → chỉ phát khi tăng ≥ 5 % hoặc tới 100 %: đủ cho thanh
+        // tiến độ, không dội Redis / socket mỗi dòng stderr.
+        let lastSent = -Infinity;
+        const onProgress = (percent: number) => {
+          if (percent - lastSent < 5 && !(percent === 100 && lastSent !== 100)) return;
+          lastSent = percent;
+          run.onProgress?.('transcribe', percent);
+          this.realtime.emit([RealtimeRoom.meeting(meeting.id)], 'meeting.progress', {
+            meetingId: meeting.id,
+            stage: 'transcribe',
+            percent,
+          });
+        };
         const transcript = await this.speech
           .transcribe(wav, {
             language: this.options.language,
             timeoutMs,
             signal: run.signal,
-            onProgress: (percent) => run.onProgress?.('transcribe', percent),
+            onProgress,
           })
           .catch((error: unknown) => {
             if (error instanceof SpeechModelMissingError) {
@@ -165,7 +194,7 @@ export class MeetingPipelineService {
             return false;
           }
           await this.repo.replaceSegments(tx, meeting, transcript.segments);
-          return true;
+          return [];
         });
       }),
     );
@@ -209,30 +238,67 @@ export class MeetingPipelineService {
       return this.db.transaction(async (tx) => {
         if (!(await this.repo.completeSummarize(tx, meeting.id, meeting.stageToken))) return false;
         await this.repo.upsertSummary(tx, meeting, summary);
-        return true;
+        // Một người nhận (chủ) → ghi TRONG transaction như M10 Q2: rollback thì không có thông báo "ma".
+        return meeting.ownerId
+          ? this.notifications.recordInTx(tx, [
+              {
+                userId: meeting.ownerId,
+                orgId: meeting.orgId,
+                type: 'meeting.completed',
+                payload: { meetingId: meeting.id, meetingTitle: meeting.title },
+                dedupeKey: `meeting-completed.${meeting.id}.a${meeting.attempt}`,
+              },
+            ])
+          : [];
       });
     });
   }
 
   /**
    * Đưa meeting về `failed` (processor B5): lỗi vĩnh viễn, hoặc hết lượt retry. Điều kiện `attempt`:
-   * sự kiện của lần chạy cũ tới muộn không đè lên lần chạy lại.
+   * sự kiện của lần chạy cũ tới muộn không đè lên lần chạy lại. Chủ nhận `meeting.failed` (M6 Q7)
+   * trong CÙNG transaction; realtime + thông báo đẩy sau commit.
    */
-  fail(job: PipelineJob, code: MeetingFailureCode, message: string): Promise<boolean> {
-    return this.repo.fail(job.meetingId, job.attempt, code, message);
+  async fail(job: PipelineJob, code: MeetingFailureCode, message: string): Promise<boolean> {
+    const result = await this.db.transaction(async (tx) => {
+      const failed = await this.repo.fail(tx, job.meetingId, job.attempt, code, message);
+      if (!failed) return undefined;
+      const rows = failed.ownerId
+        ? await this.notifications.recordInTx(tx, [
+            {
+              userId: failed.ownerId,
+              orgId: failed.orgId,
+              type: 'meeting.failed',
+              payload: { meetingId: job.meetingId, meetingTitle: failed.title, failureCode: code },
+              dedupeKey: `meeting-failed.${job.meetingId}.a${job.attempt}`,
+            },
+          ])
+        : [];
+      return { failed, rows };
+    });
+    if (!result) return false;
+    this.notifications.publish(result.rows);
+    publishMeetingStatus(this.realtime, {
+      id: job.meetingId,
+      ownerId: result.failed.ownerId,
+      status: 'failed',
+      failureCode: code,
+    });
+    return true;
   }
 
   /**
-   * Chạy thân một bước. `committed = false` = mất lease giữa chừng (worker khác đã nhận) → bỏ qua,
-   * không enqueue. Lỗi → nhả lease (retry nhận lại ngay) rồi ném tiếp.
+   * Chạy thân một bước. Thân trả `false` = mất lease giữa chừng (worker khác đã nhận) → bỏ qua, không
+   * phát, không enqueue; ngược lại trả các thông báo đã ghi trong transaction để đẩy SAU commit.
+   * Lỗi → nhả lease (retry nhận lại ngay) rồi ném tiếp.
    */
   private async runStage(
     step: PipelineStep,
     meeting: ClaimedMeeting,
     job: PipelineJob,
-    body: () => Promise<boolean>,
+    body: () => Promise<NotificationRow[] | false>,
   ): Promise<PipelineOutcome> {
-    let committed: boolean;
+    let committed: NotificationRow[] | false;
     try {
       committed = await body();
     } catch (error) {
@@ -250,6 +316,9 @@ export class MeetingPipelineService {
       );
       return 'skipped';
     }
+    // SAU commit: trạng thái mới + thông báo (đẩy trong transaction mà rollback → client thấy "ma").
+    this.publishStatus(meeting, STATUS_AFTER[step]);
+    this.notifications.publish(committed);
     const next = NEXT_STEP[step];
     if (next) {
       // Enqueue lỗi (Redis sập) không làm hỏng bước đã commit: quét meeting kẹt (B8) sẽ enqueue lại.
@@ -260,6 +329,15 @@ export class MeetingPipelineService {
         );
     }
     return 'done';
+  }
+
+  private publishStatus(meeting: ClaimedMeeting, status: MeetingStatus): void {
+    publishMeetingStatus(this.realtime, {
+      id: meeting.id,
+      ownerId: meeting.ownerId,
+      status,
+      failureCode: null,
+    });
   }
 
   private skip(step: PipelineStep, job: PipelineJob): PipelineOutcome {
@@ -277,6 +355,13 @@ export class MeetingPipelineService {
     );
   }
 }
+
+/** Chặng sau khi một bước commit (06 §1.2: `status` là chặng). */
+const STATUS_AFTER: Record<PipelineStep, MeetingStatus> = {
+  preprocess: 'transcribing',
+  transcribe: 'summarizing',
+  summarize: 'completed',
+};
 
 const NEXT_STEP: Record<PipelineStep, PipelineStep | undefined> = {
   preprocess: 'transcribe',
