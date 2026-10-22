@@ -15,19 +15,19 @@ MeetNote là ứng dụng biên bản họp theo nhóm. Người dùng thuộc t
 
 ## Trạng thái
 
-| Mốc                            | Trạng thái                                                                          |
-| ------------------------------ | ----------------------------------------------------------------------------------- |
-| M0 — Khung                     | **Xong**. CI xanh, e2e + Docker Compose đã chạy trên máy dev (OrbStack)             |
-| M1 — Auth                      | **Xong** (PR #1 đã merge)                                                           |
-| M2 — Tổ chức                   | **Xong** (PR #2)                                                                    |
-| M3 — Mời, duyệt, sở hữu, audit | **Xong** (PR #3)                                                                    |
-| M4 — Kênh                      | **Xong** (PR #4)                                                                    |
-| M5 — Upload                    | **Xong** (PR #5)                                                                    |
-| M6 — Pipeline                  | **Hoãn** (plan nháp `docs/plans/M6-pipeline.md`)                                    |
-| M6b — Chia sẻ & quyền xem      | **Xong** (PR #6)                                                                    |
-| M7 — Realtime                  | **Xong** (PR #7)                                                                    |
-| M10 — Thông báo                | **Xong** (PR #8)                                                                    |
-| M11 — Hardening                | **Xong ở local**, chờ PR #9 (timeout DB, rate limit, danh sách meeting, role + RLS) |
+| Mốc                            | Trạng thái                                                              |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| M0 — Khung                     | **Xong**. CI xanh, e2e + Docker Compose đã chạy trên máy dev (OrbStack) |
+| M1 — Auth                      | **Xong** (PR #1 đã merge)                                               |
+| M2 — Tổ chức                   | **Xong** (PR #2)                                                        |
+| M3 — Mời, duyệt, sở hữu, audit | **Xong** (PR #3)                                                        |
+| M4 — Kênh                      | **Xong** (PR #4)                                                        |
+| M5 — Upload                    | **Xong** (PR #5)                                                        |
+| M6 — Pipeline                  | **Đang làm** (`docs/plans/M6-pipeline.md`)                              |
+| M6b — Chia sẻ & quyền xem      | **Xong** (PR #6)                                                        |
+| M7 — Realtime                  | **Xong** (PR #7)                                                        |
+| M10 — Thông báo                | **Xong** (PR #8)                                                        |
+| M11 — Hardening                | **Xong** (PR #9)                                                        |
 
 Lộ trình đầy đủ: `docs/design/10-roadmap.md`.
 
