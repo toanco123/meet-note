@@ -172,6 +172,14 @@ Validate khi khởi động bằng class `EnvironmentVariables` (class-validator
 
 Swagger **không có biến bật/tắt riêng**. Swagger bật khi `NODE_ENV ∈ {development, test, staging}` và luôn tắt ở `production`, để không thể vô tình bật trên production.
 
+### Truy cập DB: role, RLS, timeout (M11)
+
+- Api / worker kết nối bằng user riêng, chỉ DML (03 §0). Migration chạy bằng chủ schema (`MIGRATION_DATABASE_URL`).
+- Bảng có RLS (03 §0): ngoài route `/orgs/:orgId`, bọc `OrgContext.runInOrg(orgId, fn)` — thiếu ngữ cảnh thì truy vấn trả **rỗng** và UPDATE / DELETE đổi **0 dòng**, KHÔNG có lỗi. Worker (`BYPASSRLS`) không cần.
+- Bảng mới mang `org_id` và chỉ đọc trong ngữ cảnh một tổ chức → `ENABLE` + `FORCE ROW LEVEL SECURITY` + policy `org_id = app_current_org_id()` trong migration. Bảng chỉ-ghi-thêm → `REVOKE UPDATE, DELETE` khỏi `meetnote_app` / `meetnote_worker`.
+- Test: dữ liệu nền / kiểm tra DB qua `fixtureDb()` (e2e) hoặc `createTestDb()` (integration) — user worker, bỏ qua RLS; test cần đúng user api truyền `process.env.DATABASE_URL`.
+- Mọi connection có `lock_timeout` 3 s / `statement_timeout` 15 s / idle-in-transaction 30 s; `55P03` / `57014` → 503. Job theo lô dài hơn: chỉnh env của worker, đừng tắt timeout.
+
 ## 7. Viết DTO để Swagger sinh đúng
 
 Bật `@nestjs/swagger` CLI plugin trong `nest-cli.json` (`introspectComments: true`, `classValidatorShim: true`). Plugin đọc kiểu TS + class-validator + JSDoc để sinh schema. Quy tắc:

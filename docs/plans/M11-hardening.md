@@ -1,6 +1,6 @@
 # M11 — Hardening
 
-- **Trạng thái:** Đang làm (plan đã duyệt 2026-10-22: ★ cho Q1–Q6)
+- **Trạng thái:** **Xong ở local** (2026-10-22): B1–B8; CI chờ push / PR #9. Plan đã duyệt 2026-10-22 (★ cho Q1–Q6; Q3 sửa ở B3 — bài học 7)
 - **Nhánh:** `m11-hardening`
 - **Tài liệu thiết kế liên quan:** [10-roadmap M11](../design/10-roadmap.md), [03-database §7 khoá](../design/03-database.md), [04-authorization §3 điều kiện xem](../design/04-authorization.md), [07-conventions lỗi + env](../design/07-conventions.md), [M3 bài học 5](M3-invites-ownership.md), [M6b bài học 9](M6b-meeting-sharing.md)
 - **Ghi chú:** làm khi M6 / M8 / M9 còn hoãn — M11 không phụ thuộc pipeline. Lộ trình liệt kê 7 việc; mốc này chọn 4 việc học được nhiều về Postgres + Nest và chứng minh được bằng test (xem "Ngoài phạm vi").
@@ -71,7 +71,7 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 - [x] **B7 — RLS ranh giới tổ chức**
   - Việc: kiểm kê mọi chỗ đọc / ghi 5 bảng ngoài route `/orgs/:orgId` → `runInOrg`; `OrgContext` (`AsyncLocalStorage`) + đặt `app.org_id` mỗi lần lấy connection; migration `ENABLE` + `FORCE ROW LEVEL SECURITY` + policy.
   - Test: không ngữ cảnh → 0 dòng; giả lập bug "repository quên `org_id`" (query trực tiếp theo id meeting của org khác trong ngữ cảnh org mình) → không thấy, INSERT chéo bị `WITH CHECK` chặn; ngữ cảnh KHÔNG rò sang request sau trên cùng connection (pool `max: 1`); worker (`BYPASSRLS`) chạy fan-out / purge xuyên tổ chức bình thường; toàn bộ e2e xanh. Đột biến không đặt lại ngữ cảnh khi lấy connection → test rò đỏ. Đo chi phí thêm mỗi request.
-- [ ] **B8 — Đóng mốc**
+- [x] **B8 — Đóng mốc**
   - Việc: `openapi.json`, đối chiếu tài liệu, chạy tay trên Compose (3 role, rate limit, timeout), ghi "Điều học được".
 
 ## Số đo danh sách meeting
@@ -116,11 +116,11 @@ Bốn phiên bản đã đo trên đường tới đây (bài học 11–13): v1
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở local và CI — **chạy dưới role app, không phải superuser**
-- [ ] Không còn đường nào làm request treo vô hạn vì DB; rate limit đúng khi nhiều instance
-- [ ] Số đo danh sách meeting trước / sau ghi trong plan
-- [ ] `openapi.json` đã cập nhật; `docs/design/` khớp code
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (393 unit)
+- [ ] `pnpm test:e2e` xanh ở local và CI — **chạy dưới role app, không phải superuser** — local 580 / 580 (app dưới RLS); CI: chờ PR #9
+- [x] Không còn đường nào làm request treo vô hạn vì DB; rate limit đúng khi nhiều instance
+- [x] Số đo danh sách meeting trước / sau ghi trong plan
+- [x] `openapi.json` đã cập nhật (B3: 429); `docs/design/` khớp code; quy tắc mới vào `CLAUDE.md` + 07 §6
 
 ## Điều sẽ học
 
