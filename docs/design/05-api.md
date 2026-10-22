@@ -146,6 +146,8 @@ Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReport
 | `channel.ownership_transferred` | chủ mới + chủ cũ, trừ người thực hiện                   | `channelId, channelName, newOwnerId, newOwnerName, previousOwnerId, previousOwnerName, actorId, actorName` |
 | `org.join_request_approved`     | người xin vào                                           | `orgName, role`                                                                                            |
 | `meeting.shared`                | thành viên kênh trừ người chia sẻ và khách (job worker) | `meetingId, meetingTitle, channelId, channelName, actorId, actorName`                                      |
+| `meeting.completed`             | chủ meeting (M6 Q7)                                     | `meetingId, meetingTitle` — xử lý xong                                                                     |
+| `meeting.failed`                | chủ meeting (M6 Q7)                                     | `meetingId, meetingTitle, failureCode` — dừng ở `failed`, chạy lại được                                    |
 
 Thông báo ít người nhận được ghi **trong transaction** của thao tác (rollback → không có thông báo); đẩy `notification.created` **sau commit**. Nhiều người nhận (`meeting.shared`): share commit → enqueue `notification.fanout` (jobId `notification.fanout.meeting-shared.{meetingId}.{channelId}.{sharedAt ms}`, share lặp lại → cùng jobId); worker đọc lại share + thành viên kênh LÚC CHẠY, INSERT theo lô 500 với `dedupe_key = meeting-shared.{meetingId}.{channelId}`, đẩy realtime sau mỗi lô (M10 B5).
 

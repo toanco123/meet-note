@@ -92,6 +92,13 @@
       "when": 1792637755255,
       "tag": "0012_rls_org_isolation",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792651829746,
+      "tag": "0013_transcripts_summaries",
+      "breakpoints": true
     }
   ]
 }

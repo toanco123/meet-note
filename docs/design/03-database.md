@@ -27,6 +27,7 @@ Lớp phòng thủ THỨ HAI (lớp một: guard + `org_id` trong mọi query + 
 
 - `app.org_id` do pool của app (`OrgContextPool` trong `createPgPool`) đặt mỗi lần cho mượn connection, từ `OrgContext` (`AsyncLocalStorage`): middleware HTTP mở ngữ cảnh rỗng, `OrgMemberGuard` điền org sau khi xác nhận thành viên; realtime bọc `runInOrg`. Chỉ gửi `set_config` khi giá trị ĐỔI so với lần trước trên connection (~1 round-trip ≈ 150 µs mỗi lần đổi tổ chức; thời gian thực thi query không đổi đáng kể — đo ở plan M11).
 - Policy chỉ giữ ranh giới tổ chức, KHÔNG chứa quy tắc xem meeting (04 §3 ở code).
+- M6 (migration `0013`) thêm `transcript_segments`, `meeting_summaries` cùng mẫu (M6 Q8).
 - Không RLS: bảng tài khoản (`users`, `sessions`…), `organizations` / `organization_members` (đăng nhập, "tổ chức của tôi" đọc xuyên tổ chức), `notifications` (theo người dùng), `invites` / `join_requests` (chấp nhận link mời chưa là thành viên), `audit_logs`, `idempotency_keys`.
 - Superuser và role `BYPASSRLS` (worker) luôn được miễn — vì thế api không được chạy bằng superuser (B6). Kiểm tra FK / cascade (gỡ thành viên → xoá `channel_members`) là thao tác toàn vẹn tham chiếu, không bị RLS chặn.
 
@@ -280,12 +281,12 @@ PUT part là **idempotent**: `INSERT … ON CONFLICT (upload_id, part_number) DO
 | duration_ms                         | int NULL                                                                                   | điền sau khi ffprobe                                                                                                                                                                                                                             |
 | language                            | text NULL                                                                                  | Whisper phát hiện                                                                                                                                                                                                                                |
 | status                              | text CHECK IN ('queued','preprocessing','transcribing','summarizing','completed','failed') |                                                                                                                                                                                                                                                  |
-| failure_code, failure_message       | text NULL                                                                                  |                                                                                                                                                                                                                                                  |
+| failure_code, failure_message       | text NULL                                                                                  | M6: CHECK `meetings_failure_code_ck` — `SOURCE_CHECKSUM_MISMATCH`, `MEDIA_UNREADABLE`, `MEDIA_NO_AUDIO`, `MEDIA_TOO_LONG`, `TRANSCRIBE_FAILED`, `SUMMARIZE_FAILED`; `failure_message` là câu ngắn cho người dùng (stderr thô chỉ vào log)        |
 | attempt                             | int DEFAULT 1                                                                              | lần chạy pipeline, đếm từ 1 cho khớp `jobId …a1`; CHECK ≥ 1                                                                                                                                                                                      |
 | source_object_key, audio_object_key | text                                                                                       |                                                                                                                                                                                                                                                  |
 | created_at, updated_at, deleted_at  | timestamptz                                                                                |                                                                                                                                                                                                                                                  |
 
-Index: `meetings_org_owner_created_idx (org_id, owner_id, created_at DESC NULLS FIRST, id DESC NULLS FIRST)` — **không partial**, vì còn phục vụ khoá ngoại `meetings_owner_fk` (xoá một thành viên phải tìm mọi meeting của họ, kể cả đã xoá mềm; Postgres không tự tạo index cho phía tham chiếu); `meetings_org_recorded_idx (org_id, recorded_at)` (báo cáo tuần; luồng "một lượt" của danh sách meeting). M11 B5 thêm cho danh sách meeting: `meetings_org_owner_recorded_idx (org_id, owner_id, recorded_at DESC NULLS FIRST, id DESC NULLS FIRST) WHERE deleted_at IS NULL` (luồng "của mình"), `meetings_org_ownerless_recorded_idx (org_id, recorded_at DESC NULLS FIRST, id DESC NULLS FIRST) WHERE owner_id IS NULL AND deleted_at IS NULL` (luồng "không chủ" của OrgAdm).
+Index: `meetings_org_owner_created_idx (org_id, owner_id, created_at DESC NULLS FIRST, id DESC NULLS FIRST)` — **không partial**, vì còn phục vụ khoá ngoại `meetings_owner_fk` (xoá một thành viên phải tìm mọi meeting của họ, kể cả đã xoá mềm; Postgres không tự tạo index cho phía tham chiếu); `meetings_org_recorded_idx (org_id, recorded_at)` (báo cáo tuần; luồng "một lượt" của danh sách meeting). M6 thêm `meetings_stuck_idx (updated_at) WHERE status IN ('queued','preprocessing','transcribing','summarizing') AND deleted_at IS NULL` — quét meeting kẹt, cũ nhất trước theo lô. M11 B5 thêm cho danh sách meeting: `meetings_org_owner_recorded_idx (org_id, owner_id, recorded_at DESC NULLS FIRST, id DESC NULLS FIRST) WHERE deleted_at IS NULL` (luồng "của mình"), `meetings_org_ownerless_recorded_idx (org_id, recorded_at DESC NULLS FIRST, id DESC NULLS FIRST) WHERE owner_id IS NULL AND deleted_at IS NULL` (luồng "không chủ" của OrgAdm).
 
 **Chuyển trạng thái = UPDATE có điều kiện** (optimistic, không giữ khoá lâu):
 
@@ -309,24 +310,24 @@ Index: `meeting_shares_channel_shared_idx (channel_id, shared_at DESC, meeting_i
 
 ### `transcript_segments`
 
-| Cột              | Kiểu                                                                     | Ghi chú                      |
-| ---------------- | ------------------------------------------------------------------------ | ---------------------------- |
-| id               | bigint identity PK                                                       |                              |
-| meeting_id       | uuid FK ON DELETE CASCADE                                                |                              |
-| seq              | int                                                                      | `UNIQUE (meeting_id, seq)`   |
-| start_ms, end_ms | int                                                                      | `CHECK (end_ms >= start_ms)` |
-| speaker          | text NULL                                                                | để dành                      |
-| text             | text                                                                     |                              |
-| search           | tsvector GENERATED ALWAYS AS (`to_tsvector('meetnote_vi', text)`) STORED | `GIN (search)`               |
+| Cột                | Kiểu                                                                     | Ghi chú                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| id                 | bigint identity PK                                                       |                                                                                                                         |
+| meeting_id, org_id | uuid                                                                     | composite FK `transcript_segments_meeting_fk` → `meetings(id, org_id)` ON DELETE CASCADE; **RLS** theo `org_id` (M6 Q8) |
+| seq                | int                                                                      | `UNIQUE (meeting_id, seq)`                                                                                              |
+| start_ms, end_ms   | int                                                                      | `CHECK (end_ms >= start_ms)`                                                                                            |
+| speaker            | text NULL                                                                | để dành                                                                                                                 |
+| text               | text                                                                     |                                                                                                                         |
+| search             | tsvector GENERATED ALWAYS AS (`to_tsvector('meetnote_vi', text)`) STORED | `GIN (search)`                                                                                                          |
 
-Ghi transcript = **xoá rồi chèn lại** trong 1 transaction. Job chạy lại vẫn ra cùng kết quả (idempotent).
+Id `bigint identity`, `seq ≥ 0`, `transcript_segments_meeting_seq_uq` cũng là index phía tham chiếu của FK (migration `0013`). Ghi transcript = **xoá rồi chèn lại** trong 1 transaction. Job chạy lại vẫn ra cùng kết quả (idempotent).
 Search: `search @@ websearch_to_tsquery('meetnote_vi', $q)`, highlight bằng `ts_headline`. Quyền được lọc bằng cách join với các meeting mà user được xem.
 
 > **Bẫy:** `to_tsvector` trong generated column phải nhận tên config dạng hằng (`'meetnote_vi'::regconfig`). Hàm 2 tham số với hằng là immutable. Hàm 1 tham số thì không.
 
 ### `meeting_summaries`
 
-meeting_id PK FK, content jsonb (`{ overview, keyPoints[], decisions[], actionItems[{ owner, task, due }] }`), model, prompt_version, input_tokens, output_tokens, created_at.
+meeting_id PK, org_id (composite FK `meeting_summaries_meeting_fk` → `meetings(id, org_id)` ON DELETE CASCADE, **RLS** theo `org_id`), content jsonb (`{ overview, keyPoints[], decisions[], actionItems[{ owner, task, due }] }`), model, prompt_version, input_tokens, output_tokens (CHECK ≥ 0), created_at. Upsert theo `meeting_id` (M6, migration `0013`).
 
 ## 5. Báo cáo tuần
 
@@ -369,7 +370,7 @@ Nếu không có `FOR UPDATE`, 2 cú bấm cùng lúc đều đọc được `co
 
 ### `notifications`
 
-id, user_id (FK `users` ON DELETE CASCADE), org_id NULL, type text (CHECK `notifications_type_ck`: `channel.member_added`, `channel.ownership_transferred`, `org.join_request_approved`, `meeting.shared` — M6 / M9 thêm loại bằng migration), payload jsonb (id + tên lúc tạo, M10 Q4), dedupe_key text NULL, read_at, deleted_at, created_at. Migration `0009` (M10).
+id, user_id (FK `users` ON DELETE CASCADE), org_id NULL, type text (CHECK `notifications_type_ck`: `channel.member_added`, `channel.ownership_transferred`, `org.join_request_approved`, `meeting.shared`, `meeting.completed`, `meeting.failed` (M6, migration `0013`) — M9 thêm loại bằng migration), payload jsonb (id + tên lúc tạo, M10 Q4), dedupe_key text NULL, read_at, deleted_at, created_at. Migration `0009` (M10).
 
 - **FK `notifications_org_member_fk (org_id, user_id)` → `organization_members` ON DELETE CASCADE** (M10 Q3): rời / bị gỡ khỏi tổ chức → thông báo của tổ chức đó bị xoá theo, thay vì JOIN membership ở mọi truy vấn đọc. `org_id` NULL → FK không áp (MATCH SIMPLE).
 

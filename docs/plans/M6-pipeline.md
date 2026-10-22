@@ -110,7 +110,7 @@ Realtime: `meeting.status`, `meeting.progress` như 05-api (đã khai báo). Th�
 
 Mỗi bước = 1 commit, chạy được và có test. Chỗ nào có thể chạy trùng / song song đều có test race + đột biến.
 
-- [ ] **B1 — Schema + migration**
+- [x] **B1 — Schema + migration**
   - Việc: `transcript_segments` (cột `search` tsvector generated, `customType`), `meeting_summaries` — cả hai có `org_id` + composite FK + RLS (Q8); index quét kẹt trên `meetings`; CHECK `notifications.type` thêm hai loại (Q7).
   - Test (integration): `UNIQUE (meeting_id, seq)`, CHECK thời gian; xoá meeting → cascade; `search` khớp không dấu ("ke hoach" ↔ "kế hoạch"); composite FK chặn `org_id` lệch với meeting; RLS: user api không ngữ cảnh / khác tổ chức không thấy đoạn transcript; EXPLAIN quét kẹt dùng partial index.
 - [ ] **B2 — Process con + ffmpeg + tải / đẩy file S3**
@@ -163,4 +163,5 @@ Mỗi bước = 1 commit, chạy được và có test. Chỗ nào có thể ch�
 
 ## Điều học được / bẫy gặp phải
 
-(Ghi trong lúc làm)
+1. **Test "index có dùng được không" phải dùng đúng HÌNH DẠNG câu thật.** `EXPLAIN` câu quét kẹt (chỉ `WHERE status IN (…) AND deleted_at IS NULL AND updated_at < …`, `enable_seqscan = off`) → planner chọn `meetings_org_owner_recorded_idx` — một index partial KHÁC cũng khớp `deleted_at IS NULL` — rồi lọc. Câu quét thật lấy cũ nhất trước theo lô (`ORDER BY updated_at LIMIT n`) → chỉ `meetings_stuck_idx` vừa khớp điều kiện vừa khớp thứ tự. Bảng ít dòng thì planner chọn giữa các index gần như tuỳ ý — test phải ép bằng chính truy vấn sẽ chạy.
+2. **Bảng con mới thuộc tổ chức = `org_id` + composite FK + RLS + quyền tự có.** Hai bảng của M6 tự có DML cho `meetnote_app` / `meetnote_worker` nhờ `ALTER DEFAULT PRIVILEGES` của M11 B6 (không phải GRANT lại); policy RLS viết tay nối vào cuối migration drizzle-kit sinh. Cột `search` generated với `'meetnote_vi'::regconfig` hằng (03 §4) — đột biến sang `'simple'` → "ke hoach" không còn tìm ra "kế hoạch" (đỏ); đột biến không bật RLS → user api thấy đoạn của tổ chức khác (đỏ). `failure_code` có CHECK theo danh sách mã của plan (trước đây nhận mọi chuỗi).

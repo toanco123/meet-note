@@ -6983,7 +6983,9 @@
           "channel.member_added",
           "channel.ownership_transferred",
           "org.join_request_approved",
-          "meeting.shared"
+          "meeting.shared",
+          "meeting.completed",
+          "meeting.failed"
         ]
       },
       "NotificationResponseDto": {

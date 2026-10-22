@@ -26,6 +26,17 @@ export const MEETING_STATUSES = [
 ] as const;
 export type MeetingStatus = (typeof MEETING_STATUSES)[number];
 
+/** Vì sao pipeline dừng ở `failed` (M6) — mã cho máy đọc; câu cho người đọc ở `failure_message`. */
+export const MEETING_FAILURE_CODES = [
+  'SOURCE_CHECKSUM_MISMATCH',
+  'MEDIA_UNREADABLE',
+  'MEDIA_NO_AUDIO',
+  'MEDIA_TOO_LONG',
+  'TRANSCRIBE_FAILED',
+  'SUMMARIZE_FAILED',
+] as const;
+export type MeetingFailureCode = (typeof MEETING_FAILURE_CODES)[number];
+
 /**
  * Cuộc họp. M5 tạo ở `queued` khi upload xong; M6 chuyển trạng thái bằng UPDATE có điều kiện.
  *
@@ -51,7 +62,7 @@ export const meetings = pgTable(
     /** Whisper phát hiện (M6). */
     language: text(),
     status: text({ enum: MEETING_STATUSES }).notNull().default('queued'),
-    failureCode: text(),
+    failureCode: text({ enum: MEETING_FAILURE_CODES }),
     failureMessage: text(),
     /** Lần chạy pipeline — nằm trong jobId `meeting.preprocess.{id}.a{attempt}`. */
     attempt: integer().notNull().default(1),
@@ -96,6 +107,16 @@ export const meetings = pgTable(
     check('meetings_status_ck', inValues(t.status, MEETING_STATUSES)),
     check('meetings_title_length_ck', sql`char_length(${t.title}) between 1 and 200`),
     check('meetings_attempt_ck', sql`${t.attempt} >= 1`),
+    check(
+      'meetings_failure_code_ck',
+      sql`${t.failureCode} is null or ${inValues(t.failureCode, MEETING_FAILURE_CODES)}`,
+    ),
+    // Quét meeting kẹt (M6): chưa xong mà lâu không đổi → enqueue lại bước đúng trạng thái.
+    index('meetings_stuck_idx')
+      .on(t.updatedAt)
+      .where(
+        sql`${t.status} in ('queued', 'preprocessing', 'transcribing', 'summarizing') and ${t.deletedAt} is null`,
+      ),
     check('meetings_duration_ck', sql`${t.durationMs} is null or ${t.durationMs} >= 0`),
   ],
 );
