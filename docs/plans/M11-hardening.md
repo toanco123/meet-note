@@ -59,7 +59,7 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 - [x] **B3 — Áp rate limit vào route**
   - Việc: `ThrottlerGuard` toàn cục (sau `JwtAuthGuard` để biết `userId`), khoá theo user / IP; giới hạn riêng theo Q3 (đăng nhập theo cả (IP, email)); `@SkipThrottle` cho health / docs; `trust proxy` theo `TRUST_PROXY_HOPS`; Swagger khai báo 429.
   - Test (e2e): đăng nhập sai 5 lần cùng email từ 2 IP khác nhau (`X-Forwarded-For` + trust proxy) → lần 6 bị 429 dù đổi IP; 429 có `Retry-After` + body lỗi chuẩn; hai app Nest cùng Redis chia sẻ đếm; không đặt trust proxy thì `X-Forwarded-For` giả KHÔNG đổi được IP. Bảng giới hạn từng route.
-- [ ] **B4 — Benchmark danh sách meeting (đo baseline)**
+- [x] **B4 — Benchmark danh sách meeting (đo baseline)**
   - Việc: `scripts/bench/meeting-list.ts`: tạo DB tạm từ migration thật, sinh 100k meeting / ~120k share / 200 kênh / 10k thành viên kênh như M6b; đo `EXPLAIN (ANALYZE, BUFFERS)` 3 hồ sơ người xem: **dày** (thấy nhiều), **thưa** (vài kênh riêng tư), **rỗng** (thành viên mới), trang 1 và trang sâu; xoá DB tạm.
   - Test: không phải test — kết quả baseline ghi vào plan (bảng số).
 - [ ] **B5 — Viết lại danh sách meeting (nếu số đo thắng)**
@@ -73,6 +73,28 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
   - Test: không ngữ cảnh → 0 dòng; giả lập bug "repository quên `org_id`" (query trực tiếp theo id meeting của org khác trong ngữ cảnh org mình) → không thấy, INSERT chéo bị `WITH CHECK` chặn; ngữ cảnh KHÔNG rò sang request sau trên cùng connection (pool `max: 1`); worker (`BYPASSRLS`) chạy fan-out / purge xuyên tổ chức bình thường; toàn bộ e2e xanh. Đột biến không đặt lại ngữ cảnh khi lấy connection → test rò đỏ. Đo chi phí thêm mỗi request.
 - [ ] **B8 — Đóng mốc**
   - Việc: `openapi.json`, đối chiếu tài liệu, chạy tay trên Compose (3 role, rate limit, timeout), ghi "Điều học được".
+
+## Số đo danh sách meeting
+
+`pnpm build && pnpm bench:meeting-list` — DB tạm từ migration thật: 100k meeting / 2 năm (2% không chủ, ~10% `failed`), 119 826 share vào 200 kênh RIÊNG TƯ, 10 157 thành viên kênh; trung vị 7 lần `EXPLAIN (ANALYZE, BUFFERS)` của câu SQL do chính `MeetingsRepository.listVisible` sinh ra (bắt bằng logger của Drizzle), Postgres 18 trong compose trên máy dev.
+
+**Baseline (trước B5):**
+
+| Người xem                              | Trang               | Trung vị (ms) |     Buffers | Dòng trả |
+| -------------------------------------- | ------------------- | ------------: | ----------: | -------: |
+| dày (150/200 kênh)                     | trang 1             |         29.36 |       1 513 |       21 |
+| dày                                    | sau 1000 dòng       |         29.35 |       1 511 |       21 |
+| dày                                    | lọc `status=failed` |         31.45 |       1 697 |       21 |
+| thưa (7 kênh + 50 của mình)            | trang 1             |         14.44 |       1 808 |       21 |
+| thưa                                   | sau 1000 dòng       |         15.29 |       1 984 |       21 |
+| thưa                                   | lọc `status=failed` |         16.72 |       6 794 |       21 |
+| rỗng (thành viên mới)                  | trang 1             |     **39.98** | **100 573** |        0 |
+| rỗng                                   | lọc `status=failed` |         33.07 |     100 573 |        0 |
+| admin (0 kênh, thấy meeting không chủ) | trang 1             |          0.99 |       1 182 |       21 |
+| admin                                  | sau 1000 dòng       |          1.14 |         849 |       21 |
+| admin                                  | lọc `status=failed` |          3.67 |       8 057 |       21 |
+
+Kế hoạch thực thi: **dày** — `hashed SubPlan` seq scan TOÀN BỘ `meeting_shares` (119 826 dòng → 89 793 id thấy được, ~16 ms) rồi mới đi lùi `meetings_org_recorded_idx` lấy 21 dòng: chi phí ∝ tổng share của org, ở MỌI request. **Rỗng** — SubPlan rỗng (rẻ) nhưng index scan lùi lọc bỏ cả 100 000 meeting (`Rows Removed by Filter: 100000`) mới biết không có gì. Phụ: `Incremental Sort` (index thiếu `id` làm tie-breaker), `channels` seq scan.
 
 ## Tiêu chí hoàn thành
 
@@ -100,3 +122,4 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 7. **Plan tự mâu thuẫn — phát hiện khi viết test.** Q3 khoá đăng nhập theo (IP, email), nhưng test B3 đòi "đổi IP vẫn bị chặn": với khoá (IP, email), đổi IP là khoá mới. Chặn dò phân tán phải có thêm khoá **theo email** — nhưng khoá email chặt (5 / phút) thì kẻ xấu spam sai mật khẩu là khoá được tài khoản nạn nhân. Chốt 3 lớp: IP 30 / phút, (IP, email) 5 / phút (chặt), email 20 / giờ (lỏng). Hai lớp sau là hai throttler có tên chỉ bật trên route gắn `@CredentialThrottle()`; khoá trong Redis là sha256 nên email không nằm trần.
 8. **Đọc `throttler.guard.js` cứu hai bug trước khi viết.** (a) `skipIf` của throttler có tên **thay thế** `skipIf` chung (`namedThrottler.skipIf || commonOptions.skipIf`) — không tự kiểm lại "rate limit đang tắt" thì toàn bộ e2e (đã tắt rate limit) vẫn bị đếm đăng nhập. (b) Throttler có tên đặt header `Retry-After-<tên>`, không phải `Retry-After` → ghi đè `throwThrottlingException`: đặt `Retry-After` chuẩn + ném `Errors.common.rateLimited()` (body chuẩn thay vì `ThrottlerException` trần). `getTracker` khi chưa đăng nhập gọi `super` để giữ `normalizeIp` (gom IPv6 theo subnet — xoay địa chỉ trong một /64 không thoát được).
 9. **Thứ tự `APP_GUARD` = thứ tự trong mảng providers của CÙNG module.** Guard rate limit cần `req.user` → đăng ký ngay sau `JwtAuthGuard` trong `AuthModule`. Đột biến hoán đổi hai dòng → đúng 1 test đỏ (khoá theo người dùng: hai người cùng IP giành giới hạn của nhau). Env được đọc lúc `import` AppModule → file test muốn cấu hình khác dùng `vi.hoisted` (chạy trước mọi import, sau `setupFiles`); không thể có hai cấu hình trong một file → ca "không tin proxy" là file riêng. Hai đột biến **vô hiệu** đã bắt được khi đọc kết quả: chèn `skipIf` vào object bị khoá cùng tên phía sau ghi đè; `set('trust proxy', 0)` của Express = "tin 0 tầng" = không tin, tương đương code gốc. 6 đột biến thật (storage bộ nhớ, luôn khoá theo IP, credential chỉ theo IP, nới throttler `account`, hoán đổi thứ tự guard, luôn tin proxy) đều đỏ.
+10. **Dữ liệu benchmark tự tương quan.** Lần chạy đầu: người xem "thưa" lọc `status=failed` trả 0 dòng. Seed chọn status theo `g % 10` và kênh theo `(g * 31) % 200 + 1` — `g` chia hết cho 10 thì kênh luôn rơi vào 1, 11, 21, … nên 7 kênh 194–200 không bao giờ có meeting `failed`. Số đo khi đó "đẹp" mà sai. Sửa: chọn bằng `random()` sau `setseed(0.42)` (vẫn lặp lại được). Benchmark đo ĐÚNG SQL của code (`dist/` + logger Drizzle bắt câu lệnh) chứ không chép tay câu SQL — chép tay sẽ lệch ngay khi code đổi.

@@ -28,7 +28,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env dist/scripts/migrate.js",
     "db:studio": "drizzle-kit studio",
-    "openapi:export": "node dist/scripts/export-openapi.js"
+    "openapi:export": "node dist/scripts/export-openapi.js",
+    "bench:meeting-list": "node scripts/bench/meeting-list.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",
