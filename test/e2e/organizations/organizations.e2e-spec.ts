@@ -4,12 +4,12 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { organizations } from '../../../src/infra/database/schema/index.js';
 import { createTestApp } from '../../support/app.js';
 import { addMember } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 describe('Organizations: tạo / xem / đổi tên + OrgMemberGuard (e2e)', () => {
   let app: INestApplication<App>;
@@ -25,7 +25,7 @@ describe('Organizations: tạo / xem / đổi tên + OrgMemberGuard (e2e)', () =
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
 
     [owner, admin, member, outsider] = await Promise.all([
       registerUser(app, { displayName: 'Chủ' }),

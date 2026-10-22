@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import { Errors } from '../../../common/errors/errors.js';
 import { isUuid } from '../../../common/validation/uuid.js';
 import { OrganizationsRepository } from '../repositories/organizations.repository.js';
+import { OrgContext } from '../../../infra/database/org-context.js';
 
 /**
  * Tầng 2 của phân quyền: người gọi có phải thành viên org `:orgId` không?
@@ -28,6 +29,9 @@ export class OrgMemberGuard implements CanActivate {
     if (!membership) throw Errors.org.notFound();
 
     request.orgMembership = { orgId, role: membership.role };
+    // RLS (M11 B7): từ đây mọi connection request này mượn đều mang `app.org_id` = tổ chức trên path
+    // — CHỈ sau khi đã xác nhận là thành viên (ngữ cảnh không bao giờ trỏ vào tổ chức người lạ).
+    OrgContext.enter(orgId);
     return true;
   }
 }

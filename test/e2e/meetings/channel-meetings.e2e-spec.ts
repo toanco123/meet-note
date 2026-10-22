@@ -3,7 +3,6 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { channels, meetings, meetingShares } from '../../../src/infra/database/schema/index.js';
 import { createTestApp } from '../../support/app.js';
@@ -15,6 +14,7 @@ import {
   shareMeeting,
 } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 describe('GET /channels/:channelId/meetings (e2e)', () => {
   let app: INestApplication<App>;
@@ -33,7 +33,7 @@ describe('GET /channels/:channelId/meetings (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
     const users: TestUser[] = [];
     for (let i = 0; i < 5; i++) users.push(await registerUser(app));
     [owner, orgAdmin, host, member, outsider] = users as [

@@ -25,7 +25,7 @@ describe('Schema invites / join requests / audit (Postgres thật)', () => {
   let userId: string;
 
   beforeAll(async () => {
-    t = createTestDb();
+    t = createTestDb(10, process.env.DATABASE_URL); // user của api: lớp quyền của audit_logs
     const owner = await insertUser(t.db);
     userId = (await insertUser(t.db)).id;
     orgId = (await insertOrg(t.db, owner.id)).id;

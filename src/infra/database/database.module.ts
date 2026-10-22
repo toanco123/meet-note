@@ -1,14 +1,60 @@
 import { Global, Inject, Logger, Module, type OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import type { EnvironmentVariables } from '../../config/env.validation.js';
 import type { PgPoolOptions } from './database.types.js';
+import { OrgContext } from './org-context.js';
 import * as schema from './schema/index.js';
 
 /** Inject bằng `@Inject(DRIZZLE) private readonly db: Database`. */
 export const DRIZZLE = Symbol('DRIZZLE');
 export const PG_POOL = Symbol('PG_POOL');
+
+type ConnectCallback = (
+  err: Error | undefined,
+  client: PoolClient | undefined,
+  done: (release?: boolean | Error) => void,
+) => void;
+
+/** `app.org_id` đã đặt trên từng connection — chỉ gửi `set_config` khi giá trị ĐỔI. */
+const appliedOrg = new WeakMap<PoolClient, string>();
+
+/**
+ * Pool đặt `app.org_id` (policy RLS đọc, M11 B7) MỖI lần cho mượn connection — cả câu lẻ
+ * (`pool.query` → `connect(cb)` bên trong) lẫn transaction (`pool.connect()`).
+ *
+ * - Đọc `OrgContext.current()` ngay lúc gọi. BẪY (đo ở `rls.int-spec`): pool đầy thì yêu cầu xếp
+ *   hàng và CALLBACK của pg-pool chạy trong ngữ cảnh async của request vừa TRẢ connection — đọc ngữ
+ *   cảnh trong callback đó (hay sự kiện `'acquire'`) là lấy nhầm tổ chức. Đọc trong `.then` của
+ *   promise thì vẫn đúng (AsyncLocalStorage theo nơi ĐĂNG KÝ `.then`), nhưng đọc lúc gọi là chắc nhất.
+ * - Không có ngữ cảnh → đặt rỗng (policy: không thấy dòng nào), KHÔNG giữ giá trị của request trước.
+ * - `set_config(…, false)` là một câu tự commit riêng, trước mọi `BEGIN` của người dùng → `ROLLBACK`
+ *   sau đó không hoàn tác nó; nhờ vậy nhớ được giá trị theo connection để bỏ round-trip thừa.
+ */
+class OrgContextPool extends Pool {
+  override connect(): Promise<PoolClient>;
+  override connect(callback: ConnectCallback): void;
+  override connect(callback?: ConnectCallback): Promise<PoolClient> | void {
+    const orgId = OrgContext.current() ?? '';
+    const ready = super.connect().then(async (client) => {
+      if (appliedOrg.get(client) === orgId) return client;
+      try {
+        await client.query(`select set_config('app.org_id', $1, false)`, [orgId]);
+      } catch (error) {
+        client.release(error as Error);
+        throw error;
+      }
+      appliedOrg.set(client, orgId);
+      return client;
+    });
+    if (!callback) return ready;
+    ready.then(
+      (client) => callback(undefined, client, (release) => client.release(release)),
+      (error: Error) => callback(error, undefined, () => undefined),
+    );
+  }
+}
 
 /** Tách khỏi provider để test dựng được pool với timeout ngắn mà không cần dựng app. */
 export function createPgPool(options: PgPoolOptions): Pool {
@@ -18,7 +64,7 @@ export function createPgPool(options: PgPoolOptions): Pool {
     throw new Error('DATABASE_LOCK_TIMEOUT_MS phải nhỏ hơn DATABASE_IDLE_TX_TIMEOUT_MS');
   }
   const logger = new Logger('PgPool');
-  const pool = new Pool({
+  const pool = new OrgContextPool({
     connectionString: options.connectionString,
     max: options.max,
     application_name: options.applicationName,

@@ -21,6 +21,15 @@
 
 Role nhóm + GRANT nằm trong migration (không mật khẩu); user đăng nhập do `provisionLoginRoles` (script migrate khi có `DB_API_PASSWORD` + `DB_WORKER_PASSWORD`) tạo / cập nhật. **Bẫy:** thuộc tính role (`LOGIN`, `BYPASSRLS`, `SUPERUSER`…) KHÔNG kế thừa qua membership — chỉ GRANT trên đối tượng kế thừa → `BYPASSRLS` đặt trên user đăng nhập của worker. Bảng chỉ-ghi-thêm mới phải `REVOKE UPDATE, DELETE` tường minh (default privileges cấp đủ DML). DB managed: role chạy migration có thể không có `CREATEROLE` / không đặt được `BYPASSRLS` (cần superuser) → tạo role bằng tài khoản quản trị của nhà cung cấp.
 
+### RLS: ranh giới tổ chức (M11 B7, migration `0012_rls_org_isolation`)
+
+Lớp phòng thủ THỨ HAI (lớp một: guard + `org_id` trong mọi query + composite FK). Bảng có RLS (`ENABLE` + `FORCE`): `channels`, `channel_members`, `meetings`, `meeting_shares`, `uploads` — policy `org_id = app_current_org_id()` cho cả `USING` (đọc / sửa / xoá) lẫn `WITH CHECK` (ghi). `app_current_org_id()` = `nullif(current_setting('app.org_id', true), '')::uuid`: chưa đặt / rỗng → NULL → không thấy dòng nào.
+
+- `app.org_id` do pool của app (`OrgContextPool` trong `createPgPool`) đặt mỗi lần cho mượn connection, từ `OrgContext` (`AsyncLocalStorage`): middleware HTTP mở ngữ cảnh rỗng, `OrgMemberGuard` điền org sau khi xác nhận thành viên; realtime bọc `runInOrg`. Chỉ gửi `set_config` khi giá trị ĐỔI so với lần trước trên connection (~1 round-trip ≈ 150 µs mỗi lần đổi tổ chức; thời gian thực thi query không đổi đáng kể — đo ở plan M11).
+- Policy chỉ giữ ranh giới tổ chức, KHÔNG chứa quy tắc xem meeting (04 §3 ở code).
+- Không RLS: bảng tài khoản (`users`, `sessions`…), `organizations` / `organization_members` (đăng nhập, "tổ chức của tôi" đọc xuyên tổ chức), `notifications` (theo người dùng), `invites` / `join_requests` (chấp nhận link mời chưa là thành viên), `audit_logs`, `idempotency_keys`.
+- Superuser và role `BYPASSRLS` (worker) luôn được miễn — vì thế api không được chạy bằng superuser (B6). Kiểm tra FK / cascade (gỡ thành viên → xoá `channel_members`) là thao tác toàn vẹn tham chiếu, không bị RLS chặn.
+
 ### Extension & đối tượng tạo bằng SQL viết tay (migration `0000_extensions`)
 
 ```sql

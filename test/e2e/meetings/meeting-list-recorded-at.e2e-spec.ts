@@ -3,7 +3,6 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { meetingShares } from '../../../src/infra/database/schema/index.js';
 import { createTestApp } from '../../support/app.js';
@@ -14,6 +13,7 @@ import {
   insertMeeting,
 } from '../../support/db-factories.js';
 import { bearer, registerUser } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 /**
  * `meeting_shares.recorded_at` là BẢN CHÉP (M11 B5): share ghi lúc tạo, sửa `recordedAt` cập nhật
@@ -26,7 +26,7 @@ describe('Danh sách meeting theo bản chép recorded_at (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
   });
 
   afterAll(async () => {

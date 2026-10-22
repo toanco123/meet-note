@@ -4,13 +4,13 @@ import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { refreshTokens } from '../../../src/infra/database/schema/index.js';
 import { hashRefreshToken } from '../../../src/modules/auth/services/token.service.js';
 import { createTestApp } from '../../support/app.js';
 import { bearer, registerUser, type TokenPair } from '../../support/factories.js';
 import { ProbeController } from '../../support/probe.controller.js';
+import { fixtureDb } from '../../support/db.js';
 
 describe('Auth: refresh, logout, logout-all (e2e)', () => {
   let app: INestApplication<App>;
@@ -19,7 +19,7 @@ describe('Auth: refresh, logout, logout-all (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp({ controllers: [ProbeController] });
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
   });
 
   afterAll(async () => {

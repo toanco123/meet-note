@@ -3,6 +3,8 @@
 // Chạy: `pnpm build && pnpm bench:meeting-list` (cần Postgres dev: `docker compose up -d postgres`).
 //   --keep    giữ lại database tạm để tự EXPLAIN thêm
 //   --plans   in kế hoạch thực thi (text) của từng ca
+//   --as-app  đo NHƯ api: user `meetnote_api_login` (bị RLS) trong ngữ cảnh tổ chức (M11 B7) —
+//             cần user đã provision (`docker compose run --rm migrate`); BENCH_APP_PASSWORD
 // BENCH_ADMIN_URL: kết nối có quyền CREATE DATABASE (mặc định Postgres của compose).
 //
 // File .mjs chạy trên `dist/` (code đã build), không qua typecheck: công cụ dev, không vào CI.
@@ -11,6 +13,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { createPgPool } from '../../dist/infra/database/database.module.js';
 import { runMigrations } from '../../dist/infra/database/migrate.js';
+import { OrgContext } from '../../dist/infra/database/org-context.js';
 import * as schema from '../../dist/infra/database/schema/index.js';
 import { MeetingsRepository } from '../../dist/modules/meetings/repositories/meetings.repository.js';
 
@@ -18,6 +21,7 @@ const ADMIN_URL =
   process.env.BENCH_ADMIN_URL ?? 'postgres://meetnote:meetnote@localhost:5432/postgres';
 const KEEP = process.argv.includes('--keep');
 const PLANS = process.argv.includes('--plans');
+const AS_APP = process.argv.includes('--as-app');
 const RUNS = 7;
 
 const dbName = `meetnote_bench_${Date.now()}`;
@@ -102,6 +106,8 @@ async function main() {
     statementTimeoutMs: 600_000, // seed + vacuum chạy lâu
     idleInTransactionTimeoutMs: 30_000,
   });
+  /** Pool dùng để đo: chủ schema hoặc user của api (--as-app). */
+  let queryPool;
   try {
     await runMigrations(dbUrl);
     const started = Date.now();
@@ -117,8 +123,23 @@ async function main() {
 
     /** MỌI câu SQL của một lần gọi `listVisible` (từ M11 B5 là hai câu) — đo tổng, không chỉ câu cuối. */
     let captured = [];
+    // Đo bằng chủ schema (bỏ qua RLS) hoặc NHƯ api (--as-app): user bị RLS + ngữ cảnh tổ chức.
+    const appUrl = Object.assign(new URL(dbUrl), {
+      username: 'meetnote_api_login',
+      password: process.env.BENCH_APP_PASSWORD ?? 'dev-api-password',
+    }).toString();
+    queryPool = AS_APP
+      ? createPgPool({
+          connectionString: appUrl,
+          max: 2,
+          applicationName: 'bench-app',
+          lockTimeoutMs: 3_000,
+          statementTimeoutMs: 60_000,
+          idleInTransactionTimeoutMs: 30_000,
+        })
+      : pool;
     const db = drizzle({
-      client: pool,
+      client: queryPool,
       schema,
       casing: 'snake_case',
       logger: { logQuery: (query, params) => captured.push({ query, params }) },
@@ -153,7 +174,7 @@ async function main() {
         buffers = 0;
         for (const { query, params: binds } of queries) {
           const [explained] = (
-            await pool.query(`explain (analyze, buffers, format json) ${query}`, binds)
+            await queryPool.query(`explain (analyze, buffers, format json) ${query}`, binds)
           ).rows[0]['QUERY PLAN'];
           total += explained['Execution Time'];
           buffers += explained.Plan['Shared Hit Blocks'] + explained.Plan['Shared Read Blocks'];
@@ -163,7 +184,9 @@ async function main() {
       }
       if (PLANS) {
         for (const { query, params: binds } of queries) {
-          const planText = (await pool.query(`explain (analyze, buffers) ${query}`, binds)).rows
+          const planText = (
+            await queryPool.query(`explain (analyze, buffers) ${query}`, binds)
+          ).rows
             .map((r) => r['QUERY PLAN'])
             .join('\n');
           console.log(`\n### ${profile.name} — ${page}\n${planText}`);
@@ -179,7 +202,9 @@ async function main() {
       });
     };
 
-    for (const profile of profiles) {
+    const inOrg = (fn) => (AS_APP ? OrgContext.runInOrg(orgId, fn) : fn());
+    for (const profile of profiles) await inOrg(() => measureProfile(profile));
+    async function measureProfile(profile) {
       const base = { orgId, viewer: profile.viewer, limit: 20 };
       await measure(profile, 'trang 1', base);
       const deep = await repo.listVisible({ ...base, limit: 1000 });
@@ -193,6 +218,28 @@ async function main() {
       await measure(profile, 'lọc status=failed', { ...base, status: 'failed' });
     }
 
+    if (AS_APP) {
+      // Chi phí ngữ cảnh: `set_config` chỉ gửi khi tổ chức ĐỔI so với lần trước trên connection.
+      const other = (
+        await pool.query(
+          `insert into organizations (name, created_by) select 'Khác', created_by from organizations limit 1 returning id`,
+        )
+      ).rows[0].id;
+      const timeIt = async (orgOf) => {
+        const n = 2_000;
+        const started = process.hrtime.bigint();
+        for (let i = 0; i < n; i++)
+          await OrgContext.runInOrg(orgOf(i), () => queryPool.query('select 1'));
+        return Number(process.hrtime.bigint() - started) / 1_000 / n;
+      };
+      const same = await timeIt(() => orgId);
+      const alternate = await timeIt((i) => (i % 2 ? orgId : other));
+      console.log(
+        `\nNgữ cảnh RLS (pool max 2, 2000 câu 'select 1'): cùng tổ chức ${same.toFixed(0)} µs/câu, ` +
+          `luân phiên 2 tổ chức ${alternate.toFixed(0)} µs/câu`,
+      );
+    }
+
     console.log(`\n| Người xem | Trang | Trung vị (ms, mọi câu) | Buffers | Dòng trả | Số câu |`);
     console.log('| --- | --- | ---: | ---: | ---: | ---: |');
     for (const r of results) {
@@ -201,6 +248,7 @@ async function main() {
       );
     }
   } finally {
+    if (queryPool && queryPool !== pool) await queryPool.end();
     await pool.end();
     if (KEEP) {
       console.log(`\nGiữ DB: ${dbUrl}`);

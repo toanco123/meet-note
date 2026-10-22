@@ -6,7 +6,6 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { uploads } from '../../../src/infra/database/schema/index.js';
 import { QueueName } from '../../../src/infra/queue/queue.module.js';
@@ -14,6 +13,7 @@ import { createTestApp } from '../../support/app.js';
 import { addMember } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
 import { createTestStorage } from '../../support/storage.js';
+import { fixtureDb } from '../../support/db.js';
 
 const MiB = 1024 * 1024;
 
@@ -64,7 +64,7 @@ describe('Upload: complete → meeting `queued` (e2e, Redis + RustFS thật)', (
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
     queue = app.get<Queue>(getQueueToken(QueueName.Default));
     const owner = await registerUser(app);
     [alice, bob] = await Promise.all([registerUser(app), registerUser(app)]);

@@ -3,12 +3,12 @@ import type { Socket } from 'socket.io-client';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { notifications } from '../../../src/infra/database/schema/index.js';
 import { createTestApp } from '../../support/app.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
 import { connectRealtime, nextEvent, portOf } from '../../support/realtime.js';
+import { fixtureDb } from '../../support/db.js';
 
 /** Đọc ở một phiên → các phiên khác của CÙNG người nhận `notification.read` (M10 B4). */
 describe('Thông báo: đồng bộ "đã đọc" giữa các phiên (e2e)', () => {
@@ -20,7 +20,7 @@ describe('Thông báo: đồng bộ "đã đọc" giữa các phiên (e2e)', () 
   beforeAll(async () => {
     app = await createTestApp();
     await app.listen(0);
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
   });
 
   afterAll(async () => {

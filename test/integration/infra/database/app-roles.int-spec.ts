@@ -12,7 +12,7 @@ describe('Role của app (Postgres thật)', () => {
   let owner: TestDb;
 
   beforeAll(() => {
-    app = createTestDb(2);
+    app = createTestDb(2, process.env.DATABASE_URL); // ĐÚNG user của api
     owner = createTestDb(1, process.env.TEST_ADMIN_DATABASE_URL);
   });
 

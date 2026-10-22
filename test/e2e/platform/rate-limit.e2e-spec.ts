@@ -2,11 +2,11 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { createTestApp } from '../../support/app.js';
 import { insertUser } from '../../support/db-factories.js';
 import { bearer, DEFAULT_PASSWORD, uniqueEmail } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 // Chạy TRƯỚC mọi import của file (trước khi ConfigModule đọc env): bật rate limit (setup-e2e tắt)
 // và tin 1 tầng proxy để test giả được nhiều IP bằng `X-Forwarded-For`.
@@ -22,7 +22,7 @@ describe('Rate limit (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
   });
 
   afterAll(async () => {

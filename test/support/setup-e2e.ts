@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { afterAll, inject } from 'vitest';
 import { createTestDatabase } from './database.js';
+import { closeFixtureDb } from './db.js';
 
 /**
  * Chạy TRƯỚC mỗi file test (trước cả khi file test import AppModule).
@@ -36,5 +37,6 @@ process.env.RATE_LIMIT_ENABLED = 'false';
 process.env.RATE_LIMIT_PREFIX = `meetnote-test-${randomBytes(6).toString('hex')}:rate-limit`;
 
 afterAll(async () => {
+  await closeFixtureDb();
   await database.drop();
 });

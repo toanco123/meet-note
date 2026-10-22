@@ -7,7 +7,6 @@ import type { Socket } from 'socket.io-client';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { notifications } from '../../../src/infra/database/schema/index.js';
 import { JobName } from '../../../src/infra/queue/jobs.js';
@@ -21,6 +20,7 @@ import {
 } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
 import { connectRealtime, nextEvent, portOf } from '../../support/realtime.js';
+import { fixtureDb } from '../../support/db.js';
 
 /**
  * Đường đi đầy đủ của thông báo nhiều người nhận (M10 B5): share qua HTTP → enqueue SAU commit →
@@ -40,7 +40,7 @@ describe('Thông báo: fan-out "meeting được chia sẻ" qua worker (e2e)', (
     app = await createTestApp();
     await app.listen(0);
     worker = await createTestWorker();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
     queue = app.get(getQueueToken(QueueName.Default));
     events = new QueueEvents(QueueName.Default, {
       connection: { url: process.env.REDIS_URL },

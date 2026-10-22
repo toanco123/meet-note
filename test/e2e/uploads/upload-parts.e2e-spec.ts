@@ -5,12 +5,12 @@ import { and, eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { uploadParts, uploads } from '../../../src/infra/database/schema/index.js';
 import { createTestApp } from '../../support/app.js';
 import { addMember } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 const MiB = 1024 * 1024;
 
@@ -95,7 +95,7 @@ describe('Upload: gửi từng phần (e2e, stream)', () => {
     app = await createTestApp();
     await app.listen(0);
     port = ((app.getHttpServer() as unknown as Server).address() as AddressInfo).port;
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
     const owner = await registerUser(app);
     [alice, bob] = await Promise.all([registerUser(app), registerUser(app)]);
     orgId = (await http().post('/v1/orgs').set(as(owner)).send({ name: 'Parts' }).expect(201)).body

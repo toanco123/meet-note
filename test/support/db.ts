@@ -13,7 +13,14 @@ export interface TestDb {
  * Drizzle trỏ vào database riêng của file test (do setup-e2e tạo) — dùng cho integration test
  * không cần dựng cả app Nest. `max` đủ lớn cho test concurrency (mỗi transaction 1 connection).
  */
-export function createTestDb(max = 10, connectionString = process.env.DATABASE_URL): TestDb {
+/**
+ * Mặc định: user WORKER (`BYPASSRLS`, không superuser) — test dựng / kiểm dữ liệu không có ngữ cảnh
+ * tổ chức, RLS (M11 B7) sẽ giấu hết. Test cần đúng user của api (bị RLS) truyền `DATABASE_URL`.
+ */
+export function createTestDb(
+  max = 10,
+  connectionString = process.env.TEST_WORKER_DATABASE_URL,
+): TestDb {
   const pool = new Pool({ connectionString, max });
   // Lưới an toàn: teardown (`DROP DATABASE … WITH (FORCE)`) cắt connection pool đang đóng dở →
   // `FATAL 57P01` → pool phát 'error'; không ai nghe = uncaught exception, CẢ lượt test bị tính
@@ -51,4 +58,21 @@ async function endPool(pool: Pool): Promise<void> {
   });
   await pool.end();
   await allClosed;
+}
+
+let fixtures: TestDb | undefined;
+
+/**
+ * Kết nối dựng / kiểm fixture trong e2e (M11 B7): user worker, bỏ qua RLS — fixture chèn ngoài
+ * request nên không có ngữ cảnh tổ chức. App vẫn chạy dưới RLS bằng pool của chính nó. Một kết nối
+ * cho cả file, `setup-e2e` đóng trước khi xoá database.
+ */
+export function fixtureDb(): Database {
+  fixtures ??= createTestDb(5);
+  return fixtures.db;
+}
+
+export async function closeFixtureDb(): Promise<void> {
+  await fixtures?.close();
+  fixtures = undefined;
 }

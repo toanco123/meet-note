@@ -4,12 +4,12 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { notifications } from '../../../src/infra/database/schema/index.js';
 import { createTestApp } from '../../support/app.js';
 import { addMember } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 /** API thông báo của chính người gọi (M10 B3). */
 describe('Thông báo: API (e2e)', () => {
@@ -20,7 +20,7 @@ describe('Thông báo: API (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
   });
 
   afterAll(async () => {

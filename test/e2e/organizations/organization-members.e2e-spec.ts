@@ -3,11 +3,11 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { encodeCursor } from '../../../src/common/pagination/cursor.js';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { createTestApp } from '../../support/app.js';
 import { addMember, insertUser } from '../../support/db-factories.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { fixtureDb } from '../../support/db.js';
 
 interface MemberBody {
   userId: string;
@@ -31,7 +31,7 @@ describe('GET /v1/orgs/:orgId/members — cursor + tìm không dấu (e2e)', () 
 
   beforeAll(async () => {
     app = await createTestApp();
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
     owner = await registerUser(app, { displayName: 'Chủ Tổ Chức' });
     outsider = await registerUser(app);
     orgId = (

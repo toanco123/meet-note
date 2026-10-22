@@ -85,6 +85,13 @@
       "when": 1792637235407,
       "tag": "0011_app_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792637755255,
+      "tag": "0012_rls_org_isolation",
+      "breakpoints": true
     }
   ]
 }

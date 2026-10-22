@@ -5,13 +5,13 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AuthUser } from '../../../src/common/auth/auth.types.js';
-import { DRIZZLE } from '../../../src/infra/database/database.module.js';
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { sessions } from '../../../src/infra/database/schema/index.js';
 import { JWT_AUDIENCE, JWT_ISSUER } from '../../../src/modules/auth/services/token.service.js';
 import { createTestApp } from '../../support/app.js';
 import { bearer, registerUser } from '../../support/factories.js';
 import { ProbeController } from '../../support/probe.controller.js';
+import { fixtureDb } from '../../support/db.js';
 
 describe('JwtAuthGuard toàn cục (e2e)', () => {
   let app: INestApplication<App>;
@@ -28,7 +28,7 @@ describe('JwtAuthGuard toàn cục (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp({ controllers: [ProbeController] });
-    db = app.get(DRIZZLE);
+    db = fixtureDb();
   });
 
   afterAll(async () => {

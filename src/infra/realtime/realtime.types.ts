@@ -10,7 +10,8 @@
 export type AccessScope =
   | { kind: 'meeting'; meetingId: string }
   | { kind: 'user'; userId: string }
-  | { kind: 'channel'; channelId: string }
+  /** `orgId`: listener đọc share của kênh trong ngữ cảnh tổ chức đó (RLS, M11 B7). */
+  | { kind: 'channel'; channelId: string; orgId: string }
   | { kind: 'org'; orgId: string };
 
 /** Vì sao server chủ động kết thúc kết nối — gửi kèm event `session.ended` ngay trước khi ngắt. */

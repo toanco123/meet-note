@@ -4,6 +4,7 @@ import type { App } from 'supertest/types.js';
 import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/bootstrap/configure-app.js';
 import { buildOpenApiDocument, setupSwagger } from '../../src/bootstrap/swagger.js';
+import { createPgPool, PG_POOL } from '../../src/infra/database/database.module.js';
 import { WorkerModule } from '../../src/worker.module.js';
 
 export interface TestAppOptions {
@@ -37,7 +38,21 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<INest
  * thật trên Redis thật, cùng DB / prefix queue của file test. Đóng bằng `close()` (chờ job đang chạy).
  */
 export async function createTestWorker(): Promise<INestApplicationContext> {
-  const moduleRef = await Test.createTestingModule({ imports: [WorkerModule] }).compile();
+  // Như compose: worker kết nối bằng user RIÊNG (BYPASSRLS — job xuyên tổ chức, M11 B7).
+  const moduleRef = await Test.createTestingModule({ imports: [WorkerModule] })
+    .overrideProvider(PG_POOL)
+    .useFactory({
+      factory: () =>
+        createPgPool({
+          connectionString: process.env.TEST_WORKER_DATABASE_URL!,
+          max: 5,
+          applicationName: 'meetnote-worker-test',
+          lockTimeoutMs: 3_000,
+          statementTimeoutMs: 60_000,
+          idleInTransactionTimeoutMs: 30_000,
+        }),
+    })
+    .compile();
   moduleRef.useLogger(false);
   return moduleRef.init();
 }
