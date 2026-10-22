@@ -9,6 +9,18 @@
 - **Tenant consistency bằng composite FK:** bảng con mang theo `org_id` và FK `(x_id, org_id)` trỏ tới `UNIQUE (id, org_id)` của bảng cha. Như vậy DB **không cho phép** share meeting của org A vào kênh của org B, kể cả khi code có bug.
 - Xoá mềm bằng `deleted_at`. Unique index kèm `WHERE deleted_at IS NULL` để tên đã xoá dùng lại được.
 
+### Role của Postgres (M11 B6, migration `0011_app_roles`)
+
+| Role                    | Loại                                          | Dùng bởi                             | Quyền                                                                                                                                                         |
+| ----------------------- | --------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `meetnote` (chủ schema) | LOGIN                                         | `migrate` (`MIGRATION_DATABASE_URL`) | Chủ mọi bảng: DDL, migration                                                                                                                                  |
+| `meetnote_app`          | NHÓM, NOLOGIN                                 | —                                    | `SELECT, INSERT, UPDATE, DELETE` mọi bảng + sequence; trừ `UPDATE, DELETE` trên `audit_logs`. `ALTER DEFAULT PRIVILEGES` → bảng của migration sau tự có quyền |
+| `meetnote_worker`       | NHÓM, NOLOGIN                                 | —                                    | Như `meetnote_app`                                                                                                                                            |
+| `meetnote_api_login`    | LOGIN, thuộc `meetnote_app`                   | api                                  | Kế thừa quyền nhóm; bị RLS (M11 B7)                                                                                                                           |
+| `meetnote_worker_login` | LOGIN, thuộc `meetnote_worker`, **BYPASSRLS** | worker                               | Kế thừa quyền nhóm; job xuyên tổ chức                                                                                                                         |
+
+Role nhóm + GRANT nằm trong migration (không mật khẩu); user đăng nhập do `provisionLoginRoles` (script migrate khi có `DB_API_PASSWORD` + `DB_WORKER_PASSWORD`) tạo / cập nhật. **Bẫy:** thuộc tính role (`LOGIN`, `BYPASSRLS`, `SUPERUSER`…) KHÔNG kế thừa qua membership — chỉ GRANT trên đối tượng kế thừa → `BYPASSRLS` đặt trên user đăng nhập của worker. Bảng chỉ-ghi-thêm mới phải `REVOKE UPDATE, DELETE` tường minh (default privileges cấp đủ DML). DB managed: role chạy migration có thể không có `CREATEROLE` / không đặt được `BYPASSRLS` (cần superuser) → tạo role bằng tài khoản quản trị của nhà cung cấp.
+
 ### Extension & đối tượng tạo bằng SQL viết tay (migration `0000_extensions`)
 
 ```sql

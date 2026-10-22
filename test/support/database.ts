@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Client, escapeIdentifier } from 'pg';
+import { DB_LOGINS } from '../../src/infra/database/provision-roles.js';
 
 export const POSTGRES_IMAGE = 'postgres:18.6-alpine';
 export const REDIS_IMAGE = 'redis:8.8.3-alpine';
@@ -8,12 +9,23 @@ export const REDIS_IMAGE = 'redis:8.8.3-alpine';
 export const RUSTFS_IMAGE = 'rustfs/rustfs:1.0.1';
 export const TEMPLATE_DATABASE = 'meetnote_template';
 
+/** Mật khẩu user đăng nhập của api / worker trong container test (M11 B6) — chỉ cho test. */
+export const TEST_DB_PASSWORDS = { api: 'api-test-password', worker: 'worker-test-password' };
+
 /** SQLSTATE 55006: object_in_use — template đang bị phiên khác dùng. */
 const PG_OBJECT_IN_USE = '55006';
 
 export function withDatabase(connectionUrl: string, database: string): string {
   const url = new URL(connectionUrl);
   url.pathname = `/${database}`;
+  return url.toString();
+}
+
+/** Cùng host / database, đổi user đăng nhập. */
+export function withLogin(connectionUrl: string, user: string, password: string): string {
+  const url = new URL(connectionUrl);
+  url.username = user;
+  url.password = password;
   return url.toString();
 }
 
@@ -61,7 +73,12 @@ export async function dropDatabase(adminUrl: string, name: string): Promise<void
 }
 
 export interface TestDatabase {
+  /** Superuser của container (chủ schema) — tạo / xoá database, test cần quyền chủ. */
   url: string;
+  /** User đăng nhập của api (`meetnote_app`, không superuser) — app và phần lớn test chạy bằng nó. */
+  appUrl: string;
+  /** User đăng nhập của worker (`meetnote_worker`, BYPASSRLS). */
+  workerUrl: string;
   drop: () => Promise<void>;
 }
 
@@ -69,5 +86,11 @@ export interface TestDatabase {
 export async function createTestDatabase(adminUrl: string): Promise<TestDatabase> {
   const name = `test_${randomBytes(6).toString('hex')}`;
   await createDatabase(adminUrl, name, TEMPLATE_DATABASE);
-  return { url: withDatabase(adminUrl, name), drop: () => dropDatabase(adminUrl, name) };
+  const url = withDatabase(adminUrl, name);
+  return {
+    url,
+    appUrl: withLogin(url, DB_LOGINS.api.name, TEST_DB_PASSWORDS.api),
+    workerUrl: withLogin(url, DB_LOGINS.worker.name, TEST_DB_PASSWORDS.worker),
+    drop: () => dropDatabase(adminUrl, name),
+  };
 }

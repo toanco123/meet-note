@@ -12,7 +12,11 @@ const database = await createTestDatabase(inject('postgresAdminUrl'));
 
 process.env.NODE_ENV = 'test';
 process.env.LOG_LEVEL = 'silent';
-process.env.DATABASE_URL = database.url;
+// App (và test dựng pool từ DATABASE_URL) chạy bằng user api, KHÔNG superuser (M11 B6) — lỡ thiếu
+// GRANT thì e2e đỏ ngay. Test cần quyền chủ dùng TEST_ADMIN_DATABASE_URL.
+process.env.DATABASE_URL = database.appUrl;
+process.env.TEST_ADMIN_DATABASE_URL = database.url;
+process.env.TEST_WORKER_DATABASE_URL = database.workerUrl;
 process.env.REDIS_URL = inject('redisUrl');
 process.env.JWT_ACCESS_SECRET = randomBytes(32).toString('hex');
 const s3 = inject('s3');

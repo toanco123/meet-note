@@ -13,8 +13,8 @@ export interface TestDb {
  * Drizzle trỏ vào database riêng của file test (do setup-e2e tạo) — dùng cho integration test
  * không cần dựng cả app Nest. `max` đủ lớn cho test concurrency (mỗi transaction 1 connection).
  */
-export function createTestDb(max = 10): TestDb {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL, max });
+export function createTestDb(max = 10, connectionString = process.env.DATABASE_URL): TestDb {
+  const pool = new Pool({ connectionString, max });
   // Lưới an toàn: teardown (`DROP DATABASE … WITH (FORCE)`) cắt connection pool đang đóng dở →
   // `FATAL 57P01` → pool phát 'error'; không ai nghe = uncaught exception, CẢ lượt test bị tính
   // là thất bại dù mọi test xanh. Chỉ bỏ qua đúng ca đó; lỗi khác vẫn ném ra cho lộ.
