@@ -34,6 +34,8 @@ export const MEETING_FAILURE_CODES = [
   'MEDIA_TOO_LONG',
   'TRANSCRIBE_FAILED',
   'SUMMARIZE_FAILED',
+  /** Preprocess hết lượt retry vì lỗi TẠM (S3, đĩa…) — không phải lỗi của file (M6 B4). */
+  'PREPROCESS_FAILED',
 ] as const;
 export type MeetingFailureCode = (typeof MEETING_FAILURE_CODES)[number];
 
@@ -69,6 +71,13 @@ export const meetings = pgTable(
     sourceObjectKey: text().notNull(),
     /** Audio đã chuẩn hoá (M6). */
     audioObjectKey: text(),
+    /**
+     * LEASE của bước pipeline đang chạy (M6 B4): nhận việc = ghi token mới + hạn; chỉ nhận khi chưa ai
+     * giữ hoặc đã hết hạn; ghi kết quả chỉ khi token VẪN là của mình (fencing). Lỗi tạm → nhả ngay để
+     * retry nhận lại; worker chết → hết hạn thì quét kẹt nhận lại.
+     */
+    stageToken: uuid(),
+    stageLeaseUntil: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

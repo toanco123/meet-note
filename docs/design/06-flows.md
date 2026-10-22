@@ -75,14 +75,14 @@ sequenceDiagram
   participant R as Redis (emitter)
 
   Q->>W: meeting.preprocess {meetingId}
-  W->>DB: UPDATE meetings SET status=preprocessing WHERE status IN (queued, failed)
+  W->>DB: CLAIM: UPDATE status=preprocessing, token, lease WHERE attempt AND status IN (queued, preprocessing) AND lease trống/hết hạn
   W->>S3: GetObject (stream ra file tạm)
   W->>W: ffprobe (duration ≤ 4h) + ffmpeg → wav 16kHz mono
   W->>S3: PutObject audio chuẩn hoá
   W->>Q: add meeting.transcribe
 
   Q->>W: meeting.transcribe (queue "transcription", concurrency 1)
-  W->>DB: UPDATE status=transcribing WHERE status=preprocessing
+  W->>DB: CLAIM: UPDATE token, lease WHERE attempt AND status=transcribing AND lease trống/hết hạn
   W->>WH: spawn whisper-cli -m model -f audio.wav -oj -pp
   loop stdout tiến độ
     W->>R: emit meeting.progress {stage: transcribing, percent}
@@ -108,7 +108,10 @@ Retry & lỗi:
 
 - Lỗi không retry: ném `UnrecoverableError` của BullMQ.
 - Hết attempts: event `failed` đưa meeting vào `status=failed, failure_code`, emit `meeting.status`, gửi thông báo cho chủ meeting.
-- **Idempotent mọi bước.** Job có thể chạy 2 lần (worker chết giữa chừng, job "stalled" bị chạy lại). Mỗi bước bắt đầu bằng UPDATE có điều kiện, ghi kết quả theo kiểu "xoá rồi ghi" hoặc upsert.
+- **Idempotent mọi bước — LEASE + FENCING TOKEN (M6 B4).** Job có thể chạy 2 lần (worker chết giữa chừng, job "stalled" bị chạy lại) và mỗi bước có retry. `status` là CHẶNG hiện tại (đang chờ hoặc đang chạy): preprocess xong → `transcribing`, transcribe xong → `summarizing`, summarize xong → `completed`.
+  - **Nhận việc** (`claim`): MỘT câu UPDATE đặt `stage_token` mới + `stage_lease_until`, CHỈ khi đúng `attempt`, chưa xoá, đúng chặng, và lease trống hoặc đã hết hạn. Hai worker cùng nhận → một bên 0 dòng → bỏ qua.
+  - **Lỗi** (tạm hay vĩnh viễn) → nhả lease ngay để retry nhận lại được (bản đầu chỉ "UPDATE WHERE status = <chặng trước>": retry của BullMQ thấy status đã đổi → bỏ qua → meeting kẹt mãi).
+  - **Ghi kết quả**: một transaction ngắn, chuyển chặng TRƯỚC với điều kiện `stage_token = token của mình` (fencing) — lease hết hạn và worker khác đã nhận thì 0 dòng → không ghi; rồi ghi kết quả kiểu "xoá rồi ghi" / upsert. Enqueue bước kế SAU commit.
 - **Graceful shutdown.** Worker nhận SIGTERM thì `worker.close()`, chờ job hiện tại xong. Riêng whisper chạy lâu thì kill child process và để job retry.
 - Whisper trong Docker trên macOS chỉ chạy CPU, rất chậm. Có thể chạy worker native trên host (`pnpm start:worker`) để dùng Metal.
 

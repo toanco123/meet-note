@@ -68,3 +68,56 @@ export interface MeetingPatch {
   title?: string;
   recordedAt?: Date;
 }
+
+/** Ba bước pipeline (M6), mỗi bước một job, retry độc lập (Q4). */
+export type PipelineStep = 'preprocess' | 'transcribe' | 'summarize';
+
+/** Payload job pipeline — CHỈ id + `attempt` (fencing, Q6) + request gốc để nối log. */
+export interface PipelineJob {
+  meetingId: string;
+  attempt: number;
+  requestId: string | null;
+}
+
+/** Xếp bước kế tiếp vào hàng đợi — gọi SAU commit (B5: BullMQ; test: bộ ghi). */
+export interface PipelineScheduler {
+  enqueue(step: PipelineStep, job: PipelineJob): Promise<void>;
+}
+
+export interface PipelineRunOptions {
+  /** Worker tắt → huỷ process con / request đang chạy. */
+  signal?: AbortSignal;
+  onProgress?: (step: PipelineStep, percent: number) => void;
+}
+
+/** `done`: bước chạy xong và đã commit. `skipped`: job cũ / trùng / meeting đã xoá / mất lease. */
+export type PipelineOutcome = 'done' | 'skipped';
+
+export interface PipelineOptions {
+  /** Meeting dài hơn → `MEDIA_TOO_LONG` (01-overview: ≤ 4 giờ). */
+  maxDurationMs: number;
+  /** ffprobe / ffmpeg mỗi lần chạy. */
+  mediaTimeoutMs: number;
+  /** Hạn whisper = thời lượng × hệ số + `transcribeBaseTimeoutMs`. */
+  transcribeTimeoutFactor: number;
+  transcribeBaseTimeoutMs: number;
+  /** `auto` hoặc mã ngôn ngữ cho whisper. */
+  language: string;
+  /** Lease = thời gian tối đa một bước có thể chạy + dư; hết hạn thì worker khác được nhận. */
+  preprocessLeaseMs: number;
+  summarizeLeaseMs: number;
+  leaseMarginMs: number;
+}
+
+/** Meeting vừa NHẬN VIỆC (claim) — đủ để chạy một bước, kèm token lease của lần nhận này. */
+export interface ClaimedMeeting {
+  id: string;
+  orgId: string;
+  ownerId: string | null;
+  title: string;
+  sourceObjectKey: string;
+  audioObjectKey: string | null;
+  durationMs: number | null;
+  attempt: number;
+  stageToken: string;
+}

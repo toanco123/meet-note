@@ -9,6 +9,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { inValues } from './column-types.js';
@@ -96,6 +97,12 @@ export const uploads = pgTable(
       columns: [t.meetingId, t.orgId],
       foreignColumns: [meetings.id, meetings.orgId],
     }),
+    // M6 B4: pipeline tra upload (sha256 client khai báo) theo meeting; cũng là index phía tham chiếu
+    // của `uploads_meeting_fk` (thiếu từ M5 — xoá cứng meeting phải quét cả bảng). Mỗi meeting đến từ
+    // ĐÚNG một upload → unique.
+    uniqueIndex('uploads_meeting_uq')
+      .on(t.meetingId)
+      .where(sql`${t.meetingId} is not null`),
     // Job dọn upload hết hạn (B7): chỉ upload còn mở.
     index('uploads_expiry_idx')
       .on(t.expiresAt)
