@@ -29,35 +29,36 @@ Kiểm tra trên npm registry, nodejs.org và Docker Hub ngày **2026-10-13**. `
 
 ## Thư viện khác
 
-| Nhóm         | Package                                                           | Phiên bản                                         | Dùng từ mốc      |
-| ------------ | ----------------------------------------------------------------- | ------------------------------------------------- | ---------------- |
-| ORM          | drizzle-orm                                                       | 0.45.4                                            | M0               |
-|              | drizzle-kit                                                       | 0.31.11                                           | M0               |
-| Driver       | pg                                                                | 8.23.1                                            | M0               |
-| Queue        | bullmq                                                            | 6.3.13                                            | M0 (kết nối), M6 |
-| Redis client | ioredis                                                           | 6.0.0                                             | M0               |
-| Log          | nestjs-pino                                                       | 5.3.1                                             | M0               |
-|              | pino                                                              | 10.4.0                                            | M0               |
-|              | pino-http                                                         | 11.0.0                                            | M0               |
-|              | pino-pretty                                                       | 13.2.0 (dev)                                      | M0               |
-| Validate     | class-validator                                                   | 0.15.1                                            | M0               |
-|              | class-transformer                                                 | 0.5.1                                             | M0               |
-| Test         | vitest                                                            | 5.0.4                                             | M0               |
-|              | vite                                                              | 8.3.4                                             | M0               |
-|              | @vitest/coverage-v8                                               | 5.0.4                                             | M0               |
-|              | testcontainers, @testcontainers/postgresql, @testcontainers/redis | 12.2.0                                            | M0               |
-|              | supertest                                                         | 7.3.1                                             | M0               |
-|              | socket.io-client (dev)                                            | 4.8.4                                             | M7               |
-| Lint/format  | oxlint                                                            | 1.87.0                                            | M0               |
-|              | oxlint-tsgolint                                                   | 7.0.2004                                          | M0               |
-|              | prettier                                                          | 3.9.10                                            | M0               |
-| Auth         | argon2                                                            | 0.45.1                                            | M1               |
-| Storage      | @aws-sdk/client-s3                                                | 3.1152.0                                          | M5               |
-| Realtime     | socket.io                                                         | 4.8.4                                             | M7               |
-|              | @socket.io/redis-adapter                                          | 8.3.0                                             | M7               |
-|              | @socket.io/redis-emitter                                          | 5.1.0                                             | M7               |
-| Media        | ffmpeg / ffprobe (binary, `spawn`)                                | 9.0.2 (Homebrew, máy dev); CI: bản của apt ubuntu | M6               |
-| Speech       | whisper.cpp (`whisper-cli`, binary)                               | 1.9.5 (Homebrew, máy dev)                         | M6               |
+| Nhóm         | Package                                                           | Phiên bản                                                                                                                                        | Dùng từ mốc      |
+| ------------ | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
+| ORM          | drizzle-orm                                                       | 0.45.4                                                                                                                                           | M0               |
+|              | drizzle-kit                                                       | 0.31.11                                                                                                                                          | M0               |
+| Driver       | pg                                                                | 8.23.1                                                                                                                                           | M0               |
+| Queue        | bullmq                                                            | 6.3.13                                                                                                                                           | M0 (kết nối), M6 |
+| Redis client | ioredis                                                           | 6.0.0                                                                                                                                            | M0               |
+| Log          | nestjs-pino                                                       | 5.3.1                                                                                                                                            | M0               |
+|              | pino                                                              | 10.4.0                                                                                                                                           | M0               |
+|              | pino-http                                                         | 11.0.0                                                                                                                                           | M0               |
+|              | pino-pretty                                                       | 13.2.0 (dev)                                                                                                                                     | M0               |
+| Validate     | class-validator                                                   | 0.15.1                                                                                                                                           | M0               |
+|              | class-transformer                                                 | 0.5.1                                                                                                                                            | M0               |
+| Test         | vitest                                                            | 5.0.4                                                                                                                                            | M0               |
+|              | vite                                                              | 8.3.4                                                                                                                                            | M0               |
+|              | @vitest/coverage-v8                                               | 5.0.4                                                                                                                                            | M0               |
+|              | testcontainers, @testcontainers/postgresql, @testcontainers/redis | 12.2.0                                                                                                                                           | M0               |
+|              | supertest                                                         | 7.3.1                                                                                                                                            | M0               |
+|              | socket.io-client (dev)                                            | 4.8.4                                                                                                                                            | M7               |
+| Lint/format  | oxlint                                                            | 1.87.0                                                                                                                                           | M0               |
+|              | oxlint-tsgolint                                                   | 7.0.2004                                                                                                                                         | M0               |
+|              | prettier                                                          | 3.9.10                                                                                                                                           | M0               |
+| Auth         | argon2                                                            | 0.45.1                                                                                                                                           | M1               |
+| Storage      | @aws-sdk/client-s3                                                | 3.1152.0                                                                                                                                         | M5               |
+| Realtime     | socket.io                                                         | 4.8.4                                                                                                                                            | M7               |
+|              | @socket.io/redis-adapter                                          | 8.3.0                                                                                                                                            | M7               |
+|              | @socket.io/redis-emitter                                          | 5.1.0                                                                                                                                            | M7               |
+| Media        | ffmpeg / ffprobe (binary, `spawn`)                                | 9.0.2 (Homebrew, máy dev); CI: bản của apt ubuntu                                                                                                | M6               |
+| Speech       | whisper.cpp (`whisper-cli`, binary)                               | 1.9.5 (Homebrew, máy dev)                                                                                                                        | M6               |
+| LLM          | @anthropic-ai/sdk                                                 | 0.137.0 — `latest` là 1.1.0 nhưng 1.0.0 / 1.1.0 phát hành 2026-10-21, quá mới cho `minimumReleaseAge` (và là major mới); xem lại khi 1.x đủ tuổi | M6               |
 
 ## Lưu ý tương thích (NestJS 12 / ESM)
 
