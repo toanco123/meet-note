@@ -10,7 +10,13 @@ import { AppException } from './app.exception.js';
 import { defaultCodeForStatus } from './error-code.js';
 import { Errors } from './errors.js';
 import type { ErrorResponseDto } from './error-response.dto.js';
-import { findPgError, PG_FOREIGN_KEY_VIOLATION, PG_UNIQUE_VIOLATION } from './pg-error.js';
+import {
+  findPgError,
+  PG_FOREIGN_KEY_VIOLATION,
+  PG_LOCK_NOT_AVAILABLE,
+  PG_QUERY_CANCELED,
+  PG_UNIQUE_VIOLATION,
+} from './pg-error.js';
 import type { MappedError } from './errors.types.js';
 
 /** Lỗi 4xx từ middleware Express (body-parser: JSON hỏng, body quá lớn) có `status` + `expose`. */
@@ -42,6 +48,9 @@ export function mapException(exception: unknown): MappedError {
   if (pgError?.code === PG_UNIQUE_VIOLATION) return fromAppException(Errors.common.duplicate());
   if (pgError?.code === PG_FOREIGN_KEY_VIOLATION) {
     return fromAppException(Errors.common.referenceInvalid());
+  }
+  if (pgError?.code === PG_LOCK_NOT_AVAILABLE || pgError?.code === PG_QUERY_CANCELED) {
+    return { ...fromAppException(Errors.common.databaseBusy()), retryAfterSeconds: 1 };
   }
 
   const clientError = asExposedClientError(exception);
@@ -100,6 +109,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ...(requestId ? { requestId } : {}),
       },
     };
-    httpAdapter.reply(ctx.getResponse(), body, mapped.status);
+    const response = ctx.getResponse();
+    if (mapped.retryAfterSeconds !== undefined) {
+      httpAdapter.setHeader(response, 'Retry-After', String(mapped.retryAfterSeconds));
+    }
+    httpAdapter.reply(response, body, mapped.status);
   }
 }

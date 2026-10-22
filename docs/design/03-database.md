@@ -381,6 +381,8 @@ Dùng cho các POST không tự idempotent, theo header `Idempotency-Key` (`@Ide
 
 ## 7. Thứ tự khoá chung (M4) và tóm tắt chỗ cần transaction / khoá
 
+> **Timeout cho mọi connection (M11 B1)** — đặt trong `createPgPool`, gửi lúc mở connection: `lock_timeout` 3 s (lỗi `55P03` → HTTP 503), `statement_timeout` 15 s (worker 60 s; `57014` → 503), `idle_in_transaction_session_timeout` 30 s (Postgres cắt session, nhả khoá). `lock_timeout` < idle timeout là BẮT BUỘC: khi lệnh của connection B chờ khoá do transaction A giữ, A cũng đang "idle in transaction" — idle timeout ngắn hơn thì Postgres giết A thay vì cho B lỗi. Job purge vẫn đặt `lock_timeout` riêng bằng `set_config` (ngắn hơn). Migration dùng connection riêng, không bị giới hạn.
+
 **Mọi thao tác khoá nhiều loại dòng phải theo đúng thứ tự sau** (khoá ngược thứ tự → hai transaction có thể chờ nhau vòng tròn → Postgres giết một bên với `40P01`):
 
 0. `organizations` (dòng cha của mọi thứ; hiện chỉ xoá tổ chức và sửa tổ chức khoá dòng này)

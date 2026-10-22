@@ -49,7 +49,7 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 
 ## Các bước
 
-- [ ] **B1 — Timeout của Postgres + map lỗi**
+- [x] **B1 — Timeout của Postgres + map lỗi**
   - Việc: 3 timeout vào pool qua env (Q1); `AllExceptionsFilter` map `55P03` / `57014` → 503 + `Retry-After`; connection bị cắt vì idle trong transaction không làm sập tiến trình (pool `'error'` đã có listener).
   - Test (integration / e2e, Postgres thật): một connection của test giữ `FOR UPDATE` → request cần dòng đó trả **503 sau ~`lock_timeout`** (không treo); `pg_sleep` dài hơn `statement_timeout` → 503; transaction bỏ dở quá `idle_in_transaction_session_timeout` → session bị cắt, pool vẫn phục vụ request sau. Tái hiện đúng ca M3 bài học 5 (dùng `this.db` trong transaction có khoá) → giờ lỗi thay vì treo. Đột biến bỏ timeout → test hết giờ (đỏ).
 - [ ] **B2 — Storage rate limit trên Redis (Lua)**
@@ -90,4 +90,6 @@ Quyết định nhỏ đã tự chốt, sửa được nếu bạn muốn:
 
 ## Điều học được / bẫy gặp phải
 
-(Ghi trong lúc làm)
+1. **Bật `idle_in_transaction_session_timeout` mà không xử lý thì tệ hơn không bật: tiến trình CHẾT.** `pg-pool` 3.14 gắn listener `'error'` cho client lúc RẢNH và GỠ nó trong `_acquireClient` khi cho mượn (gắn lại ở `_release`). Postgres cắt session đang được app mượn (giữa một transaction) → gửi `FATAL 25P03` → client phát `'error'` không ai nghe → **uncaught exception** (test tái hiện được trước khi sửa). Sửa: `pool.on('connect', client => client.on('error', …))` — listener cố định, chỉ ghi log; người đang mượn vẫn nhận lỗi ở câu lệnh kế tiếp, `release(err)` bỏ client hỏng, pool vẫn chạy. Đột biến bỏ listener → 2 uncaught exception.
+2. **`lock_timeout` phải nhỏ hơn hẳn idle timeout — hai timeout bằng nhau chạy đua.** Lần chạy đầu đặt cả hai 300 ms: ca M3 (dùng `db` trong transaction có khoá) KHÔNG ra `55P03` mà ra lỗi mất kết nối. Lý do: trong lúc lệnh của connection B chờ khoá, transaction A (giữ khoá) cũng đang "idle in transaction" → Postgres giết A trước, khoá nhả, B chạy tiếp; lỗi nổ ra ở phía A. Production (3 s < 30 s) đúng, nhưng cấu hình sai thì Postgres giết nhầm bên. `createPgPool` từ chối khởi động nếu `lock ≥ idle`. Tương tự, đột biến bỏ `lock_timeout` vẫn "không treo" — nhưng nhờ idle timeout giết A, nên test phải kiểm ĐÚNG mã `55P03` chứ không chỉ "không treo".
+3. **Timeout phía Postgres khác `connectionTimeoutMillis` của `pg`.** Cái sau chỉ giới hạn thời gian CHỜ LẤY connection từ pool (pool cạn); request đã có connection mà chờ khoá thì trước đây treo vô hạn. Ba timeout mới được `pg` gửi trong startup packet → áp cho MỌI câu lệnh, kể cả câu Drizzle sinh, không cần `SET` ở đâu. `55P03` / `57014` → 503 `SERVICE_UNAVAILABLE` + `Retry-After: 1` (e2e: khoá dòng tổ chức từ connection khác → `PATCH` org trả 503 sau ~3 s, nhả khoá → 200). 4 đột biến (bỏ `lock_timeout`, bỏ `statement_timeout`, bỏ listener, bỏ map 503) đều đỏ. Mẹo: `timeout` (GNU coreutils) không có trên macOS — lệnh đột biến bọc trong `timeout` trả exit 127 mà không chạy gì; phải nhìn số test đỏ, không chỉ exit code.

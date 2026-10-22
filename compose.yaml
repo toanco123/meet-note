@@ -7,7 +7,7 @@ x-app: &app
     context: .
     dockerfile: docker/Dockerfile
   image: meetnote:local
-  environment:
+  environment: &app-env
     NODE_ENV: development # bật Swagger; production thì tắt
     LOG_LEVEL: info
     DATABASE_URL: postgres://meetnote:meetnote@postgres:5432/meetnote
@@ -98,6 +98,9 @@ services:
   worker:
     <<: *app
     command: ['node', '--enable-source-maps', 'dist/worker.js']
+    environment:
+      <<: *app-env
+      DATABASE_STATEMENT_TIMEOUT_MS: '60000' # job theo lô chạy lâu hơn request (M11 B1)
     depends_on:
       migrate:
         condition: service_completed_successfully

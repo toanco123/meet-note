@@ -17,6 +17,8 @@ export interface MappedError {
   code: string;
   message: string;
   details?: ErrorDetail[];
+  /** Header `Retry-After` (giây): lỗi tạm thời, client nên thử lại sau ngần này. */
+  retryAfterSeconds?: number;
 }
 
 /** Kênh mà một người đang làm chủ — liệt kê trong lỗi `ORG_MEMBER_OWNS_CHANNELS`. */

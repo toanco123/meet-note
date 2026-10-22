@@ -57,6 +57,26 @@ export class EnvironmentVariables {
   @Max(100)
   DATABASE_POOL_MAX = 10;
 
+  /**
+   * Timeout phía Postgres cho MỌI connection của tiến trình (M11 Q1, M3 bài học 5) — request lỗi
+   * 503 thay vì treo. Worker đặt `DATABASE_STATEMENT_TIMEOUT_MS` dài hơn (job theo lô). Migration
+   * dùng connection riêng, không bị giới hạn.
+   */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  DATABASE_LOCK_TIMEOUT_MS = 3_000;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  DATABASE_STATEMENT_TIMEOUT_MS = 15_000;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  DATABASE_IDLE_TX_TIMEOUT_MS = 30_000;
+
   @Matches(/^rediss?:\/\//, { message: 'REDIS_URL phải bắt đầu bằng redis:// hoặc rediss://' })
   REDIS_URL: string;
 
