@@ -1,7 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Errors } from '../../../common/errors/errors.js';
 import { decodeCursor, toPage } from '../../../common/pagination/cursor.js';
-import { expectTimestampKey, expectUuidKey } from '../../../common/pagination/keys.js';
+import {
+  expectNonNegativeIntKey,
+  expectTimestampKey,
+  expectUuidKey,
+} from '../../../common/pagination/keys.js';
 import type { Page } from '../../../common/pagination/pagination.types.js';
 import type { MeetingRow } from '../../../infra/database/schema/index.js';
 import { REALTIME_PUBLISHER } from '../../../infra/realtime/realtime.module.js';
@@ -18,6 +22,8 @@ import {
   MeetingDetailResponseDto,
   MeetingResponseDto,
 } from '../dto/meeting-response.dto.js';
+import { MeetingSummaryResponseDto } from '../dto/meeting-summary.dto.js';
+import { TranscriptSegmentResponseDto } from '../dto/meeting-transcript.dto.js';
 import { MeetingsRepository } from '../repositories/meetings.repository.js';
 import type { MeetingViewer, PipelineScheduler } from '../meetings.types.js';
 import { publishMeetingStatus } from '../meeting-events.js';
@@ -45,6 +51,54 @@ export class MeetingsService {
     if (!meeting) throw Errors.meeting.notFound();
     const channels = await this.repo.listVisibleChannels(meeting.id, viewer);
     return MeetingDetailResponseDto.withChannels(meeting, channels);
+  }
+
+  /** Transcript theo quyền XEM (04 §3) — như chi tiết. Chưa có (đang xử lý) → trang rỗng. */
+  async transcript(
+    membership: OrgMembershipContext,
+    userId: string,
+    meetingId: string,
+    query: CursorQueryDto,
+  ): Promise<Page<TranscriptSegmentResponseDto>> {
+    await this.assertVisible(membership, userId, meetingId);
+    const after = query.cursor ? decodeCursor(query.cursor, 1) : undefined;
+    const rows = await this.repo.listSegments(
+      meetingId,
+      after && expectNonNegativeIntKey(after[0]),
+      query.limit,
+    );
+    const page = toPage(rows, query.limit, (row) => [row.seq]);
+    return {
+      data: page.data.map((r) => TranscriptSegmentResponseDto.from(r)),
+      nextCursor: page.nextCursor,
+    };
+  }
+
+  /** Tóm tắt theo quyền XEM. Chưa `completed` → 409 (không phải 404: meeting có, chỉ chưa xong). */
+  async summary(
+    membership: OrgMembershipContext,
+    userId: string,
+    meetingId: string,
+  ): Promise<MeetingSummaryResponseDto> {
+    const meeting = await this.assertVisible(membership, userId, meetingId);
+    if (meeting.status !== 'completed') throw Errors.meeting.notCompleted();
+    const summary = await this.repo.findSummary(meetingId);
+    if (!summary) throw new Error(`Meeting ${meetingId} completed mà không có tóm tắt`);
+    return MeetingSummaryResponseDto.from(summary);
+  }
+
+  private async assertVisible(
+    membership: OrgMembershipContext,
+    userId: string,
+    meetingId: string,
+  ): Promise<MeetingRow> {
+    const meeting = await this.repo.findVisible(
+      membership.orgId,
+      viewerOf(membership, userId),
+      meetingId,
+    );
+    if (!meeting) throw Errors.meeting.notFound();
+    return meeting;
   }
 
   async list(

@@ -1,7 +1,3 @@
-import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { getQueueToken } from '@nestjs/bullmq';
 import type { INestApplication, INestApplicationContext } from '@nestjs/common';
 import type { Queue } from 'bullmq';
@@ -18,12 +14,12 @@ import {
 import { FakeSummarizer } from '../../../src/infra/llm/fake.summarizer.js';
 import { JobName } from '../../../src/infra/queue/jobs.js';
 import { QueueName } from '../../../src/infra/queue/queue.module.js';
-import { runProcess } from '../../../src/infra/process/run-process.js';
 import { FakeSpeechToText } from '../../../src/infra/speech/fake.speech-to-text.js';
 import type { SpeechToText, TranscribeOptions } from '../../../src/infra/speech/speech.types.js';
 import { createTestApp, createTestWorker } from '../../support/app.js';
 import { fixtureDb } from '../../support/db.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { generateAudio, uploadAudioMeeting } from '../../support/pipeline.js';
 
 /** Bộ nhận dạng "treo" tới khi bị huỷ — giả lập whisper đang chạy dài lúc worker tắt. */
 class HangingSpeech implements SpeechToText {
@@ -46,7 +42,6 @@ describe('Pipeline meeting qua BullMQ (e2e)', () => {
   let db: Database;
   let defaultQueue: Queue;
   let transcriptionQueue: Queue;
-  let dir: string;
   let audio: Buffer;
   const workers: INestApplicationContext[] = [];
   const http = () => request(app.getHttpServer());
@@ -57,24 +52,7 @@ describe('Pipeline meeting qua BullMQ (e2e)', () => {
     db = fixtureDb();
     defaultQueue = app.get<Queue>(getQueueToken(QueueName.Default));
     transcriptionQueue = app.get<Queue>(getQueueToken(QueueName.Transcription));
-    dir = await mkdtemp(join(tmpdir(), 'meetnote-pipeline-e2e-'));
-    await runProcess('ffmpeg', {
-      args: [
-        '-nostdin',
-        '-loglevel',
-        'error',
-        '-y',
-        '-f',
-        'lavfi',
-        '-i',
-        'sine=frequency=440:duration=3',
-        '-c:a',
-        'aac',
-        join(dir, 'hop.m4a'),
-      ],
-      timeoutMs: 30_000,
-    });
-    audio = await readFile(join(dir, 'hop.m4a'));
+    audio = await generateAudio();
   });
 
   // Mọi worker trong file dùng CHUNG queue: worker của test trước còn chạy sẽ "ăn" job của test sau
@@ -85,7 +63,6 @@ describe('Pipeline meeting qua BullMQ (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
-    await rm(dir, { recursive: true, force: true });
   });
 
   const startWorker = async (overrides: Parameters<typeof createTestWorker>[0] = {}) => {
@@ -94,36 +71,13 @@ describe('Pipeline meeting qua BullMQ (e2e)', () => {
     return worker;
   };
 
-  /** Upload THẬT qua HTTP (init → 1 phần → complete) → id meeting `queued`. */
+  /** Chủ + org mới, upload THẬT qua HTTP → id meeting `queued`. */
   async function uploadMeeting(): Promise<string> {
     const owner = await registerUser(app);
     const orgId = (
       await http().post('/v1/orgs').set(as(owner)).send({ name: 'Pipeline' }).expect(201)
     ).body.data.id as string;
-    const init = await http()
-      .post(`/v1/orgs/${orgId}/uploads`)
-      .set(as(owner))
-      .send({
-        filename: 'hop.m4a',
-        mimeType: 'audio/mp4',
-        sizeBytes: audio.length,
-        sha256: createHash('sha256').update(audio).digest('hex'),
-        title: 'Họp pipeline',
-        recordedAt: '2026-10-22T02:00:00.000Z',
-      })
-      .expect(201);
-    const uploadId = init.body.data.id as string;
-    await http()
-      .put(`/v1/orgs/${orgId}/uploads/${uploadId}/parts/1`)
-      .set(as(owner))
-      .set('Content-Type', 'application/octet-stream')
-      .send(audio)
-      .expect(200);
-    const complete = await http()
-      .post(`/v1/orgs/${orgId}/uploads/${uploadId}/complete`)
-      .set(as(owner))
-      .expect(201);
-    return complete.body.data.id as string;
+    return uploadAudioMeeting(app, owner, orgId, audio);
   }
   const meetingRow = async (id: string) =>
     (await db.select().from(meetings).where(eq(meetings.id, id)))[0]!;

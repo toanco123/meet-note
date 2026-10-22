@@ -246,6 +246,12 @@ export const Errors = {
       forbidden(
         'Chỉ chủ cuộc họp được làm việc này (cuộc họp không còn chủ: Owner / Admin tổ chức).',
       ),
+    /** Tóm tắt chỉ có khi pipeline xong (M6). */
+    notCompleted: () =>
+      conflict(ErrorCode.MeetingNotCompleted, 'Cuộc họp chưa xử lý xong, chưa có bản tóm tắt.'),
+    /** Chỉ chạy lại được khi đang `failed` (M6) — đang chạy / đã xong thì không. */
+    notFailed: () =>
+      conflict(ErrorCode.MeetingNotFailed, 'Chỉ chạy lại được cuộc họp đang ở trạng thái lỗi.'),
   },
 
   channel: {

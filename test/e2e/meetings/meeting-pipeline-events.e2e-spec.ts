@@ -1,7 +1,3 @@
-import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import type { INestApplication, INestApplicationContext } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import type { Socket } from 'socket.io-client';
@@ -11,13 +7,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import type { Database } from '../../../src/infra/database/database.types.js';
 import { meetings, notifications } from '../../../src/infra/database/schema/index.js';
 import { FakeSummarizer } from '../../../src/infra/llm/fake.summarizer.js';
-import { runProcess } from '../../../src/infra/process/run-process.js';
 import { REALTIME_PUBLISHER } from '../../../src/infra/realtime/realtime.module.js';
 import type { RealtimePublisher } from '../../../src/infra/realtime/realtime.types.js';
 import type { SpeechToText, TranscribeOptions } from '../../../src/infra/speech/speech.types.js';
 import { createTestApp, createTestWorker } from '../../support/app.js';
 import { fixtureDb } from '../../support/db.js';
 import { bearer, registerUser, type TestUser } from '../../support/factories.js';
+import { generateAudio, uploadAudioMeeting } from '../../support/pipeline.js';
 import { connectRealtime, portOf } from '../../support/realtime.js';
 
 /** Báo tiến độ DÀY (mỗi 1 %) như whisper thật — để kiểm giãn tần suất phát. */
@@ -38,7 +34,6 @@ interface Captured {
 describe('Pipeline: meeting.status / meeting.progress / thông báo (e2e)', () => {
   let app: INestApplication<App>;
   let db: Database;
-  let dir: string;
   let audio: Buffer;
   const workers: INestApplicationContext[] = [];
   const sockets: Socket[] = [];
@@ -49,24 +44,7 @@ describe('Pipeline: meeting.status / meeting.progress / thông báo (e2e)', () =
     app = await createTestApp();
     await app.listen(0);
     db = fixtureDb();
-    dir = await mkdtemp(join(tmpdir(), 'meetnote-events-e2e-'));
-    await runProcess('ffmpeg', {
-      args: [
-        '-nostdin',
-        '-loglevel',
-        'error',
-        '-y',
-        '-f',
-        'lavfi',
-        '-i',
-        'sine=frequency=440:duration=3',
-        '-c:a',
-        'aac',
-        join(dir, 'hop.m4a'),
-      ],
-      timeoutMs: 30_000,
-    });
-    audio = await readFile(join(dir, 'hop.m4a'));
+    audio = await generateAudio();
   });
 
   afterEach(async () => {
@@ -76,7 +54,6 @@ describe('Pipeline: meeting.status / meeting.progress / thông báo (e2e)', () =
   afterAll(async () => {
     for (const s of sockets) s.disconnect();
     await app.close();
-    await rm(dir, { recursive: true, force: true });
   });
 
   /** Chủ đăng nhập socket TRƯỚC khi upload (bắt cả `queued`), upload + complete, subscribe room meeting. */
@@ -97,29 +74,7 @@ describe('Pipeline: meeting.status / meeting.progress / thông báo (e2e)', () =
     const orgId = (
       await http().post('/v1/orgs').set(as(owner)).send({ name: 'Sự kiện' }).expect(201)
     ).body.data.id as string;
-    const uploadId = (
-      await http()
-        .post(`/v1/orgs/${orgId}/uploads`)
-        .set(as(owner))
-        .send({
-          filename: 'hop.m4a',
-          mimeType: 'audio/mp4',
-          sizeBytes: audio.length,
-          sha256: createHash('sha256').update(audio).digest('hex'),
-          title: 'Họp sự kiện',
-          recordedAt: '2026-10-22T02:00:00.000Z',
-        })
-        .expect(201)
-    ).body.data.id as string;
-    await http()
-      .put(`/v1/orgs/${orgId}/uploads/${uploadId}/parts/1`)
-      .set(as(owner))
-      .set('Content-Type', 'application/octet-stream')
-      .send(audio)
-      .expect(200);
-    const meetingId = (
-      await http().post(`/v1/orgs/${orgId}/uploads/${uploadId}/complete`).set(as(owner)).expect(201)
-    ).body.data.id as string;
+    const meetingId = await uploadAudioMeeting(app, owner, orgId, audio, 'Họp sự kiện');
     const ack = (await socket.timeout(3_000).emitWithAck('subscribe', { meetingId })) as {
       data?: unknown;
     };

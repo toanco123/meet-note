@@ -50,6 +50,10 @@ export const ErrorCode = {
   UploadPartAborted: 'UPLOAD_PART_ABORTED',
   UploadIncomplete: 'UPLOAD_INCOMPLETE',
 
+  // M6 — Pipeline
+  MeetingNotCompleted: 'MEETING_NOT_COMPLETED',
+  MeetingNotFailed: 'MEETING_NOT_FAILED',
+
   // M5 — Idempotency-Key (dùng chung cho mọi route `@Idempotent()`)
   IdempotencyKeyReused: 'IDEMPOTENCY_KEY_REUSED',
   IdempotencyInProgress: 'IDEMPOTENCY_IN_PROGRESS',

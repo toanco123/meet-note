@@ -31,6 +31,12 @@ export function expectPositiveIntKey(value: CursorKey | undefined): number {
 }
 
 /** Khoá chuỗi (vd `lower(name)` do DB tính). Giới hạn độ dài để cursor bị sửa không thành query khổng lồ. */
+/** Khoá số nguyên ≥ 0 (vd `seq` của đoạn transcript, bắt đầu từ 0). */
+export function expectNonNegativeIntKey(value: CursorKey | undefined): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw invalidCursor();
+  return value;
+}
+
 export function expectTextKey(value: CursorKey | undefined, maxLength: number): string {
   if (typeof value !== 'string' || value.length > maxLength) throw invalidCursor();
   return value;
