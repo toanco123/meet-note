@@ -122,6 +122,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Gửi quá nhiều request (`RATE_LIMITED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -135,7 +145,7 @@
     },
     "/v1/auth/login": {
       "post": {
-        "description": "Sai email hoặc sai mật khẩu đều trả CÙNG 401 `AUTH_INVALID_CREDENTIALS`.",
+        "description": "Sai email hoặc sai mật khẩu đều trả CÙNG 401 `AUTH_INVALID_CREDENTIALS`.\nGiới hạn: 30 lần / phút mỗi IP, 5 lần / phút mỗi (IP, email), 20 lần / giờ mỗi email → 429.",
         "operationId": "Auth_login",
         "parameters": [],
         "requestBody": {
@@ -183,6 +193,16 @@
           },
           "401": {
             "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gửi quá nhiều request (`RATE_LIMITED`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -251,6 +271,16 @@
           },
           "401": {
             "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gửi quá nhiều request (`RATE_LIMITED`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -1454,6 +1484,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Gửi quá nhiều request (`RATE_LIMITED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Tạo link mời (Admin trở lên; link vai trò `admin` chỉ Owner tạo được).",
@@ -1781,6 +1821,16 @@
           },
           "410": {
             "description": "Từng hợp lệ nhưng không còn dùng được, vd link mời hết hạn / hết lượt (`INVITE_EXPIRED`, `INVITE_EXHAUSTED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gửi quá nhiều request (`RATE_LIMITED`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -3654,6 +3704,16 @@
           },
           "422": {
             "description": "Dùng lại `Idempotency-Key` cho một request khác (`IDEMPOTENCY_KEY_REUSED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gửi quá nhiều request (`RATE_LIMITED`).",
             "content": {
               "application/json": {
                 "schema": {

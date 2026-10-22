@@ -1,5 +1,6 @@
 import { Controller, Get, HttpStatus, Res, VERSION_NEUTRAL } from '@nestjs/common';
 import { ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '../../common/auth/public.decorator.js';
 import { RawResponse } from '../../common/response/response-envelope.js';
 import type { Response } from 'express';
@@ -8,6 +9,8 @@ import { HealthService } from './health.service.js';
 
 @ApiTags('Health')
 @Public()
+// Probe của orchestrator gọi dày — không đếm rate limit.
+@SkipThrottle()
 // Probe của Docker / K8s đọc body thô `{ status }` — không bọc envelope.
 @RawResponse()
 @Controller({ path: 'health', version: VERSION_NEUTRAL })

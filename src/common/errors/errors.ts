@@ -47,6 +47,12 @@ export const Errors = {
      * DB bận: chờ khoá quá `lock_timeout` / câu lệnh quá `statement_timeout` (M11 Q1). Tạm thời —
      * thử lại thường được — nên 503 + `Retry-After`, không phải 409 (xung đột dữ liệu) hay 500.
      */
+    rateLimited: () =>
+      new AppException(
+        ErrorCode.RateLimited,
+        HttpStatus.TOO_MANY_REQUESTS,
+        'Bạn thao tác quá nhanh. Vui lòng thử lại sau.',
+      ),
     databaseBusy: () =>
       new AppException(
         ErrorCode.ServiceUnavailable,

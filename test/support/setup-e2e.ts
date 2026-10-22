@@ -26,6 +26,10 @@ process.env.REALTIME_CORS_ORIGINS = 'http://app.meetnote.test';
 process.env.REALTIME_REDIS_KEY = `meetnote-test:${randomBytes(6).toString('hex')}:socket.io`;
 // Cùng lý do cho BullMQ: worker của file này không được lấy job của file khác (DB khác).
 process.env.QUEUE_PREFIX = `meetnote-test-${randomBytes(6).toString('hex')}`;
+// Mỗi file đăng ký hàng loạt user từ 127.0.0.1 → tắt rate limit; file test rate limit tự bật lại
+// (`vi.hoisted`). Prefix riêng như trên.
+process.env.RATE_LIMIT_ENABLED = 'false';
+process.env.RATE_LIMIT_PREFIX = `meetnote-test-${randomBytes(6).toString('hex')}:rate-limit`;
 
 afterAll(async () => {
   await database.drop();

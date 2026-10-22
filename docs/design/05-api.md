@@ -5,6 +5,21 @@
 - Ký hiệu quyền: xem [04-authorization.md](04-authorization.md). "Member+" = Member trở lên.
 - Response thành công: `{ data, meta: { statusCode, requestId } }`; danh sách: `data` là mảng, `meta.nextCursor`, query `?cursor=&limit=`. Lỗi: `{ error: { code, statusCode, message, details?, requestId } }`. `204` không có body; `/health/*` trả body thô. Xem [07-conventions.md](07-conventions.md) §2–3.
 
+## Rate limit (M11 B3)
+
+Mọi route HTTP (trừ `/health/*`) qua `AppThrottlerGuard` sau `JwtAuthGuard`; đếm trong Redis (sliding log, dùng chung giữa các instance). Đã đăng nhập → khoá theo người dùng; chưa → theo IP (`req.ip`, chỉ lấy từ `X-Forwarded-For` khi `TRUST_PROXY_HOPS` > 0). Vượt → **429 `RATE_LIMITED`** + `Retry-After` (giây), bị chặn trong suốt một `ttl`. Header thành công: `X-RateLimit-Limit` / `-Remaining` / `-Reset` (throttler `credential` / `account` thêm hậu tố `-credential` / `-account`).
+
+| Route                                                    | Giới hạn                                                             |
+| -------------------------------------------------------- | -------------------------------------------------------------------- |
+| Mặc định                                                 | 300 / phút                                                           |
+| `POST /auth/login`                                       | 30 / phút / IP **và** 5 / phút / (IP, email) **và** 20 / giờ / email |
+| `POST /auth/register`                                    | 10 / giờ / IP                                                        |
+| `POST /auth/refresh`                                     | 30 / phút / IP                                                       |
+| `POST /invites/:token/accept`                            | 20 / phút / người                                                    |
+| `POST /orgs/:orgId/invites`, `POST /orgs/:orgId/uploads` | 60 / giờ / người                                                     |
+
+Redis lỗi → cho qua (fail-open, có log).
+
 ## Health (tag `Health`)
 
 | Method | Path            | Ai gọi                      |

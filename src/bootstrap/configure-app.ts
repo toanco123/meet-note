@@ -1,5 +1,8 @@
 import { type INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { HttpAdapterHost, Reflector } from '@nestjs/core';
+import type { Express } from 'express';
+import type { EnvironmentVariables } from '../config/env.validation.js';
 import { AllExceptionsFilter } from '../common/errors/all-exceptions.filter.js';
 import { validationExceptionFactory } from '../common/errors/validation-exception.factory.js';
 import { ResponseEnvelopeInterceptor } from '../common/response/response-envelope.interceptor.js';
@@ -13,6 +16,13 @@ import { RedisIoAdapter } from '../infra/realtime/redis-io.adapter.js';
  */
 export function configureApp(app: INestApplication): void {
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+
+  // `req.ip` (rate limit, phiên đăng nhập) lấy từ `X-Forwarded-For` CHỈ khi có proxy tin cậy đứng
+  // trước — 0 tầng thì header do client gửi bị bỏ qua (M11 B3).
+  const proxyHops = app.get(ConfigService<EnvironmentVariables, true>).get('TRUST_PROXY_HOPS', {
+    infer: true,
+  });
+  if (proxyHops > 0) (app.getHttpAdapter().getInstance() as Express).set('trust proxy', proxyHops);
 
   app.useGlobalPipes(
     new ValidationPipe({
