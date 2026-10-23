@@ -66,11 +66,31 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
+      # api + migrate. `target` tường minh: stage cuối của Dockerfile là `worker` (M6).
       - uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
+          target: runtime
           push: false
           tags: meetnote:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # worker: + ffmpeg + whisper.cpp build từ source (M6). `load` để chạy thử bên dưới.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: worker
+          push: false
+          load: true
+          tags: meetnote-worker:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Binary chạy được trên MÁY KHÁC máy build (thiếu .so / `SIGILL` do `-march=native` lộ ở đây).
+      - name: whisper-cli + ffmpeg trong image worker
+        run: |
+          docker run --rm --entrypoint sh meetnote-worker:ci -c \
+            'whisper-cli --version 2>&1 && ffmpeg -hide_banner -version | head -1'

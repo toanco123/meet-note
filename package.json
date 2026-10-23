@@ -30,7 +30,8 @@
     "db:studio": "drizzle-kit studio",
     "openapi:export": "node dist/scripts/export-openapi.js",
     "bench:meeting-list": "node scripts/bench/meeting-list.mjs",
-    "test:whisper": "pnpm build && node scripts/whisper-check.mjs"
+    "test:whisper": "pnpm build && node scripts/whisper-check.mjs",
+    "smoke:pipeline": "node scripts/pipeline-smoke.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",
