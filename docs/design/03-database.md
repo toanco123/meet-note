@@ -253,7 +253,7 @@ id, org_id, user_id, filename, mime_type, size_bytes bigint, sha256 (hex, client
 - CHECK (M5): size 1 B – 2 GiB; sha256 `^[0-9a-f]{64}$`; chunk_size ≥ 5 MiB (S3); `total_parts = ceil(size / chunk)` và ≤ 10 000; mime trong danh sách cho phép; `status = 'completed'` ⇔ có `meeting_id` + `completed_at`.
 - `storage_aborted_at`: huỷ / hết hạn đánh dấu status TRƯỚC (trong DB), gọi `AbortMultipartUpload` SAU (ngoài transaction). S3 lỗi → cột này NULL → lần dọn sau thử lại.
 - Index: `uploads_expiry_idx (expires_at) WHERE status = 'initiated'` (job dọn dẹp), `uploads_abort_retry_idx (id) WHERE status IN ('aborted','expired') AND storage_aborted_at IS NULL`.
-- **Dọn dẹp (M5 B7, `UploadsCleanupService`, lên lịch ở M6):**
+- **Dọn dẹp (M5 B7, `UploadsCleanupService`; worker chạy mỗi 10 phút từ M6 B8):**
   - `expireBatch`: transaction ngắn, một câu `UPDATE uploads SET status = 'expired' WHERE id IN (SELECT … WHERE status = 'initiated' AND expires_at <= now() - 10 phút ORDER BY expires_at LIMIT n FOR UPDATE SKIP LOCKED) RETURNING …` + `lock_timeout`; commit xong mới abort từng multipart. **Ân hạn 10 phút** > `requestTimeout` 5 phút của Node: không còn PUT phần nào đang gửi lúc abort (S3 có thể vẫn lưu phần đang gửi dở sau abort).
   - `retryStorageAbortBatch`: lấy upload `aborted` / `expired` còn `storage_aborted_at IS NULL`, **không khoá** (abort + đánh dấu đều idempotent, hai worker trùng việc chỉ tốn một lời gọi S3). Mỗi lần chạy job một lô, không lặp tới rỗng (S3 sập thì lặp mãi).
 
@@ -402,7 +402,7 @@ Dùng cho các POST không tự idempotent, theo header `Idempotency-Key` (`@Ide
 - **Được chiếm dòng cũ khi:** `expires_at <= now()` (hết 24 giờ, như key mới) **hoặc** `processing` quá **lease 60 giây** và cùng `request_hash` (request đầu đã chết giữa chừng). Không có lease → crash giữa chừng làm key kẹt 409 suốt 24 giờ.
 - **`created_at` = lúc giữ chỗ gần nhất, dùng làm fencing token:** lưu response / xoá chỗ giữ đều có `WHERE status = 'processing' AND created_at = <token>`. Request cũ "sống dậy" sau khi bị chiếm chỗ không ghi đè được. Token đi dạng text (đủ micro giây), không qua JS `Date`.
 - Handler lỗi → **xoá** chỗ giữ (lỗi không được ghi nhớ, client sửa rồi gửi lại cùng key). Lưu `data` thô (trước envelope); trả lại thì bọc với `requestId` mới.
-- Dọn dòng hết hạn: `IdempotencyRepository.deleteExpiredBatch` theo lô (`SKIP LOCKED`), lên lịch cùng job dọn upload ở M6.
+- Dọn dòng hết hạn: `IdempotencyRepository.deleteExpiredBatch` theo lô (`SKIP LOCKED`), worker chạy mỗi 10 phút (job `idempotency.cleanup`, M6 B8).
 
 ## 7. Thứ tự khoá chung (M4) và tóm tắt chỗ cần transaction / khoá
 

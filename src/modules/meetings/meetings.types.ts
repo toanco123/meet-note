@@ -121,3 +121,21 @@ export interface ClaimedMeeting {
   attempt: number;
   stageToken: string;
 }
+
+/** Meeting chưa xong, lâu không đổi và không ai giữ lease — ứng viên của quét kẹt (M6 B8). */
+export interface StuckMeeting {
+  id: string;
+  status: MeetingStatus;
+  attempt: number;
+  /** `updated_at` dạng text (đủ micro giây) — keyset giữa các lô trong một lần quét. */
+  updatedAt: string;
+  /** `updated_at` tính bằng micro giây epoch — hậu tố jobId (`:` của timestamp bị BullMQ cấm). */
+  version: string;
+}
+
+export interface SweepResult {
+  /** Đã enqueue lại bước đúng trạng thái. */
+  requeued: string[];
+  /** Job thường của bước còn sống (chờ trong hàng / chờ retry / đang chạy) → để yên. */
+  skipped: string[];
+}

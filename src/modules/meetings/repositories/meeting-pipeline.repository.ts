@@ -12,7 +12,7 @@ import {
 } from '../../../infra/database/schema/index.js';
 import type { MeetingSummaryContent } from '../../../infra/llm/llm.types.js';
 import type { TranscriptSegmentInput } from '../../../infra/speech/speech.types.js';
-import type { ClaimedMeeting } from '../meetings.types.js';
+import type { ClaimedMeeting, StuckMeeting } from '../meetings.types.js';
 
 /** Postgres giới hạn 65 535 tham số / câu; 1 000 đoạn × 6 cột là vừa, không làm câu quá lớn. */
 const SEGMENT_BATCH = 1_000;
@@ -189,6 +189,41 @@ export class MeetingPipelineRepository {
       .insert(meetingSummaries)
       .values({ meetingId: meeting.id, orgId: meeting.orgId, ...values })
       .onConflictDoUpdate({ target: meetingSummaries.meetingId, set: values });
+  }
+
+  /**
+   * Quét kẹt (B8): chưa xong, `updated_at` cũ hơn `idleMs`, KHÔNG ai giữ lease (đang chạy thật thì
+   * lease còn hạn — kể cả whisper chạy hàng giờ). Điều kiện trạng thái viết LITERAL đúng như
+   * `meetings_stuck_idx` để planner chứng minh được index partial dùng được. Keyset `(updated_at, id)`
+   * trong MỘT lần quét: dòng vừa xử lý vẫn còn kẹt (job chưa nhận) → không có keyset thì lô đầu lặp
+   * mãi, dòng phía sau không bao giờ tới lượt.
+   */
+  findStuck(
+    idleMs: number,
+    limit: number,
+    after?: { updatedAt: string; id: string },
+  ): Promise<StuckMeeting[]> {
+    return this.db
+      .select({
+        id: meetings.id,
+        status: meetings.status,
+        attempt: meetings.attempt,
+        updatedAt: sql<string>`${meetings.updatedAt}::text`,
+        version: sql<string>`(extract(epoch from ${meetings.updatedAt}) * 1000000)::bigint::text`,
+      })
+      .from(meetings)
+      .where(
+        and(
+          sql`${meetings.status} in ('queued', 'preprocessing', 'transcribing', 'summarizing')`,
+          isNull(meetings.deletedAt),
+          sql`${meetings.updatedAt} < now() - ${idleMs} * interval '1 millisecond'`,
+          or(isNull(meetings.stageLeaseUntil), sql`${meetings.stageLeaseUntil} < now()`),
+          after &&
+            sql`(${meetings.updatedAt}, ${meetings.id}) > (${after.updatedAt}::timestamptz, ${after.id}::uuid)`,
+        ),
+      )
+      .orderBy(asc(meetings.updatedAt), asc(meetings.id))
+      .limit(limit);
   }
 
   /**

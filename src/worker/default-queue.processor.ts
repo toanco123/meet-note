@@ -5,6 +5,7 @@ import { JobName } from '../infra/queue/jobs.js';
 import { QueueName } from '../infra/queue/queue.module.js';
 import type { MeetingJobData, NotificationFanoutJobData } from '../infra/queue/queue.types.js';
 import { NotificationFanoutService } from '../modules/notifications/services/notification-fanout.service.js';
+import { MaintenanceJobRunner } from './maintenance-job-runner.js';
 import { PipelineJobRunner } from './pipeline-job-runner.js';
 
 /**
@@ -21,6 +22,7 @@ export class DefaultQueueProcessor extends WorkerHost {
   constructor(
     private readonly fanout: NotificationFanoutService,
     private readonly pipeline: PipelineJobRunner,
+    private readonly maintenance: MaintenanceJobRunner,
   ) {
     super();
   }
@@ -33,6 +35,15 @@ export class DefaultQueueProcessor extends WorkerHost {
         return this.pipeline.run('preprocess', job as Job<MeetingJobData>, token);
       case JobName.MeetingSummarize:
         return this.pipeline.run('summarize', job as Job<MeetingJobData>, token);
+      // Việc định kỳ (M6 B8): kết quả đếm được lưu làm `returnvalue` của job — xem lại trong Redis.
+      case JobName.MeetingSweepStuck:
+        return this.maintenance.sweepStuckMeetings();
+      case JobName.UploadCleanup:
+        return this.maintenance.cleanupUploads();
+      case JobName.IdempotencyCleanup:
+        return this.maintenance.cleanupIdempotencyKeys();
+      case JobName.ChannelPurge:
+        return this.maintenance.purgeChannels();
       default:
         throw new UnrecoverableError(`Job không xác định: ${job.name}`);
     }

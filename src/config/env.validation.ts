@@ -196,6 +196,17 @@ export class EnvironmentVariables {
   })
   WORKER_QUEUES = 'default,transcription';
 
+  /**
+   * Worker đăng ký lịch chạy (quét kẹt, dọn upload / idempotency, purge kênh) lúc khởi động (M6 B8).
+   * Nhiều worker cùng bật vẫn chỉ MỘT lịch (upsert theo id). Test tắt để worker của file khác không
+   * tự dọn dữ liệu test đang dựng.
+   */
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase() === 'true' : value,
+  )
+  @IsBoolean()
+  WORKER_SCHEDULES_ENABLED = true;
+
   /** Nhận dạng giọng nói của worker (M6): `whisper` (whisper.cpp) hoặc `fake` (dev / test). */
   @IsIn(['whisper', 'fake'])
   SPEECH_PROVIDER: 'whisper' | 'fake' = 'whisper';

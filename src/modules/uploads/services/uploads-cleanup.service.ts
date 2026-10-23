@@ -20,8 +20,8 @@ import type {
 export const UPLOAD_EXPIRY_GRACE_MINUTES = 10;
 
 /**
- * Dọn upload bỏ dở (M5 B7). Chỉ LOGIC + test; LÊN LỊCH (BullMQ repeatable job trong worker) ở M6,
- * như purge kênh của M4. Nhiều worker gọi song song được.
+ * Dọn upload bỏ dở (M5 B7). Worker chạy theo lịch mỗi 10 phút (M6 B8, `MaintenanceJobRunner`).
+ * Nhiều worker gọi song song được.
  *
  * Hai pha, vì không giữ transaction trong lúc gọi mạng:
  * 1. Transaction ngắn: đánh dấu `expired` (DB là nguồn sự thật: từ đây upload không nhận gì nữa).

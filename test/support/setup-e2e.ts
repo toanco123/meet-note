@@ -36,6 +36,9 @@ process.env.QUEUE_PREFIX = `meetnote-test-${randomBytes(6).toString('hex')}`;
 process.env.RATE_LIMIT_ENABLED = 'false';
 // CI không có model whisper: worker trong test dùng bộ nhận dạng giả (test có thể thay bằng bản khác).
 process.env.SPEECH_PROVIDER = 'fake';
+// Lịch chạy của worker (M6 B8) tắt: dọn dẹp / quét kẹt chạy lên DB của test đang dựng fixture. Test
+// lịch bật lại qua `createTestWorker({ schedules: true })`.
+process.env.WORKER_SCHEDULES_ENABLED = 'false';
 process.env.RATE_LIMIT_PREFIX = `meetnote-test-${randomBytes(6).toString('hex')}:rate-limit`;
 
 afterAll(async () => {

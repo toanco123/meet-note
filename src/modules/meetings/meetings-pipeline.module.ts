@@ -10,6 +10,7 @@ import type { PipelineOptions } from './meetings.types.js';
 import { MeetingPipelineRepository } from './repositories/meeting-pipeline.repository.js';
 import { PIPELINE_OPTIONS } from './pipeline.tokens.js';
 import { MeetingPipelineService } from './services/meeting-pipeline.service.js';
+import { MeetingSweepService } from './services/meeting-sweep.service.js';
 
 const MINUTE = 60_000;
 
@@ -22,6 +23,7 @@ const MINUTE = 60_000;
   providers: [
     MeetingPipelineRepository,
     MeetingPipelineService,
+    MeetingSweepService,
     {
       provide: PIPELINE_OPTIONS,
       inject: [ConfigService],
@@ -39,6 +41,6 @@ const MINUTE = 60_000;
       }),
     },
   ],
-  exports: [MeetingPipelineService],
+  exports: [MeetingPipelineService, MeetingSweepService],
 })
 export class MeetingsPipelineModule {}

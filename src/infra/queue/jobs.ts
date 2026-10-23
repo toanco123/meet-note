@@ -4,6 +4,11 @@ export const JobName = {
   MeetingTranscribe: 'meeting.transcribe',
   MeetingSummarize: 'meeting.summarize',
   NotificationFanout: 'notification.fanout',
+  // Việc định kỳ (M6 B8) — Job Scheduler của worker tạo, payload rỗng.
+  MeetingSweepStuck: 'meeting.sweep-stuck',
+  UploadCleanup: 'upload.cleanup',
+  IdempotencyCleanup: 'idempotency.cleanup',
+  ChannelPurge: 'channel.purge',
 } as const;
 export type JobName = (typeof JobName)[keyof typeof JobName];
 
@@ -14,6 +19,21 @@ export type JobName = (typeof JobName)[keyof typeof JobName];
  */
 export function meetingJobId(job: JobName, meetingId: string, attempt: number): string {
   return `${job}.${meetingId}.a${attempt}`;
+}
+
+/**
+ * Quét kẹt (M6 B8) enqueue LẠI một bước: KHÔNG dùng lại `…a<lần>` — job cũ đã completed / failed còn
+ * được giữ (24 giờ / 7 ngày) nên `add()` cùng id bị NUỐT lặng lẽ (bài học B5). Hậu tố `.r<version>`
+ * (`updated_at` của meeting, micro giây): meeting vẫn kẹt y nguyên → cùng id → các lần quét sau không
+ * nhân đôi job còn đang chờ; meeting đã đổi (job đã nhận việc rồi lại kẹt) → id mới.
+ */
+export function meetingRequeueJobId(
+  job: JobName,
+  meetingId: string,
+  attempt: number,
+  version: string,
+): string {
+  return `${meetingJobId(job, meetingId, attempt)}.r${version}`;
 }
 
 /**

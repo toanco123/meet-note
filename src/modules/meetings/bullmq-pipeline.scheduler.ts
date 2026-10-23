@@ -1,7 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
-import type { JobsOptions, Queue } from 'bullmq';
-import { JobName, meetingJobId } from '../../infra/queue/jobs.js';
+import type { JobState, JobsOptions, Queue } from 'bullmq';
+import { JobName, meetingJobId, meetingRequeueJobId } from '../../infra/queue/jobs.js';
 import { QueueName } from '../../infra/queue/queue.module.js';
 import type { MeetingJobData } from '../../infra/queue/queue.types.js';
 import type { PipelineJob, PipelineScheduler, PipelineStep } from './meetings.types.js';
@@ -31,6 +31,15 @@ const STEPS: Record<
   },
 };
 
+/** Job còn "sống": sẽ chạy hoặc đang chạy. `completed` / `failed` / mất (`unknown`) thì không. */
+const LIVE_STATES = new Set<JobState | 'unknown'>([
+  'waiting',
+  'prioritized',
+  'delayed',
+  'active',
+  'waiting-children',
+]);
+
 /** `PipelineScheduler` trên BullMQ (M6 B5). Gọi SAU commit — xem `MeetingPipelineService`. */
 @Injectable()
 export class BullMqPipelineScheduler implements PipelineScheduler {
@@ -42,12 +51,34 @@ export class BullMqPipelineScheduler implements PipelineScheduler {
 
   async enqueue(step: PipelineStep, job: PipelineJob): Promise<void> {
     const spec = STEPS[step];
-    const queue = spec.queue === 'transcription' ? this.transcriptionQueue : this.defaultQueue;
     // jobId theo (bước, meeting, attempt): enqueue lại cùng bước → BullMQ bỏ qua nếu đã có; chạy lại
     // (attempt mới) → job mới.
-    await queue.add(spec.name, job, {
+    await this.queueOf(step).add(spec.name, job, {
       ...spec.options,
       jobId: meetingJobId(spec.name as JobName, job.meetingId, job.attempt),
     });
+  }
+
+  /**
+   * Quét kẹt (B8) hỏi: job THƯỜNG của bước này còn sống không? Meeting `transcribing` lâu không đổi
+   * có thể chỉ đang XẾP HÀNG sau các bản ghi dài (queue `transcription`, concurrency 1) — không phải
+   * kẹt. Chỉ nhìn DB thì không phân biệt được hai trường hợp này.
+   */
+  async hasLiveJob(step: PipelineStep, meetingId: string, attempt: number): Promise<boolean> {
+    const id = meetingJobId(STEPS[step].name as JobName, meetingId, attempt);
+    return LIVE_STATES.has(await this.queueOf(step).getJobState(id));
+  }
+
+  /** Enqueue LẠI bước (quét kẹt) — jobId riêng, xem `meetingRequeueJobId`. */
+  async requeue(step: PipelineStep, job: PipelineJob, version: string): Promise<void> {
+    const spec = STEPS[step];
+    await this.queueOf(step).add(spec.name, job, {
+      ...spec.options,
+      jobId: meetingRequeueJobId(spec.name as JobName, job.meetingId, job.attempt, version),
+    });
+  }
+
+  private queueOf(step: PipelineStep): Queue<MeetingJobData> {
+    return STEPS[step].queue === 'transcription' ? this.transcriptionQueue : this.defaultQueue;
   }
 }

@@ -10,6 +10,7 @@ import type { Summarizer } from '../../src/infra/llm/llm.types.js';
 import { SPEECH_TO_TEXT } from '../../src/infra/speech/speech.module.js';
 import type { SpeechToText } from '../../src/infra/speech/speech.types.js';
 import { WorkerModule } from '../../src/worker.module.js';
+import { WORKER_SCHEDULES_ENABLED } from '../../src/worker/worker-schedules.js';
 
 export interface TestAppOptions {
   /** Controller chỉ có trong test (vd controller thăm dò để test guard độc lập với tính năng). */
@@ -42,7 +43,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<INest
  * thật trên Redis thật, cùng DB / prefix queue của file test. Đóng bằng `close()` (chờ job đang chạy).
  */
 export async function createTestWorker(
-  overrides: { speech?: SpeechToText; summarizer?: Summarizer } = {},
+  overrides: { speech?: SpeechToText; summarizer?: Summarizer; schedules?: boolean } = {},
 ): Promise<INestApplicationContext> {
   // Như compose: worker kết nối bằng user RIÊNG (BYPASSRLS — job xuyên tổ chức, M11 B7).
   let builder = Test.createTestingModule({ imports: [WorkerModule] });
@@ -51,6 +52,9 @@ export async function createTestWorker(
     builder = builder.overrideProvider(SPEECH_TO_TEXT).useValue(overrides.speech);
   if (overrides.summarizer)
     builder = builder.overrideProvider(SUMMARIZER).useValue(overrides.summarizer);
+  // Lịch chạy tắt trong test (setup-e2e); test lịch bật riêng cho worker của mình (M6 B8).
+  if (overrides.schedules !== undefined)
+    builder = builder.overrideProvider(WORKER_SCHEDULES_ENABLED).useValue(overrides.schedules);
   const moduleRef = await builder
     .overrideProvider(PG_POOL)
     .useFactory({

@@ -11,8 +11,8 @@ import { ChannelsRepository } from '../repositories/channels.repository.js';
 const SYSTEM: AuditContext = { actorId: null };
 
 /**
- * Xoá cứng kênh đã xoá mềm quá hạn, theo lô. M4 chỉ viết LOGIC + test đồng thời; LÊN LỊCH chạy
- * (BullMQ repeatable job trong worker) ở M6 (plan M4 Q1).
+ * Xoá cứng kênh đã xoá mềm quá hạn, theo lô (M4). Worker chạy theo lịch 03:00 hằng ngày (M6 B8,
+ * `MaintenanceJobRunner`).
  *
  * Gọi lặp tới khi trả về mảng rỗng. Nhiều worker gọi song song được: `SKIP LOCKED` chia việc.
  */
