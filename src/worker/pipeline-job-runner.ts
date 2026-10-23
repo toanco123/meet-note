@@ -47,6 +47,13 @@ export class PipelineJobRunner implements BeforeApplicationShutdown {
   constructor(private readonly pipeline: MeetingPipelineService) {}
 
   async run(step: PipelineStep, job: Job<MeetingJobData>, token?: string): Promise<unknown> {
+    // Job nhận SAU khi đã huỷ: huỷ xong thì slot trống → BullMQ lấy ngay job đang chờ, TRƯỚC khi
+    // `onApplicationShutdown` kịp `worker.close()`. Job đó có AbortController mới, không ai huỷ →
+    // `close()` chờ nó (whisper: hàng giờ). Trả lại hàng đợi, không chạy (M6 B8 bài học 16).
+    if (this.shuttingDown) {
+      await job.moveToDelayed(Date.now() + 1_000, token);
+      throw new DelayedError();
+    }
     const data = toPipelineJob(job.data);
     const controller = new AbortController();
     const options = {

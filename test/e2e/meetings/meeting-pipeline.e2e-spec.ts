@@ -202,4 +202,32 @@ describe('Pipeline meeting qua BullMQ (e2e)', () => {
     await job!.promote();
     await waitStatus(id, 'completed');
   });
+
+  // Đột biến: bỏ kiểm `shuttingDown` ở đầu `run` → huỷ A xong slot trống, worker lấy B và chạy với
+  // AbortController mới → `close()` treo (lần đầu gặp: hook afterEach hết giờ 180 s ở test B8).
+  it('TẮT worker khi có job CHỜ sau job đang chạy → job chờ không bị lấy chạy, close() xong ngay', async () => {
+    const hanging = new HangingSpeech();
+    const first = await startWorker({ speech: hanging });
+    const a = await uploadMeeting();
+    await hanging.started.promise;
+    const b = await uploadMeeting();
+    await waitStatus(b, 'transcribing');
+    const bJob = jobId(JobName.MeetingTranscribe, b);
+    expect(await transcriptionQueue.getJobState(bJob)).toBe('waiting');
+
+    const closed = first.close().then(() => 'closed');
+    const timeout = new Promise((resolve) => setTimeout(resolve, 10_000, 'treo'));
+    expect(await Promise.race([closed, timeout])).toBe('closed');
+    workers.splice(workers.indexOf(first), 1);
+
+    const [jobA, jobB] = await Promise.all(
+      [a, b].map((id) => transcriptionQueue.getJob(jobId(JobName.MeetingTranscribe, id))),
+    );
+    expect([
+      await jobA?.getState(),
+      await jobB?.getState(),
+      jobB?.attemptsMade,
+      (await meetingRow(b)).stageToken,
+    ]).toEqual(['delayed', expect.stringMatching(/^(waiting|delayed)$/), 0, null]);
+  });
 });
