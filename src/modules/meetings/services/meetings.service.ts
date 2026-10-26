@@ -87,7 +87,7 @@ export class MeetingsService {
     return MeetingSummaryResponseDto.from(summary);
   }
 
-  private async assertVisible(
+  async assertVisible(
     membership: OrgMembershipContext,
     userId: string,
     meetingId: string,

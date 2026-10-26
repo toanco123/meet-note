@@ -5371,6 +5371,139 @@
         "x-paginated": true
       }
     },
+    "/v1/orgs/{orgId}/meetings/{meetingId}/transcript/export": {
+      "get": {
+        "description": "Cần xem được cuộc họp (không xem được → 404) và cuộc họp đã `completed` (chưa xong →\n409). File được stream theo lô nên họp dài không tốn bộ nhớ. Giới hạn 30 lần / phút.",
+        "operationId": "Transcripts_export",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "description": "Định dạng phụ đề: `srt` (SubRip) hoặc `vtt` (WebVTT).",
+            "schema": {
+              "$ref": "#/components/schemas/SubtitleFormat"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File phụ đề.",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).\n\nKhông đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tải transcript dạng phụ đề SRT hoặc VTT.",
+        "tags": [
+          "Meetings"
+        ],
+        "x-raw-response": true
+      }
+    },
     "/v1/orgs/{orgId}/audit-logs": {
       "get": {
         "description": "Lọc theo `action`, `actorId`. Log chỉ ghi thêm, không sửa/xoá được.",
@@ -7564,6 +7697,13 @@
           "recordedAt",
           "hitCount",
           "hits"
+        ]
+      },
+      "SubtitleFormat": {
+        "type": "string",
+        "enum": [
+          "srt",
+          "vtt"
         ]
       },
       "AuditAction": {

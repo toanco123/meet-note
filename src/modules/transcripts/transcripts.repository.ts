@@ -1,11 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { timestampKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database } from '../../infra/database/database.types.js';
 import { meetings, meetingShares, transcriptSegments } from '../../infra/database/schema/index.js';
 import { meetingVisibleTo } from '../meetings/meeting-visibility.js';
-import type { SearchHitRow, SearchMeetingRow, SearchMeetingsParams } from './transcripts.types.js';
+import type {
+  SearchHitRow,
+  SearchMeetingRow,
+  SearchMeetingsParams,
+  SubtitleCue,
+} from './transcripts.types.js';
 
 const matchesQuery = (query: string) =>
   sql`${transcriptSegments.search} @@ websearch_to_tsquery('meetnote_vi'::regconfig, ${query})`;
@@ -126,5 +131,28 @@ export class TranscriptsRepository {
       .from(ranked)
       .where(sql`${ranked.rn} <= ${perMeeting}`)
       .orderBy(asc(ranked.meetingId), asc(ranked.seq));
+  }
+
+  /**
+   * Một lô đoạn theo `seq` tăng dần (`seq > afterSeq`) cho xuất file. Mỗi lô là MỘT câu truy vấn độc
+   * lập — connection được trả về pool ngay sau lô; không giữ transaction / cursor suốt lúc client tải
+   * chậm (`idle_in_transaction_session_timeout` 30 s của M11 sẽ cắt, và pool cạn).
+   */
+  segmentBatch(
+    meetingId: string,
+    afterSeq: number,
+    limit: number,
+  ): Promise<Array<SubtitleCue & { seq: number }>> {
+    return this.db
+      .select({
+        seq: transcriptSegments.seq,
+        startMs: transcriptSegments.startMs,
+        endMs: transcriptSegments.endMs,
+        text: transcriptSegments.text,
+      })
+      .from(transcriptSegments)
+      .where(and(eq(transcriptSegments.meetingId, meetingId), gt(transcriptSegments.seq, afterSeq)))
+      .orderBy(asc(transcriptSegments.seq))
+      .limit(limit);
   }
 }

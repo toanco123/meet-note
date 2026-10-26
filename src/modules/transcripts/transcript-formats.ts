@@ -73,3 +73,23 @@ export function formatSubtitles(
 ): AsyncGenerator<string> {
   return format === 'srt' ? formatSrt(cues) : formatVtt(cues);
 }
+
+/**
+ * Gộp các mảnh nhỏ thành khối ≥ `minBytes` ký tự trước khi ghi ra response: mỗi cue ~60 byte, ghi từng
+ * cue một thành hàng nghìn `res.write` nhỏ (mỗi lần một chunk HTTP / một lần qua backpressure). Phần
+ * dư cuối được ghi nốt. Không đọc trước quá một khối — vẫn tôn trọng backpressure của generator gốc.
+ */
+export async function* coalesce(
+  chunks: AsyncIterable<string>,
+  minBytes = 16 * 1024,
+): AsyncGenerator<string> {
+  let buffer = '';
+  for await (const chunk of chunks) {
+    buffer += chunk;
+    if (buffer.length >= minBytes) {
+      yield buffer;
+      buffer = '';
+    }
+  }
+  if (buffer.length > 0) yield buffer;
+}

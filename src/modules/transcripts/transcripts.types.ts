@@ -1,3 +1,4 @@
+import type { Readable } from 'node:stream';
 import type { MeetingViewer } from '../meetings/meetings.types.js';
 
 export interface SearchMeetingsParams {
@@ -35,4 +36,10 @@ export interface SubtitleCue {
   startMs: number;
   endMs: number;
   text: string;
+}
+
+export interface SubtitleDownload {
+  contentType: string;
+  contentDisposition: string;
+  stream: Readable;
 }
