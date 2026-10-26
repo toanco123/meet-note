@@ -51,7 +51,7 @@ Mỗi sáng thứ Hai 08:00 (giờ Việt Nam) hệ thống tự tạo báo cáo
 
 ## Các bước
 
-- [ ] **B1 — Schema + migration + RLS (integration)**
+- [x] **B1 — Schema + migration + RLS (integration)**
   - Việc: hai bảng, CHECK, composite FK, RLS viết tay (mẫu 0012/0013), `notifications_type_ck` thêm `report.ready`; sửa 03 §5.
   - Test: UNIQUE `(channel_id, week_start)` (`23505` đúng tên constraint); `regenerate_count` 4 → `23514`; user api thấy 0 dòng của org khác, worker thấy cả hai; xoá kênh cascade; không FK chéo org.
 - [ ] **B2 — Tính tuần + chọn meeting (hàm thuần + integration)**
@@ -95,3 +95,9 @@ Mỗi sáng thứ Hai 08:00 (giờ Việt Nam) hệ thống tự tạo báo cáo
 ## Điều học được / bẫy gặp phải
 
 (Ghi sau khi xong mốc)
+
+1. **Quy ước "đặt tên mọi constraint" bắt được ngay ở bước sinh migration.** `references(() => users.id)` trong cột sinh FK tên tự động `weekly_report_versions_triggered_by_users_id_fk` — trái quy ước (filter lỗi và test cần tên cụ thể). Đổi sang `foreignKey({ name: … })` rồi sinh lại (migration chưa commit nên xoá `0015_*.sql` + `meta/0015_snapshot.json`, `git checkout meta/_journal.json`, sinh lại). Đây là chỗ DUY NHẤT drizzle-kit tự đặt tên — cột `.references()` tiện tay nhưng không có tên.
+2. **Thêm loại thông báo = ba chỗ phải đồng bộ, TS bắt được hai.** `NOTIFICATION_TYPES` (kéo theo `NotificationPayloads` và `NotificationDraft` — thiếu payload là lỗi compile), CHECK `notifications_type_ck` (drizzle-kit tự sinh DROP + ADD), và migration. Quên payload thì typecheck đỏ ngay, không phải đợi runtime.
+3. **Cột `date` trả chuỗi (`mode: 'string'`).** `week_start` là ngày lịch, không phải thời điểm: qua `Date` của JS thì `'2026-10-05'` thành nửa đêm UTC và lệch ngày ở múi giờ khác. CHECK `isodow = 1` biến "luôn là Thứ Hai" thành bất biến của DB — lỗi tính tuần ở bất kỳ đâu trong code bị chặn ở chỗ ghi.
+4. **Ràng buộc chéo cột nên làm ở DB:** `completed ⇒ current_version IS NOT NULL` — một báo cáo "xong" mà không có bản nào để hiển thị là bất khả thi nếu DB không cho tồn tại. `triggered_by` SET NULL (xoá người dùng không xoá lịch sử phiên bản).
+5. **7 test schema xanh ngay lần đầu → phải đột biến để chắc.** 5 đột biến trên migration đều đỏ: policy `USING (true)` (versions), `WITH CHECK (true)` (reports — chỉ test GHI sai tổ chức bắt được, test đọc thì không), bỏ CHECK Thứ Hai, bỏ CASCADE, bỏ index quét kẹt. (Đột biến thứ sáu — FK đơn không `org_id` — bỏ qua vì composite FK đã có test riêng.)

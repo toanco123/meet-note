@@ -25,6 +25,7 @@ export const NOTIFICATION_TYPES = [
   'meeting.shared',
   'meeting.completed',
   'meeting.failed',
+  'report.ready',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

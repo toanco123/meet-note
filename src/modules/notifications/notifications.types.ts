@@ -50,6 +50,15 @@ export interface NotificationPayloads {
     meetingTitle: string;
     failureCode: MeetingFailureCode;
   };
+  /** Báo cáo tuần xong (M9 Q7): theo lịch → thành viên kênh trừ Khách; tạo lại thủ công → người bấm. */
+  'report.ready': {
+    reportId: string;
+    channelId: string;
+    channelName: string;
+    /** Thứ Hai của tuần, 'YYYY-MM-DD'. */
+    weekStart: string;
+    version: number;
+  };
 }
 
 /** Một thông báo chuẩn bị ghi — kiểu `payload` đi theo `type`. */
