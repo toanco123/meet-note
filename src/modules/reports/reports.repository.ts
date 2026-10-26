@@ -1,11 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { DRIZZLE } from '../../infra/database/database.module.js';
-import type { Database } from '../../infra/database/database.types.js';
-import { meetings, meetingShares, meetingSummaries } from '../../infra/database/schema/index.js';
+import type { Database, DbExecutor } from '../../infra/database/database.types.js';
+import {
+  channels,
+  meetings,
+  meetingShares,
+  meetingSummaries,
+  weeklyReports,
+  weeklyReportVersions,
+} from '../../infra/database/schema/index.js';
 import type { MeetingSummaryContent } from '../../infra/llm/llm.types.js';
 import { REPORT_TIME_ZONE } from './report-week.js';
-import type { ReportMeeting } from './reports.types.js';
+import type { ClaimedReport, NewReportVersion, ReportMeeting } from './reports.types.js';
 
 /** Truy vấn của báo cáo tuần (M9) — chạy trong WORKER (user BYPASSRLS), nên luôn lọc `org_id` tường minh. */
 @Injectable()
@@ -55,5 +62,127 @@ export class ReportsRepository {
       )
       .orderBy(asc(meetingShares.recordedAt), asc(meetings.id));
     return rows.map((r) => ({ ...r, summary: r.summary as unknown as MeetingSummaryContent }));
+  }
+
+  /**
+   * Nhận việc tạo báo cáo bằng MỘT câu UPDATE có điều kiện (lease + fencing token, như `claim` của
+   * meeting — M6 B4): đúng `generation`, đang chờ (`pending`) hoặc đang tạo mà lease TRỐNG / HẾT HẠN
+   * (retry sau lỗi tạm đã nhả lease; worker chết thì lease tự hết). `completed` / `skipped` / `failed`
+   * không nhận lại → job trùng là no-op. 0 dòng = job cũ, trùng, đang có người giữ, hay kênh đã xoá.
+   */
+  async claim(
+    reportId: string,
+    generation: number,
+    leaseMs: number,
+  ): Promise<ClaimedReport | undefined> {
+    const [row] = await this.db
+      .update(weeklyReports)
+      .set({
+        status: 'generating',
+        generationToken: sql`gen_random_uuid()`,
+        leaseUntil: sql`now() + ${leaseMs} * interval '1 millisecond'`,
+      })
+      .where(
+        and(
+          eq(weeklyReports.id, reportId),
+          eq(weeklyReports.regenerateCount, generation),
+          inArray(weeklyReports.status, ['pending', 'generating']),
+          or(isNull(weeklyReports.leaseUntil), sql`${weeklyReports.leaseUntil} < now()`),
+        ),
+      )
+      .returning({
+        id: weeklyReports.id,
+        orgId: weeklyReports.orgId,
+        channelId: weeklyReports.channelId,
+        weekStart: weeklyReports.weekStart,
+        generation: weeklyReports.regenerateCount,
+        requestedTrigger: weeklyReports.requestedTrigger,
+        requestedBy: weeklyReports.requestedBy,
+        generationToken: weeklyReports.generationToken,
+      });
+    if (!row) return undefined;
+    const [channel] = await this.db
+      .select({ name: channels.name })
+      .from(channels)
+      .where(eq(channels.id, row.channelId));
+    return {
+      ...row,
+      channelName: channel?.name ?? '',
+      generationToken: row.generationToken as string,
+    };
+  }
+
+  /** Lỗi → nhả lease NGAY để retry nhận lại, không phải chờ hết hạn. Chỉ nhả lease CỦA MÌNH. */
+  async release(reportId: string, token: string): Promise<void> {
+    await this.db
+      .update(weeklyReports)
+      .set({ generationToken: null, leaseUntil: null })
+      .where(and(eq(weeklyReports.id, reportId), eq(weeklyReports.generationToken, token)));
+  }
+
+  /** Dưới 2 meeting: `skipped`. Có kiểm token — `false` = đã mất lease (worker khác nhận). */
+  async completeSkipped(tx: DbExecutor, reportId: string, token: string): Promise<boolean> {
+    const rows = await tx
+      .update(weeklyReports)
+      .set({ status: 'skipped', lastError: null, generationToken: null, leaseUntil: null })
+      .where(and(eq(weeklyReports.id, reportId), eq(weeklyReports.generationToken, token)))
+      .returning({ id: weeklyReports.id });
+    return rows.length > 0;
+  }
+
+  /**
+   * Ghi phiên bản mới + đổi `current_version`, CHỈ khi token còn là của mình (fencing) — lease hết hạn
+   * và worker khác đã nhận thì 0 dòng → KHÔNG ghi. Chuyển trạng thái TRƯỚC (đây là phép kiểm token),
+   * rồi mới chèn version; cùng một transaction nên hoặc cả hai hoặc không gì.
+   */
+  async completeGenerated(
+    tx: DbExecutor,
+    report: Pick<ClaimedReport, 'id' | 'orgId'>,
+    token: string,
+    version: NewReportVersion,
+  ): Promise<number | undefined> {
+    const [{ next } = { next: 1 }] = await tx
+      .select({ next: sql<number>`coalesce(max(${weeklyReportVersions.version}), 0) + 1` })
+      .from(weeklyReportVersions)
+      .where(eq(weeklyReportVersions.reportId, report.id));
+    const rows = await tx
+      .update(weeklyReports)
+      .set({
+        status: 'completed',
+        currentVersion: next,
+        lastError: null,
+        generationToken: null,
+        leaseUntil: null,
+      })
+      .where(and(eq(weeklyReports.id, report.id), eq(weeklyReports.generationToken, token)))
+      .returning({ id: weeklyReports.id });
+    if (rows.length === 0) return undefined;
+    await tx.insert(weeklyReportVersions).values({
+      reportId: report.id,
+      orgId: report.orgId,
+      version: next,
+      ...version,
+    });
+    return next;
+  }
+
+  /**
+   * Hết lượt / lỗi vĩnh viễn → `failed`. Điều kiện `generation` + còn đang chờ / tạo: sự kiện `failed`
+   * của lần tạo CŨ tới muộn không đè lên lần tạo lại. KHÔNG đụng `current_version` — người xem vẫn
+   * thấy bản cũ. `failed` không tính vào quota (03 §5).
+   */
+  async fail(reportId: string, generation: number, message: string): Promise<boolean> {
+    const rows = await this.db
+      .update(weeklyReports)
+      .set({ status: 'failed', lastError: message, generationToken: null, leaseUntil: null })
+      .where(
+        and(
+          eq(weeklyReports.id, reportId),
+          eq(weeklyReports.regenerateCount, generation),
+          inArray(weeklyReports.status, ['pending', 'generating']),
+        ),
+      )
+      .returning({ id: weeklyReports.id });
+    return rows.length > 0;
   }
 }

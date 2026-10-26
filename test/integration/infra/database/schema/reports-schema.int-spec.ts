@@ -187,6 +187,28 @@ describe('Schema báo cáo tuần (Postgres thật)', () => {
     }
   });
 
+  it('requested_trigger: mặc định scheduled, CHECK hai giá trị; xoá người bấm → requested_by NULL (báo cáo còn)', async () => {
+    const c = await channelInNewOrg();
+    const clicker = await insertUser(t.db);
+    const [r] = await report(c);
+    const bad = await codeOf(
+      report(c, { weekStart: '2026-10-12', requestedTrigger: 'x' as never }),
+    );
+    await t.db
+      .update(weeklyReports)
+      .set({ requestedTrigger: 'manual', requestedBy: clicker.id })
+      .where(eq(weeklyReports.id, r!.id));
+    await t.db.delete(users).where(eq(users.id, clicker.id));
+    const after = (await t.db.select().from(weeklyReports).where(eq(weeklyReports.id, r!.id)))[0]!;
+    expect([
+      r?.requestedTrigger,
+      r?.requestedBy,
+      bad,
+      after.requestedTrigger,
+      after.requestedBy,
+    ]).toEqual(['scheduled', null, ['23514', 'weekly_reports_trigger_ck'], 'manual', null]);
+  });
+
   it('notifications nhận loại `report.ready`', async () => {
     const user = await insertUser(t.db);
     const [row] = await t.db

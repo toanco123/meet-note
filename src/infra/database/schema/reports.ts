@@ -50,6 +50,12 @@ export const weeklyReports = pgTable(
     /** Phiên bản đang hiển thị. Tạo lại LỖI không đổi cột này → người xem vẫn thấy bản cũ. */
     currentVersion: integer(),
     lastError: text(),
+    /**
+     * Lần tạo hiện tại của báo cáo được yêu cầu bởi ai (M9 B4): `scheduled` (tick) hoặc `manual` + người
+     * bấm. Lưu trên dòng — không nhét vào payload job — để job quét kẹt dựng lại đúng thông tin này.
+     */
+    requestedTrigger: text({ enum: REPORT_TRIGGERS }).notNull().default('scheduled'),
+    requestedBy: uuid(),
     generationToken: uuid(),
     leaseUntil: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -67,7 +73,13 @@ export const weeklyReports = pgTable(
       columns: [t.channelId, t.orgId],
       foreignColumns: [channels.id, channels.orgId],
     }).onDelete('cascade'),
+    foreignKey({
+      name: 'weekly_reports_requested_by_fk',
+      columns: [t.requestedBy],
+      foreignColumns: [users.id],
+    }).onDelete('set null'),
     check('weekly_reports_status_ck', inValues(t.status, REPORT_STATUSES)),
+    check('weekly_reports_trigger_ck', inValues(t.requestedTrigger, REPORT_TRIGGERS)),
     check(
       'weekly_reports_regenerate_ck',
       sql`${t.regenerateCount} between 0 and ${sql.raw(String(MAX_REGENERATE_COUNT))}`,
@@ -83,6 +95,10 @@ export const weeklyReports = pgTable(
     ),
     // Tuần luôn bắt đầu Thứ Hai (isodow = 1): một ngày khác là lỗi tính tuần ở đâu đó.
     check('weekly_reports_monday_ck', sql`extract(isodow from ${t.weekStart}) = 1`),
+    // Index phía tham chiếu của `requested_by` (xoá user → SET NULL tìm nhanh).
+    index('weekly_reports_requested_by_idx')
+      .on(t.requestedBy)
+      .where(sql`${t.requestedBy} is not null`),
     // Tick / quét: báo cáo của một tuần theo trạng thái.
     index('weekly_reports_week_status_idx').on(t.weekStart, t.status),
     // Quét kẹt: chỉ các dòng chưa xong, cũ nhất trước.

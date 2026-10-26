@@ -336,18 +336,20 @@ meeting_id PK, org_id (composite FK `meeting_summaries_meeting_fk` → `meetings
 
 ### `weekly_reports`
 
-| Cột                    | Kiểu                                                                  | Ghi chú                                                                                                            |
-| ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| id                     | uuid PK                                                               | `uuidv7()`; `UNIQUE (id, org_id)` là đích của composite FK từ bảng versions                                        |
-| channel_id, org_id     | uuid                                                                  | composite FK `weekly_reports_channel_fk` → `channels(id, org_id)` ON DELETE CASCADE; **RLS** theo `org_id` (M9 Q9) |
-| week_start             | date                                                                  | Thứ Hai theo giờ VN; CHECK `extract(isodow …) = 1`. Đọc về dạng chuỗi `'YYYY-MM-DD'`, không qua `Date`             |
-| status                 | text CHECK IN ('pending','generating','completed','failed','skipped') | `skipped` = < 2 meeting. Là CHẶNG hiện tại, như `meetings.status`                                                  |
-| regenerate_count       | smallint DEFAULT 0 CHECK BETWEEN 0 AND 3                              | DB là chốt chặn cuối của quota                                                                                     |
-| current_version        | int NULL CHECK ≥ 1                                                    | Phiên bản đang hiển thị. Tạo lại LỖI không đổi cột này. CHECK: `completed` ⇒ có `current_version`                  |
-| last_error             | text NULL                                                             |                                                                                                                    |
-| generation_token       | uuid NULL                                                             | **Fencing token** của lần nhận việc hiện tại (M9 Q4). Chỉ ghi kết quả khi token còn là của mình                    |
-| lease_until            | timestamptz NULL                                                      | Lease: worker khác chỉ nhận việc khi NULL hoặc đã hết hạn                                                          |
-| created_at, updated_at | timestamptz                                                           |                                                                                                                    |
+| Cột                    | Kiểu                                                                  | Ghi chú                                                                                                                                 |
+| ---------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| id                     | uuid PK                                                               | `uuidv7()`; `UNIQUE (id, org_id)` là đích của composite FK từ bảng versions                                                             |
+| channel_id, org_id     | uuid                                                                  | composite FK `weekly_reports_channel_fk` → `channels(id, org_id)` ON DELETE CASCADE; **RLS** theo `org_id` (M9 Q9)                      |
+| week_start             | date                                                                  | Thứ Hai theo giờ VN; CHECK `extract(isodow …) = 1`. Đọc về dạng chuỗi `'YYYY-MM-DD'`, không qua `Date`                                  |
+| status                 | text CHECK IN ('pending','generating','completed','failed','skipped') | `skipped` = < 2 meeting. Là CHẶNG hiện tại, như `meetings.status`                                                                       |
+| regenerate_count       | smallint DEFAULT 0 CHECK BETWEEN 0 AND 3                              | DB là chốt chặn cuối của quota                                                                                                          |
+| current_version        | int NULL CHECK ≥ 1                                                    | Phiên bản đang hiển thị. Tạo lại LỖI không đổi cột này. CHECK: `completed` ⇒ có `current_version`                                       |
+| last_error             | text NULL                                                             |                                                                                                                                         |
+| requested_trigger      | text DEFAULT 'scheduled' CHECK IN ('scheduled','manual')              | Lần tạo hiện tại do tick hay do người bấm (M9 B4). Lưu trên dòng — không nhét vào payload job — để job quét kẹt dựng lại đúng thông tin |
+| requested_by           | uuid NULL                                                             | Người bấm "tạo lại" (FK `weekly_reports_requested_by_fk` → `users` ON DELETE SET NULL). Version mới chép sang `triggered_by`            |
+| generation_token       | uuid NULL                                                             | **Fencing token** của lần nhận việc hiện tại (M9 Q4). Chỉ ghi kết quả khi token còn là của mình                                         |
+| lease_until            | timestamptz NULL                                                      | Lease: worker khác chỉ nhận việc khi NULL hoặc đã hết hạn                                                                               |
+| created_at, updated_at | timestamptz                                                           |                                                                                                                                         |
 
 `UNIQUE (channel_id, week_start)` (`weekly_reports_channel_week_uq`) là **khoá idempotency** của cron:
 
@@ -362,7 +364,7 @@ Cron chạy 2 lần (do retry hoặc nhiều instance) thì lần 2 không làm 
 
 ### `weekly_report_versions`
 
-id, report_id + org_id (composite FK `weekly_report_versions_report_fk` → `weekly_reports(id, org_id)` ON DELETE CASCADE; **RLS** theo `org_id`), version int (CHECK ≥ 1), trigger (`scheduled|manual`, CHECK), triggered_by NULL (FK `weekly_report_versions_triggered_by_fk` → `users` ON DELETE SET NULL), content jsonb, meeting_ids uuid[] (chụp danh sách meeting lúc sinh), truncated boolean (đã cắt bớt meeting khi đưa vào prompt), model, prompt_version, input_tokens, output_tokens (CHECK ≥ 0), created_at. `UNIQUE (report_id, version)`. Chỉ THÊM, không sửa. Migration `0015`.
+id, report_id + org_id (composite FK `weekly_report_versions_report_fk` → `weekly_reports(id, org_id)` ON DELETE CASCADE; **RLS** theo `org_id`), version int (CHECK ≥ 1), trigger (`scheduled|manual`, CHECK), triggered_by NULL (FK `weekly_report_versions_triggered_by_fk` → `users` ON DELETE SET NULL), content jsonb, meeting_ids uuid[] (chụp danh sách meeting lúc sinh), truncated boolean (đã cắt bớt meeting khi đưa vào prompt), model, prompt_version, input_tokens, output_tokens (CHECK ≥ 0), created_at. `UNIQUE (report_id, version)`. Chỉ THÊM, không sửa. Migration `0015` (hai bảng) + `0016` (`requested_trigger`, `requested_by`).
 
 **Tạo lại (manual):**
 

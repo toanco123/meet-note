@@ -14,3 +14,55 @@ export interface SelectedMeetings {
   /** Có meeting bị bỏ vì vượt trần (ghi vào `weekly_report_versions.truncated`). */
   truncated: boolean;
 }
+
+/**
+ * Payload job `weekly-report.generate` (CHỈ id + số nguyên). `generation` = `regenerate_count` lúc
+ * enqueue — fencing như `attempt` của meeting: job / sự kiện `failed` của lần tạo CŨ không đè lên lần
+ * tạo lại. Tick tạo dòng với 0; mỗi lần tạo lại tăng 1.
+ */
+export interface ReportJob {
+  reportId: string;
+  generation: number;
+  requestId: string | null;
+}
+
+/** Báo cáo vừa được nhận việc (lease) — đủ để chạy mà không đọc lại. */
+export interface ClaimedReport {
+  id: string;
+  orgId: string;
+  channelId: string;
+  channelName: string;
+  /** Thứ Hai của tuần, 'YYYY-MM-DD'. */
+  weekStart: string;
+  generation: number;
+  requestedTrigger: 'scheduled' | 'manual';
+  requestedBy: string | null;
+  generationToken: string;
+}
+
+/**
+ * - `completed`: đã ghi phiên bản mới.
+ * - `skipped`: dưới 2 meeting → `skipped` (không gọi LLM).
+ * - `ignored`: job cũ / trùng / báo cáo đã xong hay đã xoá / đang có người giữ / mất lease giữa chừng.
+ */
+export type ReportOutcome = 'completed' | 'skipped' | 'ignored';
+
+export interface ReportGenerationOptions {
+  /** Lease cho một lần tạo: ≥ thời gian tối đa của LLM (timeout × (retry + 1)) + biên. */
+  leaseMs: number;
+  /** Trần số meeting đưa vào prompt (xem `selectMeetings`). */
+  maxMeetings: number;
+}
+
+/** Phiên bản vừa sinh, chuẩn bị ghi. */
+export interface NewReportVersion {
+  trigger: 'scheduled' | 'manual';
+  triggeredBy: string | null;
+  content: Record<string, unknown>;
+  meetingIds: string[];
+  truncated: boolean;
+  model: string;
+  promptVersion: string;
+  inputTokens: number;
+  outputTokens: number;
+}
