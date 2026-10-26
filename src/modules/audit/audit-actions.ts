@@ -30,6 +30,8 @@ export const AUDIT_ACTIONS = [
   'channel.deleted',
   'channel.purged',
   'meeting.deleted',
+  /** OrgAdm chạy lại meeting không chủ (M6 B7). */
+  'meeting.retried',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

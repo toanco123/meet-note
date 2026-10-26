@@ -16,6 +16,7 @@ import type { Response } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import type { AuthUser } from '../../../common/auth/auth.types.js';
 import { CurrentUser } from '../../../common/auth/current-user.decorator.js';
+import { CursorQueryDto } from '../../../common/pagination/cursor-query.dto.js';
 import type { Page } from '../../../common/pagination/pagination.types.js';
 import { ApiErrorResponses } from '../../../common/swagger/api-error-responses.decorator.js';
 import { ApiPaginatedResponse } from '../../../common/swagger/api-paginated-response.decorator.js';
@@ -28,6 +29,8 @@ import { ListMeetingsQueryDto } from '../dto/list-meetings-query.dto.js';
 import { UpdateMeetingDto } from '../dto/update-meeting.dto.js';
 import { MeetingShareResponseDto, ShareMeetingDto } from '../dto/meeting-share.dto.js';
 import { MeetingDetailResponseDto, MeetingResponseDto } from '../dto/meeting-response.dto.js';
+import { MeetingSummaryResponseDto } from '../dto/meeting-summary.dto.js';
+import { TranscriptSegmentResponseDto } from '../dto/meeting-transcript.dto.js';
 import { MeetingManagementService } from '../services/meeting-management.service.js';
 import { MeetingSharesService } from '../services/meeting-shares.service.js';
 import { MeetingsService } from '../services/meetings.service.js';
@@ -75,6 +78,60 @@ export class MeetingsController {
     @CurrentUser() user: AuthUser,
   ): Promise<MeetingDetailResponseDto> {
     return this.meetings.getVisible(membership, user.id, meetingId);
+  }
+
+  /**
+   * Transcript của cuộc họp.
+   *
+   * @remarks Người xem được cuộc họp (như chi tiết). Đoạn theo thứ tự `seq`; chưa xử lý xong → mảng
+   * rỗng. Người không xem được nhận 404.
+   */
+  @Get(':meetingId/transcript')
+  @RequireOrgPermission('org.meeting.read')
+  @ApiPaginatedResponse(TranscriptSegmentResponseDto)
+  @ApiErrorResponses(400)
+  async transcript(
+    @CurrentOrgMembership() membership: OrgMembershipContext,
+    @Param('meetingId', new ParseUUIDPipe()) meetingId: string,
+    @CurrentUser() user: AuthUser,
+    @Query() query: CursorQueryDto,
+  ): Promise<Page<TranscriptSegmentResponseDto>> {
+    return this.meetings.transcript(membership, user.id, meetingId, query);
+  }
+
+  /**
+   * Tóm tắt AI của cuộc họp.
+   *
+   * @remarks Người xem được cuộc họp. Chưa xử lý xong → 409 `MEETING_NOT_COMPLETED`.
+   */
+  @Get(':meetingId/summary')
+  @RequireOrgPermission('org.meeting.read')
+  @ApiErrorResponses(400, 409)
+  async summary(
+    @CurrentOrgMembership() membership: OrgMembershipContext,
+    @Param('meetingId', new ParseUUIDPipe()) meetingId: string,
+    @CurrentUser() user: AuthUser,
+  ): Promise<MeetingSummaryResponseDto> {
+    return this.meetings.summary(membership, user.id, meetingId);
+  }
+
+  /**
+   * Chạy lại xử lý cuộc họp bị lỗi.
+   *
+   * @remarks Cùng quyền như sửa. Chỉ khi `status = failed` (khác → 409 `MEETING_NOT_FAILED`):
+   * `attempt` tăng 1, về `queued` và xử lý lại từ đầu (202).
+   */
+  @Post(':meetingId/retry')
+  @RequireOrgPermission('org.meeting.manage')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiErrorResponses(400, 403, 409)
+  async retry(
+    @CurrentOrgMembership() membership: OrgMembershipContext,
+    @UserAuditCtx() ctx: UserAuditContext,
+    @Param('meetingId', new ParseUUIDPipe()) meetingId: string,
+  ): Promise<MeetingDetailResponseDto> {
+    await this.management.retry(membership, ctx, meetingId);
+    return this.meetings.getVisible(membership, ctx.actorId, meetingId);
   }
 
   /**

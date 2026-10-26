@@ -4598,6 +4598,331 @@
         ]
       }
     },
+    "/v1/orgs/{orgId}/meetings/{meetingId}/transcript": {
+      "get": {
+        "description": "Người xem được cuộc họp (như chi tiết). Đoạn theo thứ tự `seq`; chưa xử lý xong → mảng\nrỗng. Người không xem được nhận 404.",
+        "operationId": "Meetings_transcript",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TranscriptSegmentResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Transcript của cuộc họp.",
+        "tags": [
+          "Meetings"
+        ],
+        "x-paginated": true
+      }
+    },
+    "/v1/orgs/{orgId}/meetings/{meetingId}/summary": {
+      "get": {
+        "description": "Người xem được cuộc họp. Chưa xử lý xong → 409 `MEETING_NOT_COMPLETED`.",
+        "operationId": "Meetings_summary",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MeetingSummaryResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tóm tắt AI của cuộc họp.",
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/meetings/{meetingId}/retry": {
+      "post": {
+        "description": "Cùng quyền như sửa. Chỉ khi `status = failed` (khác → 409 `MEETING_NOT_FAILED`):\n`attempt` tăng 1, về `queued` và xử lý lại từ đầu (202).",
+        "operationId": "Meetings_retry",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MeetingDetailResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).\n\nKhông đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Chạy lại xử lý cuộc họp bị lỗi.",
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
     "/v1/orgs/{orgId}/meetings/{meetingId}/shares": {
       "post": {
         "description": "Bạn phải là thành viên kênh (Chủ kênh / QTV / Thành viên; khách không được). Kênh lưu\ntrữ → 409. Chia sẻ lại → 200 với đúng bản ghi cũ (lần đầu 201).",
@@ -6627,13 +6952,26 @@
           "completed",
           "failed"
         ],
-        "description": "`queued` → chờ xử lý (M6 chạy ffmpeg / Whisper / tóm tắt)."
+        "description": "Chặng xử lý (M6): `queued` → `preprocessing` → `transcribing` → `summarizing` → `completed`;\n`failed` → chạy lại được (`POST …/retry`)."
+      },
+      "MeetingFailureCode": {
+        "type": "string",
+        "enum": [
+          "SOURCE_CHECKSUM_MISMATCH",
+          "MEDIA_UNREADABLE",
+          "MEDIA_NO_AUDIO",
+          "MEDIA_TOO_LONG",
+          "TRANSCRIBE_FAILED",
+          "SUMMARIZE_FAILED",
+          "PREPROCESS_FAILED"
+        ],
+        "description": "Mã lỗi khi `status = failed`."
       },
       "MeetingResponseDto": {
         "type": "object",
         "properties": {
           "status": {
-            "description": "`queued` → chờ xử lý (M6 chạy ffmpeg / Whisper / tóm tắt).",
+            "description": "Chặng xử lý (M6): `queued` → `preprocessing` → `transcribing` → `summarizing` → `completed`;\n`failed` → chạy lại được (`POST …/retry`).",
             "allOf": [
               {
                 "$ref": "#/components/schemas/MeetingStatus"
@@ -6656,9 +6994,18 @@
             "description": "Ngôn ngữ Whisper phát hiện."
           },
           "failureCode": {
+            "nullable": true,
+            "description": "Mã lỗi khi `status = failed`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MeetingFailureCode"
+              }
+            ]
+          },
+          "failureMessage": {
             "type": "string",
             "nullable": true,
-            "description": "Mã lỗi khi `status = failed`."
+            "description": "Câu giải thích lỗi cho người dùng."
           },
           "id": {
             "type": "string"
@@ -6671,6 +7018,11 @@
             "type": "string",
             "example": "2026-10-19T02:00:00.000Z"
           },
+          "attempt": {
+            "type": "number",
+            "description": "Lần xử lý thứ mấy — tăng mỗi lần chạy lại (M6).",
+            "example": 1
+          },
           "createdAt": {
             "type": "string",
             "example": "2026-10-19T02:05:00.000Z"
@@ -6682,9 +7034,11 @@
           "durationMs",
           "language",
           "failureCode",
+          "failureMessage",
           "id",
           "title",
           "recordedAt",
+          "attempt",
           "createdAt"
         ]
       },
@@ -6708,7 +7062,7 @@
         "type": "object",
         "properties": {
           "status": {
-            "description": "`queued` → chờ xử lý (M6 chạy ffmpeg / Whisper / tóm tắt).",
+            "description": "Chặng xử lý (M6): `queued` → `preprocessing` → `transcribing` → `summarizing` → `completed`;\n`failed` → chạy lại được (`POST …/retry`).",
             "allOf": [
               {
                 "$ref": "#/components/schemas/MeetingStatus"
@@ -6731,9 +7085,18 @@
             "description": "Ngôn ngữ Whisper phát hiện."
           },
           "failureCode": {
+            "nullable": true,
+            "description": "Mã lỗi khi `status = failed`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MeetingFailureCode"
+              }
+            ]
+          },
+          "failureMessage": {
             "type": "string",
             "nullable": true,
-            "description": "Mã lỗi khi `status = failed`."
+            "description": "Câu giải thích lỗi cho người dùng."
           },
           "id": {
             "type": "string"
@@ -6745,6 +7108,11 @@
           "recordedAt": {
             "type": "string",
             "example": "2026-10-19T02:00:00.000Z"
+          },
+          "attempt": {
+            "type": "number",
+            "description": "Lần xử lý thứ mấy — tăng mỗi lần chạy lại (M6).",
+            "example": 1
           },
           "createdAt": {
             "type": "string",
@@ -6763,11 +7131,115 @@
           "durationMs",
           "language",
           "failureCode",
+          "failureMessage",
           "id",
           "title",
           "recordedAt",
+          "attempt",
           "createdAt",
           "channels"
+        ]
+      },
+      "TranscriptSegmentResponseDto": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "number",
+            "description": "Thứ tự trong cuộc họp, bắt đầu từ 0.",
+            "example": 0
+          },
+          "startMs": {
+            "type": "number",
+            "description": "Mốc bắt đầu tính từ đầu bản ghi (ms).",
+            "example": 0
+          },
+          "endMs": {
+            "type": "number",
+            "example": 4200
+          },
+          "text": {
+            "type": "string",
+            "example": "Chào mọi người, hôm nay họp về kế hoạch quý ba."
+          }
+        },
+        "required": [
+          "seq",
+          "startMs",
+          "endMs",
+          "text"
+        ]
+      },
+      "ActionItemDto": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "nullable": true,
+            "description": "Người nhận việc (nếu được nói rõ)."
+          },
+          "due": {
+            "type": "string",
+            "nullable": true,
+            "description": "Hạn như được nói, vd \"thứ sáu\"."
+          },
+          "task": {
+            "type": "string",
+            "example": "Chuẩn bị ngân sách marketing"
+          }
+        },
+        "required": [
+          "owner",
+          "due",
+          "task"
+        ]
+      },
+      "MeetingSummaryResponseDto": {
+        "type": "object",
+        "properties": {
+          "actionItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionItemDto"
+            }
+          },
+          "overview": {
+            "type": "string",
+            "example": "Họp chốt kế hoạch quý ba và phân công chuẩn bị ngân sách."
+          },
+          "keyPoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "decisions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "model": {
+            "type": "string",
+            "description": "Model đã tạo bản tóm tắt (có thể là model dự phòng).",
+            "example": "claude-opus-5-5"
+          },
+          "promptVersion": {
+            "type": "string",
+            "example": "v1"
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-22T03:00:00.000Z"
+          }
+        },
+        "required": [
+          "actionItems",
+          "overview",
+          "keyPoints",
+          "decisions",
+          "model",
+          "promptVersion",
+          "createdAt"
         ]
       },
       "ShareMeetingDto": {
@@ -6824,7 +7296,7 @@
         "type": "object",
         "properties": {
           "status": {
-            "description": "`queued` → chờ xử lý (M6 chạy ffmpeg / Whisper / tóm tắt).",
+            "description": "Chặng xử lý (M6): `queued` → `preprocessing` → `transcribing` → `summarizing` → `completed`;\n`failed` → chạy lại được (`POST …/retry`).",
             "allOf": [
               {
                 "$ref": "#/components/schemas/MeetingStatus"
@@ -6847,9 +7319,18 @@
             "description": "Ngôn ngữ Whisper phát hiện."
           },
           "failureCode": {
+            "nullable": true,
+            "description": "Mã lỗi khi `status = failed`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MeetingFailureCode"
+              }
+            ]
+          },
+          "failureMessage": {
             "type": "string",
             "nullable": true,
-            "description": "Mã lỗi khi `status = failed`."
+            "description": "Câu giải thích lỗi cho người dùng."
           },
           "id": {
             "type": "string"
@@ -6861,6 +7342,11 @@
           "recordedAt": {
             "type": "string",
             "example": "2026-10-19T02:00:00.000Z"
+          },
+          "attempt": {
+            "type": "number",
+            "description": "Lần xử lý thứ mấy — tăng mỗi lần chạy lại (M6).",
+            "example": 1
           },
           "createdAt": {
             "type": "string",
@@ -6878,9 +7364,11 @@
           "durationMs",
           "language",
           "failureCode",
+          "failureMessage",
           "id",
           "title",
           "recordedAt",
+          "attempt",
           "createdAt",
           "sharedAt"
         ]
@@ -6913,7 +7401,8 @@
           "channel.unarchived",
           "channel.deleted",
           "channel.purged",
-          "meeting.deleted"
+          "meeting.deleted",
+          "meeting.retried"
         ]
       },
       "AuditLogResponseDto": {
@@ -6983,7 +7472,9 @@
           "channel.member_added",
           "channel.ownership_transferred",
           "org.join_request_approved",
-          "meeting.shared"
+          "meeting.shared",
+          "meeting.completed",
+          "meeting.failed"
         ]
       },
       "NotificationResponseDto": {

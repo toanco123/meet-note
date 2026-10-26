@@ -29,9 +29,12 @@
     "db:migrate": "node --env-file-if-exists=.env dist/scripts/migrate.js",
     "db:studio": "drizzle-kit studio",
     "openapi:export": "node dist/scripts/export-openapi.js",
-    "bench:meeting-list": "node scripts/bench/meeting-list.mjs"
+    "bench:meeting-list": "node scripts/bench/meeting-list.mjs",
+    "test:whisper": "pnpm build && node scripts/whisper-check.mjs",
+    "smoke:pipeline": "node scripts/pipeline-smoke.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.137.0",
     "@aws-sdk/client-s3": "^3.1152.0",
     "@nestjs/bullmq": "^12.0.0",
     "@nestjs/common": "^12.1.3",

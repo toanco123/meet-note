@@ -1,6 +1,6 @@
 # M11 — Hardening
 
-- **Trạng thái:** **Xong ở local** (2026-10-22): B1–B8; CI chờ push / PR #9. Plan đã duyệt 2026-10-22 (★ cho Q1–Q6; Q3 sửa ở B3 — bài học 7)
+- **Trạng thái:** **Xong** (2026-10-22): B1–B8, PR #9, CI xanh. Plan đã duyệt 2026-10-22 (★ cho Q1–Q6; Q3 sửa ở B3 — bài học 7)
 - **Nhánh:** `m11-hardening`
 - **Tài liệu thiết kế liên quan:** [10-roadmap M11](../design/10-roadmap.md), [03-database §7 khoá](../design/03-database.md), [04-authorization §3 điều kiện xem](../design/04-authorization.md), [07-conventions lỗi + env](../design/07-conventions.md), [M3 bài học 5](M3-invites-ownership.md), [M6b bài học 9](M6b-meeting-sharing.md)
 - **Ghi chú:** làm khi M6 / M8 / M9 còn hoãn — M11 không phụ thuộc pipeline. Lộ trình liệt kê 7 việc; mốc này chọn 4 việc học được nhiều về Postgres + Nest và chứng minh được bằng test (xem "Ngoài phạm vi").
@@ -117,7 +117,7 @@ Bốn phiên bản đã đo trên đường tới đây (bài học 11–13): v1
 ## Tiêu chí hoàn thành
 
 - [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh (393 unit)
-- [ ] `pnpm test:e2e` xanh ở local và CI — **chạy dưới role app, không phải superuser** — local 580 / 580 (app dưới RLS); CI: chờ PR #9
+- [x] `pnpm test:e2e` xanh ở local và CI — **chạy dưới role app, không phải superuser** — local và CI 580 / 580 (app dưới RLS; CI trên PR #9)
 - [x] Không còn đường nào làm request treo vô hạn vì DB; rate limit đúng khi nhiều instance
 - [x] Số đo danh sách meeting trước / sau ghi trong plan
 - [x] `openapi.json` đã cập nhật (B3: 429); `docs/design/` khớp code; quy tắc mới vào `CLAUDE.md` + 07 §6

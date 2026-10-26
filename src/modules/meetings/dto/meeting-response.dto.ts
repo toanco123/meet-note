@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  MEETING_FAILURE_CODES,
   MEETING_STATUSES,
+  type MeetingFailureCode,
   type MeetingRow,
   type MeetingStatus,
 } from '../../../infra/database/schema/index.js';
@@ -11,7 +13,10 @@ export class MeetingResponseDto {
   /** @example "Giao ban kỹ thuật tuần 42" */
   title: string;
 
-  /** `queued` → chờ xử lý (M6 chạy ffmpeg / Whisper / tóm tắt). */
+  /**
+   * Chặng xử lý (M6): `queued` → `preprocessing` → `transcribing` → `summarizing` → `completed`;
+   * `failed` → chạy lại được (`POST …/retry`).
+   */
   @ApiProperty({ enum: MEETING_STATUSES, enumName: 'MeetingStatus' })
   status: MeetingStatus;
 
@@ -27,8 +32,19 @@ export class MeetingResponseDto {
   @ApiProperty({ type: String, nullable: true, description: 'Ngôn ngữ Whisper phát hiện.' })
   language: string | null;
 
-  @ApiProperty({ type: String, nullable: true, description: 'Mã lỗi khi `status = failed`.' })
-  failureCode: string | null;
+  @ApiProperty({
+    enum: MEETING_FAILURE_CODES,
+    enumName: 'MeetingFailureCode',
+    nullable: true,
+    description: 'Mã lỗi khi `status = failed`.',
+  })
+  failureCode: MeetingFailureCode | null;
+
+  @ApiProperty({ type: String, nullable: true, description: 'Câu giải thích lỗi cho người dùng.' })
+  failureMessage: string | null;
+
+  /** Lần xử lý thứ mấy — tăng mỗi lần chạy lại (M6). @example 1 */
+  attempt: number;
 
   /** @example "2026-10-19T02:05:00.000Z" */
   createdAt: string;
@@ -43,6 +59,8 @@ export class MeetingResponseDto {
       durationMs: row.durationMs,
       language: row.language,
       failureCode: row.failureCode,
+      failureMessage: row.failureMessage,
+      attempt: row.attempt,
       createdAt: row.createdAt.toISOString(),
     };
   }

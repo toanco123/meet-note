@@ -16,17 +16,17 @@
 
 Trạng thái hiện tại:
 
-| Mốc                            | Trạng thái                                                                                                                                                                             |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0 — Khung                     | Xong                                                                                                                                                                                   |
-| M1 — Auth                      | Xong (PR #1)                                                                                                                                                                           |
-| M2 — Tổ chức                   | Xong (PR #2)                                                                                                                                                                           |
-| M3 — Mời, duyệt, sở hữu, audit | Xong (PR #3)                                                                                                                                                                           |
-| M4 — Kênh                      | Xong (PR #4). Kênh công khai / riêng tư, 4 vai trò, thành viên, tham gia / rời / chuyển chủ kênh, lưu trữ, xoá mềm + dọn dẹp, xoá tổ chức. Kèm: catalog lỗi, envelope `{ data, meta }` |
-| M5 — Upload                    | Xong (PR #5). Upload chunked 8 MiB tới 2 GiB stream thẳng lên S3 (RustFS), resume, complete → meeting `queued` + job sau commit, `Idempotency-Key`, dọn upload hết hạn                 |
-| M6 — Pipeline                  | Hoãn (plan nháp)                                                                                                                                                                       |
-| M6b — Chia sẻ & quyền xem      | Xong (PR #6). Chia sẻ meeting vào kênh, một điều kiện xem dùng chung, danh sách meeting (theo org / theo kênh), sửa / xoá meeting                                                      |
-| M7 — Realtime                  | Xong (PR #7). Socket.IO `/realtime`: xác thực handshake, ngắt khi token hết hạn / phiên bị thu hồi, subscribe meeting theo quyền, mất quyền là rời room, nhiều instance qua Redis      |
+| Mốc                            | Trạng thái                                                                                                                                                                                                                                    |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 — Khung                     | Xong                                                                                                                                                                                                                                          |
+| M1 — Auth                      | Xong (PR #1)                                                                                                                                                                                                                                  |
+| M2 — Tổ chức                   | Xong (PR #2)                                                                                                                                                                                                                                  |
+| M3 — Mời, duyệt, sở hữu, audit | Xong (PR #3)                                                                                                                                                                                                                                  |
+| M4 — Kênh                      | Xong (PR #4). Kênh công khai / riêng tư, 4 vai trò, thành viên, tham gia / rời / chuyển chủ kênh, lưu trữ, xoá mềm + dọn dẹp, xoá tổ chức. Kèm: catalog lỗi, envelope `{ data, meta }`                                                        |
+| M5 — Upload                    | Xong (PR #5). Upload chunked 8 MiB tới 2 GiB stream thẳng lên S3 (RustFS), resume, complete → meeting `queued` + job sau commit, `Idempotency-Key`, dọn upload hết hạn                                                                        |
+| M6 — Pipeline                  | Xong (PR #10). Worker: ffmpeg chuẩn hoá audio → whisper.cpp → tóm tắt (Claude API hoặc giả), lease + fencing token, retry / chạy lại, tiến độ realtime + thông báo, quét meeting kẹt, lịch dọn dẹp (BullMQ Job Scheduler), image worker riêng |
+| M6b — Chia sẻ & quyền xem      | Xong (PR #6). Chia sẻ meeting vào kênh, một điều kiện xem dùng chung, danh sách meeting (theo org / theo kênh), sửa / xoá meeting                                                                                                             |
+| M7 — Realtime                  | Xong (PR #7). Socket.IO `/realtime`: xác thực handshake, ngắt khi token hết hạn / phiên bị thu hồi, subscribe meeting theo quyền, mất quyền là rời room, nhiều instance qua Redis                                                             |
 
 Chi tiết từng mốc (các bước, quyết định, bài học) trong [docs/plans/](docs/plans/).
 
@@ -78,6 +78,7 @@ Chi tiết: [docs/design/02-architecture.md](docs/design/02-architecture.md).
 - pnpm 12: `corepack enable` (Node 24) hoặc `npm i -g pnpm@12`
 - Docker (Docker Desktop / OrbStack / Colima): cần cho e2e test và Compose
   - Testcontainers không đọc docker context. Nếu không có `/var/run/docker.sock` (vd OrbStack cài không có quyền admin), tạo `~/.testcontainers.properties` với dòng `docker.host=unix:///Users/<you>/.orbstack/run/docker.sock`
+- ffmpeg (M6): e2e chạy ffmpeg / ffprobe THẬT. macOS `brew install ffmpeg`, Ubuntu `apt install ffmpeg`
 
 ### Chạy local
 
@@ -94,18 +95,43 @@ pnpm start:worker               # worker (terminal khác)
 
 Hoặc chạy toàn bộ trong Docker: `docker compose up --build`.
 
+### Pipeline xử lý cuộc họp (M6)
+
+Worker cần **ffmpeg**, **whisper.cpp** và một **model ggml** (model không nằm trong repo hay image):
+
+```bash
+brew install ffmpeg whisper-cpp                      # macOS (Linux: build whisper.cpp, xem docker/Dockerfile)
+mkdir -p ~/.cache/meetnote/whisper
+curl -L -o ~/.cache/meetnote/whisper/ggml-base.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin    # 148 MB, để thử
+# Tiếng Việt tốt hơn nhiều: ggml-large-v3-turbo-q5_0.bin (~550 MB) cùng nguồn
+```
+
+Trong `.env`: `WHISPER_MODEL_PATH=$HOME/.cache/meetnote/whisper/ggml-base.bin` (đường dẫn tuyệt đối). `pnpm test:whisper` kiểm adapter với whisper thật (macOS, giọng đọc `Linh`).
+
+| Cách chạy worker                    | Whisper                                | Khi nào                                                                                                                                                       |
+| ----------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Native: `pnpm start:worker`         | Metal (GPU Apple), nhanh               | Họp thật, model lớn                                                                                                                                           |
+| Docker: `docker compose up --build` | CPU (Docker trên macOS không có Metal) | Thử nhanh với model nhỏ. Mount `~/.cache/meetnote/whisper` vào `/models` (chỉ đọc); đổi model bằng `WHISPER_MODEL_FILE`, đổi thư mục bằng `WHISPER_MODEL_DIR` |
+
+Tóm tắt mặc định là **giả** (`LLM_PROVIDER=fake`, không gửi gì ra ngoài). `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` thì **transcript được gửi lên Claude API**.
+
+Chạy thử cả chuỗi qua HTTP trên api đang chạy: `pnpm smoke:pipeline [file-audio]` — đăng ký user mới, upload, chờ `completed`, in transcript + tóm tắt. Không truyền file thì macOS tự đọc một đoạn họp tiếng Việt.
+
 ### Lệnh thường dùng
 
-| Lệnh                                           | Việc                                                                     |
-| ---------------------------------------------- | ------------------------------------------------------------------------ |
-| `pnpm start:dev` / `pnpm start:worker`         | Chạy api / worker ở chế độ watch                                         |
-| `pnpm test`                                    | Unit test (không cần Docker)                                             |
-| `pnpm test:e2e`                                | Integration + e2e với Postgres/Redis thật (Testcontainers)               |
-| `pnpm lint` / `pnpm typecheck` / `pnpm format` | oxlint / tsc / Prettier                                                  |
-| `pnpm db:generate --name=xxx`                  | Sinh migration từ schema Drizzle. **Đọc lại SQL trước khi commit**       |
-| `pnpm db:generate --custom --name=xxx`         | Tạo migration SQL rỗng để viết tay                                       |
-| `pnpm db:studio`                               | Mở Drizzle Studio để xem dữ liệu (xem mục [Xem database](#xem-database)) |
-| `pnpm build && pnpm openapi:export`            | Xuất `openapi.json` (CI kiểm tra file này khớp code)                     |
+| Lệnh                                           | Việc                                                                        |
+| ---------------------------------------------- | --------------------------------------------------------------------------- |
+| `pnpm start:dev` / `pnpm start:worker`         | Chạy api / worker ở chế độ watch                                            |
+| `pnpm test`                                    | Unit test (không cần Docker)                                                |
+| `pnpm test:e2e`                                | Integration + e2e với Postgres/Redis thật (Testcontainers)                  |
+| `pnpm lint` / `pnpm typecheck` / `pnpm format` | oxlint / tsc / Prettier                                                     |
+| `pnpm db:generate --name=xxx`                  | Sinh migration từ schema Drizzle. **Đọc lại SQL trước khi commit**          |
+| `pnpm db:generate --custom --name=xxx`         | Tạo migration SQL rỗng để viết tay                                          |
+| `pnpm db:studio`                               | Mở Drizzle Studio để xem dữ liệu (xem mục [Xem database](#xem-database))    |
+| `pnpm build && pnpm openapi:export`            | Xuất `openapi.json` (CI kiểm tra file này khớp code)                        |
+| `pnpm smoke:pipeline [file]`                   | Chạy thử pipeline qua HTTP trên api đang chạy (M6)                          |
+| `pnpm test:whisper`                            | Kiểm adapter whisper.cpp với `whisper-cli` thật (macOS, không chạy trên CI) |
 
 ### Xem database
 
@@ -159,7 +185,7 @@ select action, actor_id, target_id, metadata, created_at from audit_logs order b
 Nên biết khi xem:
 
 - DB này chỉ có dữ liệu từ lúc **chạy tay** (`pnpm start:dev`, gọi API, smoke test). Dữ liệu của `pnpm test:e2e` nằm ở các container Testcontainers riêng và **bị xoá khi test xong**, nên không xuất hiện ở đây.
-- **Xoá mềm** (`deleted_at` khác null) thì dòng vẫn còn trong bảng. Kênh xoá mềm bị xoá cứng sau 30 ngày (job dọn dẹp, lên lịch từ M6).
+- **Xoá mềm** (`deleted_at` khác null) thì dòng vẫn còn trong bảng. Kênh xoá mềm bị xoá cứng sau 30 ngày (job `channel.purge` của worker, 03:00 hằng ngày).
 - **`audit_logs` chỉ ghi thêm**: `UPDATE` / `DELETE` / `TRUNCATE` bị trigger chặn (lỗi `23001`), đúng thiết kế.
 - `__drizzle_migrations` ghi các migration đã chạy.
 - Muốn xoá sạch DB dev để làm lại từ đầu: `docker compose down -v`. **Lệnh này xoá luôn volume dữ liệu.** Sau đó `docker compose up -d postgres redis rustfs` và `pnpm build && pnpm db:migrate`.

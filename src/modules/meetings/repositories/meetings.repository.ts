@@ -5,6 +5,7 @@ import {
   desc,
   eq,
   getTableColumns,
+  gt,
   inArray,
   isNotNull,
   isNull,
@@ -20,6 +21,9 @@ import {
   type MeetingRow,
   meetings,
   meetingShares,
+  type MeetingSummaryRow,
+  meetingSummaries,
+  transcriptSegments,
 } from '../../../infra/database/schema/index.js';
 import { isOrgRoleAtLeast, OrgRole } from '../../organizations/organization.policy.js';
 import { visibleMeetingCandidates } from '../meeting-list-candidates.js';
@@ -152,6 +156,55 @@ export class MeetingsRepository {
       )
       .orderBy(desc(meetingShares.sharedAt), desc(meetingShares.meetingId))
       .limit(p.limit + 1);
+  }
+
+  /** Đoạn transcript theo `seq` tăng dần, keyset `seq > after` trên `transcript_segments_meeting_seq_uq`. */
+  listSegments(meetingId: string, afterSeq: number | undefined, limit: number) {
+    return this.db
+      .select({
+        seq: transcriptSegments.seq,
+        startMs: transcriptSegments.startMs,
+        endMs: transcriptSegments.endMs,
+        text: transcriptSegments.text,
+      })
+      .from(transcriptSegments)
+      .where(
+        and(
+          eq(transcriptSegments.meetingId, meetingId),
+          afterSeq === undefined ? undefined : gt(transcriptSegments.seq, afterSeq),
+        ),
+      )
+      .orderBy(asc(transcriptSegments.seq))
+      .limit(limit + 1);
+  }
+
+  async findSummary(meetingId: string): Promise<MeetingSummaryRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(meetingSummaries)
+      .where(eq(meetingSummaries.meetingId, meetingId));
+    return row;
+  }
+
+  /**
+   * Chạy lại (M6 B7): lần xử lý MỚI — `attempt + 1` là fencing token mới, job của lần cũ tự bị loại.
+   * Caller đã khoá dòng `FOR UPDATE` và kiểm `failed`.
+   */
+  async resetForRetry(meetingId: string, executor: DbExecutor): Promise<MeetingRow> {
+    const [row] = await executor
+      .update(meetings)
+      .set({
+        status: 'queued',
+        attempt: sql`${meetings.attempt} + 1`,
+        failureCode: null,
+        failureMessage: null,
+        stageToken: null,
+        stageLeaseUntil: null,
+      })
+      .where(eq(meetings.id, meetingId))
+      .returning();
+    if (!row) throw new Error('resetForRetry: dòng đã khoá mà không cập nhật được');
+    return row;
   }
 
   /** Bậc 4 của thứ tự khoá chung. Meeting đã xoá → `undefined` (đọc lại sau khi chờ khoá). */

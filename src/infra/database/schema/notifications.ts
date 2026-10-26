@@ -23,6 +23,8 @@ export const NOTIFICATION_TYPES = [
   'channel.ownership_transferred',
   'org.join_request_approved',
   'meeting.shared',
+  'meeting.completed',
+  'meeting.failed',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

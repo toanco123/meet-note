@@ -33,4 +33,17 @@ export interface ObjectStorage {
   abortMultipartUpload(key: string, uploadId: string): Promise<void>;
   /** `undefined` = không có object. */
   headObject(key: string): Promise<{ sizeBytes: number } | undefined>;
+  /**
+   * Tải object xuống file bằng stream (không giữ cả file trong RAM), tính `sha256` TRONG CÙNG lượt
+   * đọc (M6 B2). Không có object → `ObjectNotFoundError`.
+   */
+  downloadToFile(key: string, path: string, signal?: AbortSignal): Promise<DownloadedObject>;
+  /** Đẩy file lên bằng stream (PUT một lần — đủ cho audio chuẩn hoá ≤ 4 giờ ≈ 460 MB < 5 GB). */
+  uploadFile(key: string, path: string, contentType: string, signal?: AbortSignal): Promise<void>;
+}
+
+export interface DownloadedObject {
+  sizeBytes: number;
+  /** Hex, như `uploads.sha256` client khai báo lúc khởi tạo upload (M5). */
+  sha256: string;
 }

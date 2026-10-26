@@ -1,26 +1,29 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { DelayedError, type Job, UnrecoverableError } from 'bullmq';
+import { type Job, UnrecoverableError } from 'bullmq';
 import { JobName } from '../infra/queue/jobs.js';
 import { QueueName } from '../infra/queue/queue.module.js';
-import type { NotificationFanoutJobData } from '../infra/queue/queue.types.js';
+import type { MeetingJobData, NotificationFanoutJobData } from '../infra/queue/queue.types.js';
 import { NotificationFanoutService } from '../modules/notifications/services/notification-fanout.service.js';
-
-/** `meeting.preprocess` chưa có pipeline (M6 hoãn) → cất lại ngần này rồi thử lại. */
-const PARK_MS = 60 * 60 * 1000;
+import { MaintenanceJobRunner } from './maintenance-job-runner.js';
+import { PipelineJobRunner } from './pipeline-job-runner.js';
 
 /**
  * MỘT processor cho queue `default`, dispatch theo `job.name`. Không tách mỗi domain một
  * `@Processor('default')`: BullMQ Worker không lọc job theo tên — hai Worker cùng queue giành job
- * của nhau, bên nhận nhầm tên sẽ làm hỏng job. Logic nằm ở service (test được không cần BullMQ).
+ * của nhau, bên nhận nhầm tên sẽ làm hỏng job (M10 bài học 7). Logic nằm ở service.
  *
  * Chỉ `WorkerModule` đăng ký class này — nằm trong module mà `AppModule` import thì api cũng ăn job.
  */
-@Processor(QueueName.Default, { concurrency: 5 })
+@Processor(QueueName.Default, { concurrency: 4 })
 export class DefaultQueueProcessor extends WorkerHost {
   private readonly logger = new Logger(DefaultQueueProcessor.name);
 
-  constructor(private readonly fanout: NotificationFanoutService) {
+  constructor(
+    private readonly fanout: NotificationFanoutService,
+    private readonly pipeline: PipelineJobRunner,
+    private readonly maintenance: MaintenanceJobRunner,
+  ) {
     super();
   }
 
@@ -29,17 +32,29 @@ export class DefaultQueueProcessor extends WorkerHost {
       case JobName.NotificationFanout:
         return { created: await this.fanout.run(job.data as NotificationFanoutJobData) };
       case JobName.MeetingPreprocess:
-        // M5 đã enqueue job này nhưng M6 (pipeline) còn hoãn. Ném lỗi thì job thành `failed` và
-        // jobId cũ chặn enqueue lại; nên đẩy về `delayed` — không tính là một lần thử. Bỏ khi làm M6.
-        await job.moveToDelayed(Date.now() + PARK_MS, token);
-        throw new DelayedError();
+        return this.pipeline.run('preprocess', job as Job<MeetingJobData>, token);
+      case JobName.MeetingSummarize:
+        return this.pipeline.run('summarize', job as Job<MeetingJobData>, token);
+      // Việc định kỳ (M6 B8): kết quả đếm được lưu làm `returnvalue` của job — xem lại trong Redis.
+      case JobName.MeetingSweepStuck:
+        return this.maintenance.sweepStuckMeetings();
+      case JobName.UploadCleanup:
+        return this.maintenance.cleanupUploads();
+      case JobName.IdempotencyCleanup:
+        return this.maintenance.cleanupIdempotencyKeys();
+      case JobName.ChannelPurge:
+        return this.maintenance.purgeChannels();
       default:
         throw new UnrecoverableError(`Job không xác định: ${job.name}`);
     }
   }
 
   @OnWorkerEvent('failed')
-  onFailed(job: Job | undefined, error: Error): void {
+  async onFailed(job: Job | undefined, error: Error): Promise<void> {
+    if (job?.name === JobName.MeetingPreprocess || job?.name === JobName.MeetingSummarize) {
+      const step = job.name === JobName.MeetingPreprocess ? 'preprocess' : 'summarize';
+      return this.pipeline.onFailed(step, job as Job<MeetingJobData>, error);
+    }
     this.logger.error(
       {
         err: error,

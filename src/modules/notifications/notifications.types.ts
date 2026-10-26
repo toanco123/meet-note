@@ -1,4 +1,8 @@
-import type { NotificationType, OrgRoleValue } from '../../infra/database/schema/index.js';
+import type {
+  MeetingFailureCode,
+  NotificationType,
+  OrgRoleValue,
+} from '../../infra/database/schema/index.js';
 
 /**
  * Payload theo TỪNG loại (M10 Q4: id + tên lúc tạo). Tạo thông báo thiếu trường / sai loại = lỗi compile.
@@ -34,6 +38,17 @@ export interface NotificationPayloads {
     /** NULL khi tài khoản người share đã bị xoá (`meeting_shares.shared_by` SET NULL). */
     actorId: string | null;
     actorName: string | null;
+  };
+  /** Chủ meeting (M6 Q7): pipeline xử lý xong. */
+  'meeting.completed': {
+    meetingId: string;
+    meetingTitle: string;
+  };
+  /** Chủ meeting (M6 Q7): pipeline dừng ở `failed` — chạy lại được. */
+  'meeting.failed': {
+    meetingId: string;
+    meetingTitle: string;
+    failureCode: MeetingFailureCode;
   };
 }
 

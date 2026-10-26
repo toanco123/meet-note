@@ -6,6 +6,8 @@ x-app: &app
   build:
     context: .
     dockerfile: docker/Dockerfile
+    # Tường minh: không ghi thì Docker build stage CUỐI của Dockerfile — là `worker` (M6).
+    target: runtime
   image: meetnote:local
   environment: &app-env
     NODE_ENV: development # bật Swagger; production thì tắt
@@ -107,11 +109,27 @@ services:
 
   worker:
     <<: *app
+    # Image riêng: runtime + ffmpeg + whisper-cli build từ source (M6).
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: worker
+    image: meetnote-worker:local
     command: ['node', '--enable-source-maps', 'dist/worker.js']
     environment:
       <<: *app-env
       DATABASE_URL: postgres://meetnote_worker_login:dev-worker-password@postgres:5432/meetnote
       DATABASE_STATEMENT_TIMEOUT_MS: '60000' # job theo lô chạy lâu hơn request (M11 B1)
+      # Whisper trong container chỉ chạy CPU (macOS: Docker không có Metal) → model nhỏ cho thử;
+      # họp thật nên chạy worker native (`pnpm start:worker`, README). Tải model: README.
+      SPEECH_PROVIDER: whisper
+      WHISPER_MODEL_PATH: /models/${WHISPER_MODEL_FILE:-ggml-base.bin}
+      # fake: tóm tắt giả. anthropic: GỬI transcript lên Claude API (cần ANTHROPIC_API_KEY).
+      LLM_PROVIDER: ${LLM_PROVIDER:-fake}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      # Model ggml trên máy host (cùng chỗ README hướng dẫn tải), chỉ đọc.
+      - ${WHISPER_MODEL_DIR:-${HOME}/.cache/meetnote/whisper}:/models:ro
     depends_on:
       migrate:
         condition: service_completed_successfully

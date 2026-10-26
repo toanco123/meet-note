@@ -177,6 +177,78 @@ export class EnvironmentVariables {
   @MinLength(1)
   QUEUE_PREFIX = 'meetnote';
 
+  /** Binary của ffmpeg / ffprobe (M6) — mặc định tìm trong PATH (Homebrew / apt / apk). */
+  @IsString()
+  @MinLength(1)
+  FFMPEG_PATH = 'ffmpeg';
+
+  @IsString()
+  @MinLength(1)
+  FFPROBE_PATH = 'ffprobe';
+
+  /**
+   * Queue mà worker này nghe (M6): `default` (ngắn) và / hoặc `transcription` (whisper, nặng).
+   * `WorkerModule` đọc thẳng `process.env` lúc import (danh sách processor là metadata tĩnh) — khai
+   * báo ở đây để có tài liệu + kiểm định dạng.
+   */
+  @Matches(/^(default|transcription)(,(default|transcription))*$/, {
+    message: 'WORKER_QUEUES: danh sách cách nhau bằng dấu phẩy, gồm default / transcription',
+  })
+  WORKER_QUEUES = 'default,transcription';
+
+  /**
+   * Worker đăng ký lịch chạy (quét kẹt, dọn upload / idempotency, purge kênh) lúc khởi động (M6 B8).
+   * Nhiều worker cùng bật vẫn chỉ MỘT lịch (upsert theo id). Test tắt để worker của file khác không
+   * tự dọn dữ liệu test đang dựng.
+   */
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase() === 'true' : value,
+  )
+  @IsBoolean()
+  WORKER_SCHEDULES_ENABLED = true;
+
+  /** Nhận dạng giọng nói của worker (M6): `whisper` (whisper.cpp) hoặc `fake` (dev / test). */
+  @IsIn(['whisper', 'fake'])
+  SPEECH_PROVIDER: 'whisper' | 'fake' = 'whisper';
+
+  @IsString()
+  @MinLength(1)
+  WHISPER_CLI_PATH = 'whisper-cli';
+
+  /**
+   * File model ggml (vd `ggml-large-v3-turbo-q5_0.bin`). KHÔNG bắt buộc ở đây: api dùng chung bộ
+   * validate mà không cần model — worker thiếu model thì báo lỗi cấu hình khi chạy (M6 B3).
+   */
+  @IsString()
+  WHISPER_MODEL_PATH = '';
+
+  /** `auto` = tự nhận dạng ngôn ngữ (30 giây đầu), hoặc mã cố định như `vi`. */
+  @IsString()
+  @MinLength(2)
+  WHISPER_LANGUAGE = 'auto';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  WHISPER_THREADS?: number;
+
+  /** Hạn chạy whisper = thời lượng audio × hệ số này + 2 phút. */
+  @Type(() => Number)
+  @Min(0.1)
+  WHISPER_TIMEOUT_FACTOR = 3;
+
+  /** Tóm tắt (M6 Q2): mặc định `fake` → không gửi transcript ra ngoài khi chưa bật rõ ràng. */
+  @IsIn(['fake', 'anthropic'])
+  LLM_PROVIDER: 'fake' | 'anthropic' = 'fake';
+
+  @IsString()
+  @MinLength(1)
+  LLM_MODEL = 'claude-opus-5-5';
+
+  @IsIn(['low', 'medium', 'high', 'xhigh', 'max'])
+  LLM_EFFORT: 'low' | 'medium' | 'high' | 'xhigh' | 'max' = 'medium';
+
   /** Tắt được để test e2e (đăng ký hàng loạt user từ 127.0.0.1) không vướng giới hạn (M11 B3). */
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.toLowerCase() === 'true' : value,

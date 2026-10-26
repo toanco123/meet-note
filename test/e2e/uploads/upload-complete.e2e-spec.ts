@@ -97,9 +97,10 @@ describe('Upload: complete → meeting `queued` (e2e, Redis + RustFS thật)', (
     expect(await s3.storage.headObject(row?.objectKey ?? '')).toEqual({ sizeBytes: 9 * MiB });
 
     const job = await queue.getJob(`meeting.preprocess.${meeting.id}.a1`);
-    expect([job?.name, job?.data.meetingId, job?.opts.attempts]).toEqual([
+    expect([job?.name, job?.data.meetingId, job?.data.attempt, job?.opts.attempts]).toEqual([
       'meeting.preprocess',
       meeting.id,
+      1, // fencing token của lần chạy (M6 Q6)
       3,
     ]);
     expect(job?.data.requestId).toBe(res.headers['x-request-id']);
