@@ -29,3 +29,10 @@ export interface SearchHitRow {
   endMs: number;
   snippet: string;
 }
+
+/** Một cue phụ đề (SRT / VTT) — chỉ cần thời gian và chữ của đoạn transcript. */
+export interface SubtitleCue {
+  startMs: number;
+  endMs: number;
+  text: string;
+}
