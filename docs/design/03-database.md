@@ -324,7 +324,7 @@ Index: `meeting_shares_channel_shared_idx (channel_id, shared_at DESC, meeting_i
 | search             | tsvector GENERATED ALWAYS AS (`to_tsvector('meetnote_vi', text)`) STORED | `GIN (search)`                                                                                                          |
 
 Id `bigint identity`, `seq ≥ 0`, `transcript_segments_meeting_seq_uq` cũng là index phía tham chiếu của FK (migration `0013`). Ghi transcript = **xoá rồi chèn lại** trong 1 transaction. Job chạy lại vẫn ra cùng kết quả (idempotent).
-Search: `search @@ websearch_to_tsquery('meetnote_vi', $q)`, highlight bằng `ts_headline`. Quyền được lọc bằng cách join với các meeting mà user được xem.
+Search: `search @@ websearch_to_tsquery('meetnote_vi', $q)`, highlight bằng `ts_headline`. Quyền xem: điều kiện `meetingVisibleTo` nằm TRONG câu truy vấn, trước `LIMIT` (M8). Hình dạng "meeting trước" — đi meeting mới → cũ, `EXISTS` đoạn khớp — thắng hình dạng "đoạn trước" 30× với từ khoá phổ biến (đo trên 600k đoạn, plan M8 bài học 1).
 
 > **Bẫy:** `to_tsvector` trong generated column phải nhận tên config dạng hằng (`'meetnote_vi'::regconfig`). Hàm 2 tham số với hằng là immutable. Hàm 1 tham số thì không.
 

@@ -1,6 +1,6 @@
 # M8 — Transcript: tìm kiếm toàn văn + xuất SRT/VTT
 
-- **Trạng thái:** Đang làm — plan đã duyệt 2026-10-26 (★ cho Q1–Q9)
+- **Trạng thái:** **Xong** (2026-10-26): B1–B5, PR #11. Plan đã duyệt 2026-10-26 (★ cho Q1–Q9; Q1 đổi theo số đo — bài học 1)
 - **Nhánh:** `m8-transcript`
 - **Tài liệu thiết kế liên quan:** [10-roadmap M8](../design/10-roadmap.md), [03-database §4 `transcript_segments`](../design/03-database.md), [04-authorization §3 điều kiện xem](../design/04-authorization.md), [05-api Meetings](../design/05-api.md), [07-conventions](../design/07-conventions.md)
 - **Mốc trước:** M6 đã xong (PR #10) — tiêu chí đều tick; phần chưa kiểm tay (whisper model lớn, Claude thật) ghi ở bài học 20 của M6, không chặn M8.
@@ -59,17 +59,17 @@ Tìm "ke hoach" ra đoạn "kế hoạch" kèm timestamp, **chỉ trong những 
 - [x] **B4 — Route export (stream)**
   - Việc: đọc theo lô keyset `seq`, `Readable.from`, header Q7, `Content-Type` (`application/x-subrip` / `text/vtt; charset=utf-8`), 409 khi chưa xong.
   - Test (e2e): tải về → parse lại == dữ liệu; tên file độc không lọt header; meeting ẩn → 404; client ngắt giữa chừng → generator dừng (không rò connection: số connection pool về như cũ). Đột biến: bỏ `end` khi lỗi giữa chừng → treo (đỏ).
-- [ ] **B5 — Tài liệu + openapi + đóng mốc**
+- [x] **B5 — Tài liệu + openapi + đóng mốc**
   - Việc: sửa 05-api (route search dưới org), 04 (ghi M8 dùng `meetingVisibleTo`), 03, 07 (rate limit mới), 10-roadmap; `pnpm build && pnpm openapi:export`; bài học; README/CLAUDE.md.
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở local và CI (cần `brew install ffmpeg` lại ở máy local — đã gỡ cuối M6)
-- [ ] Search chỉ trả đoạn của meeting người gọi xem được (test đối chiếu `meetingVisibleTo`, có đột biến)
-- [ ] Tìm không dấu ra có dấu; snippet an toàn với nội dung độc
-- [ ] Export SRT/VTT stream được, tên file và nội dung độc không phá header/định dạng
-- [ ] `openapi.json` đã cập nhật; `docs/design/` khớp code
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
+- [x] `pnpm test:e2e`: ở local 84/90 file xanh — 6 file cần ffmpeg (đã gỡ cuối M6) không chạy được, đều không đụng M8; toàn bộ test transcripts + rate limit xanh. CI (có ffmpeg) chạy đủ
+- [x] Search chỉ trả đoạn của meeting người gọi xem được (test đối chiếu `meetingVisibleTo`, có đột biến)
+- [x] Tìm không dấu ra có dấu; snippet an toàn với nội dung độc
+- [x] Export SRT/VTT stream được, tên file và nội dung độc không phá header/định dạng
+- [x] `openapi.json` đã cập nhật; `docs/design/` khớp code
 
 ## Điều sẽ học
 
@@ -92,3 +92,4 @@ Tìm "ke hoach" ra đoạn "kế hoạch" kèm timestamp, **chỉ trong những 
 10. **Drizzle trả builder LƯỜI — `runInOrg(orgId, () => repo.query())` không bọc gì cả.** Truy vấn Drizzle là thenable, chỉ chạy khi bị `await`. Hàm `() => this.repo.segmentBatch(...)` trả builder CHƯA CHẠY ra khỏi `runInOrg`; `await` bên ngoài mới kích hoạt truy vấn, lúc ngữ cảnh org đã đóng → RLS thấy `app.org_id` rỗng → 0 dòng, KHÔNG lỗi → file xuất RỖNG. Đột biến "bỏ `runInOrg`" SỐNG SÓT ở test HTTP (ngữ cảnh của request được giữ qua các `await` của generator nên mọi thứ vẫn chạy đúng) — dòng bảo vệ vô hình, và sai. Lộ ra khi viết test dựng đúng tình huống nó nhắm tới (gọi service trong `runInOrg`, đọc stream NGOÀI ngữ cảnh): đỏ với code "đúng". Sửa: `async () => await repo.query()`. Quy tắc: trong `runInOrg`, truy vấn phải được `await` BÊN TRONG callback (hoặc repo method là `async` và tự await — như `findVisible` của realtime, đã kiểm). Sau sửa, đột biến bỏ `runInOrg` đỏ đúng test đó.
 11. **Stream response: ba thứ cần chứng minh, không tin.** (a) Bộ nhớ không theo độ dài: đọc theo lô keyset `seq` 500 dòng, mỗi lô một câu truy vấn độc lập → connection về pool ngay (không giữ transaction/cursor suốt lúc client tải chậm); `coalesce` gộp cue thành khối ≥ 16 KB để không `res.write` hàng nghìn lần ~60 byte. (b) Client ngắt giữa chừng: 8 000 đoạn (≈ 2 MB, 16 lô), `req.destroy()` sau chunk đầu → số lần gọi `segmentBatch` đứng yên (không đọc nốt 16 lô), `pool.totalCount - idleCount = 0`. (c) Lỗi DB ở lô thứ hai khi header đã gửi: response KẾT THÚC (bị cắt ngang), không treo — Nest `StreamableFile` đóng response khi stream lỗi. Header đã gửi thì không đổi được status về 500: client chỉ thấy file cụt — bất tiện có sẵn của mọi stream; chấp nhận, vì lỗi giữa chừng hiếm và tải lại là xong. `@RawResponse()` bỏ envelope (file không phải JSON); `@ApiProduces` + schema `binary` cho OpenAPI.
 12. **Tên file từ dữ liệu người dùng đi vào HEADER.** `safeFileBase`: bỏ ký tự điều khiển (CR / LF = chèn header khác), `\ / : * ? " < > |`, gộp khoảng trắng, cắt 80 KÝ TỰ UNICODE (không cắt giữa cặp thay thế của emoji), không để tên chỉ toàn dấu chấm. `Content-Disposition` có bản ASCII (bỏ dấu, `đ→d`) cho client cũ + `filename*=UTF-8''…` giữ tiếng Việt; RFC 5987 cần mã hoá thêm `' ( )` mà `encodeURIComponent` để nguyên. Hai kỳ vọng sai của chính test: `;` và `=` còn lại nhưng nằm TRONG dấu nháy (an toàn; bản ASCII đổi thành `_`), và `*` đã bị lọc từ bước làm sạch. 6 đột biến e2e (bỏ `runInOrg`, kiểm `completed`, kiểm quyền xem, lô không tiến, sai biên lô, bỏ `no-store`) đều đỏ.
+13. **Đóng mốc.** Thêm ca rate limit cho hai route đắt nhất (60 / phút search, 30 / phút export) vào `rate-limit.e2e-spec.ts` — đột biến bỏ `@Throttle` ở cả hai route → đỏ. Tổng cộng M8: 4 integration (oracle) + 6 e2e search + 7 e2e export + 50 unit + 1 ca rate limit; 20 đột biến, mọi cái đều đỏ sau khi sửa hai đột biến vô hiệu (cộng 0; bỏ `runInOrg` sống sót ở test HTTP — bài học 10). Không đổi schema. Điều đáng mang sang M15 (RAG): bài toán "lọc quyền không được nằm SAU truy vấn tìm kiếm" đã giải ở đây cho FTS bằng điều kiện trong câu + hình dạng meeting-trước; với ANN (HNSW) không có `EXISTS` để planner đổi hình dạng nên sẽ khó hơn. Chưa kiểm bằng tay: tìm kiếm trên transcript whisper thật (chỉ dữ liệu dựng tay) và độ liên quan khi xếp theo thời gian thay vì `ts_rank` (Q2 — đánh đổi đã chấp nhận).

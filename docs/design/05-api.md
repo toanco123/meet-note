@@ -17,6 +17,8 @@ Mọi route HTTP (trừ `/health/*`) qua `AppThrottlerGuard` sau `JwtAuthGuard`;
 | `POST /auth/refresh`                                     | 30 / phút / IP                                                       |
 | `POST /invites/:token/accept`                            | 20 / phút / người                                                    |
 | `POST /orgs/:orgId/invites`, `POST /orgs/:orgId/uploads` | 60 / giờ / người                                                     |
+| `GET /orgs/:orgId/search/transcripts`                    | 60 / phút / người                                                    |
+| `GET …/meetings/:meetingId/transcript/export`            | 30 / phút / người                                                    |
 
 Redis lỗi → cho qua (fail-open, có log).
 

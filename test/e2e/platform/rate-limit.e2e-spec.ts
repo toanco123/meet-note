@@ -114,6 +114,47 @@ describe('Rate limit (e2e)', () => {
     ]);
   });
 
+  // Đột biến: bỏ `@Throttle(RateLimit.transcriptSearch / transcriptExport)` → rơi về giới hạn mặc định
+  // 300 / phút, lần 61 / 31 vẫn 200 / 404 (đỏ).
+  it('search transcript 60 / phút, xuất file 30 / phút (hai route đắt nhất) — theo người dùng', async () => {
+    const reg = await request(app.getHttpServer())
+      .post('/v1/auth/register')
+      .set('X-Forwarded-For', '10.7.0.1')
+      .send({ email: uniqueEmail(), password: DEFAULT_PASSWORD, displayName: 'T' })
+      .expect(201);
+    const token = reg.body.data.accessToken as string;
+    const orgId = (
+      await request(app.getHttpServer())
+        .post('/v1/orgs')
+        .set(bearer(token))
+        .send({ name: 'RL transcript' })
+        .expect(201)
+    ).body.data.id as string;
+    const search = () =>
+      request(app.getHttpServer())
+        .get(`/v1/orgs/${orgId}/search/transcripts`)
+        .query({ q: 'ke hoach' })
+        .set(bearer(token));
+    const exportFile = () =>
+      request(app.getHttpServer())
+        .get(`/v1/orgs/${orgId}/meetings/00000000-0000-7000-8000-000000000000/transcript/export`)
+        .query({ format: 'srt' })
+        .set(bearer(token));
+
+    const searches = await statuses(times(60, () => search));
+    const searchBlocked = await search();
+    const exports = await statuses(times(30, () => exportFile));
+    const exportBlocked = await exportFile();
+
+    expect([
+      new Set(searches),
+      searchBlocked.status,
+      new Set(exports),
+      exportBlocked.status,
+      searchBlocked.body.error?.code,
+    ]).toEqual([new Set([200]), 429, new Set([404]), 429, 'RATE_LIMITED']);
+  });
+
   // Đột biến: storage trong bộ nhớ (mặc định của thư viện) → instance thứ hai có bộ đếm riêng.
   it('hai instance api dùng chung Redis → chung bộ đếm', async () => {
     const second = await createTestApp();
