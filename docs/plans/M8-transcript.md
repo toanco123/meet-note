@@ -1,0 +1,83 @@
+# M8 — Transcript: tìm kiếm toàn văn + xuất SRT/VTT
+
+- **Trạng thái:** Đang làm — plan đã duyệt 2026-10-26 (★ cho Q1–Q9)
+- **Nhánh:** `m8-transcript`
+- **Tài liệu thiết kế liên quan:** [10-roadmap M8](../design/10-roadmap.md), [03-database §4 `transcript_segments`](../design/03-database.md), [04-authorization §3 điều kiện xem](../design/04-authorization.md), [05-api Meetings](../design/05-api.md), [07-conventions](../design/07-conventions.md)
+- **Mốc trước:** M6 đã xong (PR #10) — tiêu chí đều tick; phần chưa kiểm tay (whisper model lớn, Claude thật) ghi ở bài học 20 của M6, không chặn M8.
+
+## Mục tiêu
+
+Tìm "ke hoach" ra đoạn "kế hoạch" kèm timestamp, **chỉ trong những meeting người tìm được phép xem**. Tải được file `.srt` / `.vtt` của một meeting.
+
+## Đã có từ M6 (không làm lại)
+
+- Cột `transcript_segments.search` (tsvector generated, config `meetnote_vi` = bỏ dấu + `simple`) + GIN `transcript_segments_search_idx`.
+- RLS trên `transcript_segments`; `GET /meetings/:id/transcript` (cursor theo `seq`).
+- `meetingVisibleTo(viewer)` — định nghĩa duy nhất của "xem được" (04 §3).
+
+## Ngoài phạm vi
+
+- Sửa transcript (M13); hỏi đáp RAG / vector (M15); search trong tóm tắt, tiêu đề meeting, báo cáo.
+- Tìm theo tiền tố (`ke*`): `websearch_to_tsquery` không hỗ trợ; muốn thì cần `to_tsquery` + tự escape — để mốc sau nếu cần.
+- Highlight phía client; định dạng xuất khác (docx, txt có tiêu đề).
+
+## Quyết định cần duyệt (★ = đề xuất)
+
+| #   | Câu hỏi                                 | Phương án                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| --- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1  | Lọc quyền ở đâu so với GIN?             | ★ **Ứng viên trước, lọc quyền sau, có trần**: lấy tối đa K đoạn khớp từ GIN, rồi `meetingVisibleTo`; thiếu thì lấy lô tiếp (keyset). Tránh (a) join `meetingVisibleTo` trên mọi đoạn khớp (cùng bẫy chi phí M6b/M11) và (b) lọc SAU `LIMIT` (trang trống dù còn kết quả — đúng "bẫy lọc quyền sau ANN" ở M15). Đổi lại: từ khoá cực phổ biến + người xem thấy ít meeting → quét nhiều lô; có trần quét + `meta.truncated`. Phương án khác: bắt đầu từ danh sách meeting xem được (M11) rồi `segments.meeting_id = ANY(...)`; tốt khi người xem thấy ÍT meeting, tệ khi nhiều — Q1 chọn theo đo thật ở B2 |
+| Q2  | Xếp hạng và phân trang?                 | ★ **Theo `meetings.recorded_at DESC, seq`** (họp mới nhất trước, trong meeting theo thời gian), keyset ổn định như mọi danh sách khác. `ts_rank` thì cursor phải mang số thực + id, thứ hạng đổi khi dữ liệu đổi giữa hai trang, và với văn bản ngắn (đoạn vài câu) rank ít phân biệt. Đổi lại: không có "khớp nhất lên đầu". Ghi vào bài học nếu đo thấy khác                                                                                                                                                                                                                                           |
+| Q3  | Kết quả trả theo đoạn hay theo meeting? | ★ **Theo meeting, gồm tối đa 3 đoạn khớp đầu** (`{ meeting: {id,title,recordedAt}, hits: [{seq,startMs,endMs,snippet}], hitCount }`) — người dùng muốn "họp nào nói về X", rồi mới nhảy tới giây. Phân trang theo meeting. Phương án khác: phẳng theo đoạn (đơn giản, trùng meeting)                                                                                                                                                                                                                                                                                                                     |
+| Q4  | Phạm vi tìm?                            | ★ `/orgs/:orgId/search/transcripts?q=&channelId=&cursor=&limit=` — thành viên org; `channelId` (tuỳ chọn) lọc theo meeting được share vào kênh đó, kênh phải thấy được (không thì 404). Khác 05-api cũ (`/search/transcripts` không có org): dưới org để `OrgMemberGuard` + RLS có ngữ cảnh                                                                                                                                                                                                                                                                                                              |
+| Q5  | `ts_headline` chạy ở đâu?               | ★ **Chỉ trên các đoạn của trang trả về** (≤ 3 × limit), không trên mọi đoạn khớp: `ts_headline` đọc lại văn bản gốc và chậm hơn truy vấn GIN cả bậc. Cần `StartSel`/`StopSel` KHÔNG phải HTML (vd `\u0001`/`\u0002`, client tự thay) — tránh XSS khi nội dung transcript có `<script>`                                                                                                                                                                                                                                                                                                                   |
+| Q6  | Xuất SRT/VTT có stream không?           | ★ **Có**: đọc `transcript_segments` theo lô keyset `seq` (500 dòng), ghi dần vào response (`StreamableFile` từ `Readable.from(async generator)`), không dựng cả file trong bộ nhớ (họp 4 giờ ≈ vài nghìn đoạn — nhỏ, nhưng đây là bài học về streaming + backpressure). Một request = một connection DB **chỉ mượn từng lô**, không giữ suốt lúc client tải chậm (M11 `idle_in_transaction`)                                                                                                                                                                                                             |
+| Q7  | Tên file tải về?                        | ★ `Content-Disposition: attachment; filename="<ascii-hoá>.srt"; filename*=UTF-8''<percent-encode>` — tiêu đề meeting do người dùng nhập: bỏ `CR LF " \ /`, cắt độ dài, rỗng thì dùng `meeting-<id>`. Nếu không → header injection / tên file lạ                                                                                                                                                                                                                                                                                                                                                          |
+| Q8  | Nội dung đoạn có thể phá định dạng cue? | ★ SRT/VTT: dòng trống trong `text` kết thúc cue sớm; VTT: `-->` trong text và `<`/`&` có nghĩa. Escape/chuẩn hoá có test (text độc: xuống dòng kép, `-->`, `<b>`). Whisper tiếng Việt ít gặp nhưng bản sửa tay (M13) thì có                                                                                                                                                                                                                                                                                                                                                                              |
+| Q9  | Giới hạn tần suất?                      | ★ Search và export đều qua `@Throttle` riêng (export 30/phút/user, search 60/phút/user) — truy vấn FTS và stream dài là hai route đắt nhất app                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
+## Thay đổi thiết kế
+
+- **Bảng / cột:** không đổi schema (đã đủ từ M6). Có thể thêm index nếu B2 đo thấy cần (vd `meetings(org_id, recorded_at DESC, id)` đã có từ M6b — kiểm).
+- **API (sửa 05):**
+  - `GET /orgs/:orgId/search/transcripts?q=&channelId=&cursor=&limit=` — thành viên org; `q` 2–200 ký tự (dưới 2 → 400); trả `Page<TranscriptSearchHitDto>`.
+  - `GET /meetings/:meetingId/transcript/export?format=srt|vtt` — người xem được; meeting chưa `completed` → 409 `MEETING_NOT_COMPLETED`; `format` sai → 400.
+- **Quyền:** không thêm quyền mới. Search dùng `meetingVisibleTo`; export dùng cùng kiểm tra xem như `GET transcript` (ẩn → 404). Ghi vào ma trận 04 dòng "Xem meeting / transcript" đã có.
+- **Lỗi mới:** không (tái dùng `MEETING_NOT_COMPLETED`, `VALIDATION_ERROR`).
+- **Dependency mới:** không.
+
+## Các bước
+
+- [ ] **B1 — Câu truy vấn search + test quyền (integration)**
+  - Việc: `TranscriptSearchRepository` — ứng viên từ GIN theo lô, ghép `meetingVisibleTo`, gom theo meeting, keyset `(recorded_at, id)`. Chọn chiến lược Q1 bằng **đo** (script kiểu `bench:meeting-list`): ít meeting xem được vs nhiều; từ khoá hiếm vs phổ biến.
+  - Test: ma trận người xem × từ khoá (như oracle của M6b/M11): kết quả == (đoạn khớp ∩ meeting xem được) tính bằng cách ngây thơ; duyệt hết trang không lặp/mất; "ke hoach" ra "kế hoạch"; đoạn của org khác không bao giờ lọt (RLS + `org_id`). **Đột biến:** bỏ `meetingVisibleTo` → đỏ; lọc quyền sau LIMIT → trang thiếu (đỏ).
+- [ ] **B2 — `ts_headline` + service + controller**
+  - Việc: snippet cho ≤ 3 đoạn/meeting trên trang đã chọn (Q5), `TranscriptSearchService`, DTO, route, `@ApiPaginatedResponse`, `@Throttle`.
+  - Test (e2e): 200 + snippet có đánh dấu; `q` ngắn → 400; `channelId` ẩn → 404; Member ngoài kênh riêng không thấy; transcript chứa `<script>` → snippet không sinh HTML (Q5). Đột biến: dùng `StartSel='<b>'` → test XSS đỏ.
+- [ ] **B3 — Định dạng SRT/VTT (unit, hàm thuần)**
+  - Việc: `formatSrt` / `formatVtt` nhận async iterable đoạn → async iterable chuỗi; định dạng giờ `HH:MM:SS,mmm` (SRT) vs `HH:MM:SS.mmm` (VTT); escape theo Q8.
+  - Test: bảng giờ (0, 999, 1000, 3 599 999 ms, 100 giờ); text độc; đoạn rỗng bỏ qua; SRT đánh số từ 1.
+- [ ] **B4 — Route export (stream)**
+  - Việc: đọc theo lô keyset `seq`, `Readable.from`, header Q7, `Content-Type` (`application/x-subrip` / `text/vtt; charset=utf-8`), 409 khi chưa xong.
+  - Test (e2e): tải về → parse lại == dữ liệu; tên file độc không lọt header; meeting ẩn → 404; client ngắt giữa chừng → generator dừng (không rò connection: số connection pool về như cũ). Đột biến: bỏ `end` khi lỗi giữa chừng → treo (đỏ).
+- [ ] **B5 — Tài liệu + openapi + đóng mốc**
+  - Việc: sửa 05-api (route search dưới org), 04 (ghi M8 dùng `meetingVisibleTo`), 03, 07 (rate limit mới), 10-roadmap; `pnpm build && pnpm openapi:export`; bài học; README/CLAUDE.md.
+
+## Tiêu chí hoàn thành
+
+- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
+- [ ] `pnpm test:e2e` xanh ở local và CI (cần `brew install ffmpeg` lại ở máy local — đã gỡ cuối M6)
+- [ ] Search chỉ trả đoạn của meeting người gọi xem được (test đối chiếu `meetingVisibleTo`, có đột biến)
+- [ ] Tìm không dấu ra có dấu; snippet an toàn với nội dung độc
+- [ ] Export SRT/VTT stream được, tên file và nội dung độc không phá header/định dạng
+- [ ] `openapi.json` đã cập nhật; `docs/design/` khớp code
+
+## Điều sẽ học
+
+- Full-text search Postgres: `websearch_to_tsquery`, GIN, `ts_headline` (đắt, chỉ dùng trên trang cuối), cấu hình bỏ dấu cho tiếng Việt
+- Phân quyền kết hợp với chỉ mục ANN/GIN: lọc trước hay sau LIMIT (bẫy trang trống) — nền cho M15
+- Streaming response trong Nest/Node: `Readable.from`, backpressure, huỷ khi client ngắt, không giữ connection DB suốt lúc tải
+- Header `Content-Disposition` an toàn (RFC 5987), escape định dạng phụ đề
+
+## Điều học được / bẫy gặp phải
+
+(Ghi sau khi xong mốc)
