@@ -20,3 +20,12 @@ export interface SearchMeetingRow {
   recordedAtKey: string;
   hitCount: number;
 }
+
+/** Đoạn khớp của một meeting kèm đoạn trích đã đánh dấu từ khoá. */
+export interface SearchHitRow {
+  meetingId: string;
+  seq: number;
+  startMs: number;
+  endMs: number;
+  snippet: string;
+}

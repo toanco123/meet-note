@@ -154,7 +154,7 @@ export class MeetingsService {
    * Cùng quyết định với route `/channels/:id/...` của M4: không thấy kênh → 404; OrgAdm thấy
    * metadata nhưng không đọc nội dung kênh riêng tư → 403.
    */
-  private async assertChannelContentReadable(
+  async assertChannelContentReadable(
     membership: OrgMembershipContext,
     userId: string,
     channelId: string,
@@ -204,6 +204,6 @@ export class MeetingsService {
   }
 }
 
-function viewerOf(membership: OrgMembershipContext, userId: string): MeetingViewer {
+export function viewerOf(membership: OrgMembershipContext, userId: string): MeetingViewer {
   return { userId, orgRole: membership.role };
 }

@@ -1,14 +1,25 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { timestampKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database } from '../../infra/database/database.types.js';
 import { meetings, meetingShares, transcriptSegments } from '../../infra/database/schema/index.js';
 import { meetingVisibleTo } from '../meetings/meeting-visibility.js';
-import type { SearchMeetingRow, SearchMeetingsParams } from './transcripts.types.js';
+import type { SearchHitRow, SearchMeetingRow, SearchMeetingsParams } from './transcripts.types.js';
 
 const matchesQuery = (query: string) =>
   sql`${transcriptSegments.search} @@ websearch_to_tsquery('meetnote_vi'::regconfig, ${query})`;
+
+/**
+ * Dấu đánh dấu từ khoá trong đoạn trích: ký tự điều khiển U+0001 / U+0002, KHÔNG phải HTML. Transcript
+ * là chữ người nói (hoặc sửa tay) — có thể chứa `<script>`; nếu `ts_headline` chèn `<b>` thì client dễ
+ * gán thẳng vào `innerHTML`. Ký tự điều khiển không bao giờ có trong lời nói và vô hại nếu hiển thị.
+ */
+export const SNIPPET_START = '\u0001';
+export const SNIPPET_STOP = '\u0002';
+// ShortWord=0: mặc định (3) cắt từ ngắn ở ĐẦU / CUỐI đoạn trích — tiếng Việt toàn từ ngắn ("quý ba" →
+// "quý", "ra mắt" mất "ra"). Lần đầu gặp ở e2e: snippet mất chữ cuối câu.
+const HEADLINE_OPTIONS = `StartSel=${SNIPPET_START}, StopSel=${SNIPPET_STOP}, MaxWords=35, MinWords=15, ShortWord=0, MaxFragments=1`;
 
 /** Truy vấn full-text trên `transcript_segments` (M8). Quyền xem: `meetingVisibleTo` (04 §3). */
 @Injectable()
@@ -70,5 +81,50 @@ export class TranscriptsRepository {
       .groupBy(transcriptSegments.meetingId);
     const hits = new Map(counts.map((c) => [c.meetingId, c.hitCount]));
     return page.map((m) => ({ ...m, hitCount: hits.get(m.id) ?? 0 }));
+  }
+
+  /**
+   * Tối đa `perMeeting` đoạn khớp ĐẦU TIÊN (theo `seq`) của mỗi meeting trong trang, kèm đoạn trích.
+   * `ts_headline` đọc lại và phân tích văn bản gốc — chậm hơn truy vấn GIN cả bậc — nên chỉ chạy ở
+   * lớp ngoài, trên ≤ `perMeeting` × (số meeting của trang) dòng; không bao giờ trên mọi đoạn khớp.
+   */
+  async findHits(
+    orgId: string,
+    meetingIds: string[],
+    query: string,
+    perMeeting: number,
+  ): Promise<SearchHitRow[]> {
+    if (meetingIds.length === 0) return [];
+    const ranked = this.db
+      .select({
+        meetingId: transcriptSegments.meetingId,
+        seq: transcriptSegments.seq,
+        startMs: transcriptSegments.startMs,
+        endMs: transcriptSegments.endMs,
+        text: transcriptSegments.text,
+        rn: sql<number>`row_number() over (partition by ${transcriptSegments.meetingId} order by ${transcriptSegments.seq})`.as(
+          'rn',
+        ),
+      })
+      .from(transcriptSegments)
+      .where(
+        and(
+          eq(transcriptSegments.orgId, orgId),
+          inArray(transcriptSegments.meetingId, meetingIds),
+          matchesQuery(query),
+        ),
+      )
+      .as('ranked');
+    return this.db
+      .select({
+        meetingId: ranked.meetingId,
+        seq: ranked.seq,
+        startMs: ranked.startMs,
+        endMs: ranked.endMs,
+        snippet: sql<string>`ts_headline('meetnote_vi'::regconfig, ${ranked.text}, websearch_to_tsquery('meetnote_vi'::regconfig, ${query}), ${HEADLINE_OPTIONS})`,
+      })
+      .from(ranked)
+      .where(sql`${ranked.rn} <= ${perMeeting}`)
+      .orderBy(asc(ranked.meetingId), asc(ranked.seq));
   }
 }

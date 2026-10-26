@@ -25,4 +25,7 @@ export const RateLimit = {
   inviteAccept: { default: { limit: 20, ttl: MINUTE } },
   inviteCreate: { default: { limit: 60, ttl: HOUR } },
   uploadInit: { default: { limit: 60, ttl: HOUR } },
+  /** Full-text search + stream file xuất: hai route đắt nhất app (M8 Q9). */
+  transcriptSearch: { default: { limit: 60, ttl: MINUTE } },
+  transcriptExport: { default: { limit: 30, ttl: MINUTE } },
 } as const;
