@@ -5,8 +5,8 @@ import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/bootstrap/configure-app.js';
 import { buildOpenApiDocument, setupSwagger } from '../../src/bootstrap/swagger.js';
 import { createPgPool, PG_POOL } from '../../src/infra/database/database.module.js';
-import { SUMMARIZER } from '../../src/infra/llm/llm.module.js';
-import type { Summarizer } from '../../src/infra/llm/llm.types.js';
+import { REPORT_WRITER, SUMMARIZER } from '../../src/infra/llm/llm.module.js';
+import type { ReportWriter, Summarizer } from '../../src/infra/llm/llm.types.js';
 import { SPEECH_TO_TEXT } from '../../src/infra/speech/speech.module.js';
 import type { SpeechToText } from '../../src/infra/speech/speech.types.js';
 import { WorkerModule } from '../../src/worker.module.js';
@@ -43,7 +43,12 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<INest
  * thật trên Redis thật, cùng DB / prefix queue của file test. Đóng bằng `close()` (chờ job đang chạy).
  */
 export async function createTestWorker(
-  overrides: { speech?: SpeechToText; summarizer?: Summarizer; schedules?: boolean } = {},
+  overrides: {
+    speech?: SpeechToText;
+    summarizer?: Summarizer;
+    reportWriter?: ReportWriter;
+    schedules?: boolean;
+  } = {},
 ): Promise<INestApplicationContext> {
   // Như compose: worker kết nối bằng user RIÊNG (BYPASSRLS — job xuyên tổ chức, M11 B7).
   let builder = Test.createTestingModule({ imports: [WorkerModule] });
@@ -52,6 +57,9 @@ export async function createTestWorker(
     builder = builder.overrideProvider(SPEECH_TO_TEXT).useValue(overrides.speech);
   if (overrides.summarizer)
     builder = builder.overrideProvider(SUMMARIZER).useValue(overrides.summarizer);
+  // Báo cáo tuần (M9): writer giả có hành vi riêng (lỗi N lần, treo…).
+  if (overrides.reportWriter)
+    builder = builder.overrideProvider(REPORT_WRITER).useValue(overrides.reportWriter);
   // Lịch chạy tắt trong test (setup-e2e); test lịch bật riêng cho worker của mình (M6 B8).
   if (overrides.schedules !== undefined)
     builder = builder.overrideProvider(WORKER_SCHEDULES_ENABLED).useValue(overrides.schedules);

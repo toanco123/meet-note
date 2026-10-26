@@ -32,7 +32,8 @@
     "bench:meeting-list": "node scripts/bench/meeting-list.mjs",
     "bench:transcript-search": "node scripts/bench/transcript-search.mjs",
     "test:whisper": "pnpm build && node scripts/whisper-check.mjs",
-    "smoke:pipeline": "node scripts/pipeline-smoke.mjs"
+    "smoke:pipeline": "node scripts/pipeline-smoke.mjs",
+    "report:backfill": "node scripts/report-backfill.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",

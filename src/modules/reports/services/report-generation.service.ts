@@ -1,19 +1,19 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { DRIZZLE } from '../../infra/database/database.module.js';
-import type { Database } from '../../infra/database/database.types.js';
-import { LlmPermanentError } from '../../infra/llm/llm.errors.js';
-import { REPORT_WRITER } from '../../infra/llm/llm.module.js';
-import type { ReportWriter } from '../../infra/llm/llm.types.js';
-import { buildReportInput, selectMeetings } from './report-input.js';
-import { PermanentReportError } from './report.errors.js';
-import { REPORT_OPTIONS } from './reports.tokens.js';
-import { ReportsRepository } from './reports.repository.js';
+import { DRIZZLE } from '../../../infra/database/database.module.js';
+import type { Database } from '../../../infra/database/database.types.js';
+import { LlmPermanentError } from '../../../infra/llm/llm.errors.js';
+import { REPORT_WRITER } from '../../../infra/llm/llm.module.js';
+import type { ReportWriter } from '../../../infra/llm/llm.types.js';
+import { buildReportInput, selectMeetings } from '../report-input.js';
+import { PermanentReportError } from '../report.errors.js';
+import { REPORT_OPTIONS } from '../reports.tokens.js';
+import { ReportsRepository } from '../reports.repository.js';
 import type {
   ClaimedReport,
   ReportGenerationOptions,
   ReportJob,
   ReportOutcome,
-} from './reports.types.js';
+} from '../reports.types.js';
 
 /** Dưới ngần này meeting thì không có gì để tổng hợp (D8): `skipped`, không gọi LLM. */
 export const MIN_MEETINGS_FOR_REPORT = 2;

@@ -14,7 +14,7 @@ import type {
   ReportWriter,
 } from '../../../../src/infra/llm/llm.types.js';
 import { PermanentReportError } from '../../../../src/modules/reports/report.errors.js';
-import { ReportGenerationService } from '../../../../src/modules/reports/report-generation.service.js';
+import { ReportGenerationService } from '../../../../src/modules/reports/services/report-generation.service.js';
 import { ReportsRepository } from '../../../../src/modules/reports/reports.repository.js';
 import type { ReportJob } from '../../../../src/modules/reports/reports.types.js';
 import {

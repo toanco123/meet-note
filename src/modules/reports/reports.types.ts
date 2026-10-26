@@ -66,3 +66,12 @@ export interface NewReportVersion {
   inputTokens: number;
   outputTokens: number;
 }
+
+export interface TickResult {
+  /** Số kênh đã duyệt (bật báo cáo, chưa xoá, chưa lưu trữ). */
+  channels: number;
+  /** Số dòng báo cáo MỚI tạo (lần chạy lại: 0). */
+  created: number;
+  /** Số job đã xếp (mọi dòng `pending` của tuần, kể cả của tick trước). */
+  enqueued: number;
+}

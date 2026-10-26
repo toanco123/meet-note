@@ -22,3 +22,19 @@ export interface NotificationFanoutJobData {
   channelId: string;
   requestId: string | null;
 }
+
+/** `weekly-report.generate` (M9): MỘT báo cáo. `generation` = `regenerate_count` lúc enqueue (fencing). */
+export interface WeeklyReportGenerateJobData {
+  reportId: string;
+  generation: number;
+  requestId: string | null;
+}
+
+/**
+ * `weekly-report.tick` (M9). Lịch (Job Scheduler) tạo job với `{}` — tuần suy từ thời điểm lịch bắn.
+ * Backfill chỉ định `weekStart` (Thứ Hai, 'YYYY-MM-DD') để chạy bù một tuần bất kỳ.
+ */
+export interface WeeklyReportTickJobData {
+  weekStart?: string;
+  requestId?: string | null;
+}

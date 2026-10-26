@@ -185,4 +185,64 @@ export class ReportsRepository {
       .returning({ id: weeklyReports.id });
     return rows.length > 0;
   }
+
+  /**
+   * Tạo dòng báo cáo `pending` cho MỘT lô kênh của tuần `weekStart` (kênh bật báo cáo, chưa xoá, chưa
+   * lưu trữ — lưu trữ = chỉ đọc), keyset theo `channels.id`. `ON CONFLICT (channel_id, week_start) DO
+   * NOTHING` là khoá idempotency: tick chạy hai lần / hai worker cùng chạy chỉ tạo một dòng mỗi kênh.
+   * Một câu SQL nên lô nguyên tử; `lastChannelId` để gọi lô kế tiếp (`null` = hết kênh).
+   */
+  async insertWeekRows(
+    weekStart: string,
+    afterChannelId: string | null,
+    limit: number,
+  ): Promise<{ scanned: number; inserted: number; lastChannelId: string | null }> {
+    const result = await this.db.execute<{
+      scanned: number;
+      inserted: number;
+      last_id: string | null;
+    }>(sql`
+      with batch as (
+        select id, org_id from ${channels}
+        where ${channels.weeklyReportEnabled}
+          and ${channels.deletedAt} is null
+          and ${channels.archivedAt} is null
+          and (${afterChannelId}::uuid is null or ${channels.id} > ${afterChannelId}::uuid)
+        order by ${channels.id}
+        limit ${limit}
+      ), ins as (
+        insert into ${weeklyReports} (channel_id, org_id, week_start)
+        select id, org_id, ${weekStart}::date from batch
+        on conflict (channel_id, week_start) do nothing
+        returning 1
+      )
+      select (select count(*) from batch)::int as scanned,
+             (select count(*) from ins)::int as inserted,
+             (select id from batch order by id desc limit 1) as last_id`);
+    const row = result.rows[0];
+    return {
+      scanned: row?.scanned ?? 0,
+      inserted: row?.inserted ?? 0,
+      lastChannelId: row?.last_id ?? null,
+    };
+  }
+
+  /**
+   * Mọi báo cáo `pending` của tuần, theo lô keyset `id` — tick enqueue job cho TẤT CẢ chứ không chỉ
+   * dòng vừa chèn: tick trước có thể đã chèn rồi chết trước khi enqueue (bài học M6 B8).
+   */
+  pendingOfWeek(weekStart: string, afterId: string | null, limit: number) {
+    return this.db
+      .select({ id: weeklyReports.id, generation: weeklyReports.regenerateCount })
+      .from(weeklyReports)
+      .where(
+        and(
+          eq(weeklyReports.weekStart, weekStart),
+          eq(weeklyReports.status, 'pending'),
+          afterId ? sql`${weeklyReports.id} > ${afterId}::uuid` : undefined,
+        ),
+      )
+      .orderBy(asc(weeklyReports.id))
+      .limit(limit);
+  }
 }

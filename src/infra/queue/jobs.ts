@@ -9,6 +9,9 @@ export const JobName = {
   UploadCleanup: 'upload.cleanup',
   IdempotencyCleanup: 'idempotency.cleanup',
   ChannelPurge: 'channel.purge',
+  // Báo cáo tuần (M9): tick theo lịch fan-out ra một job `generate` cho mỗi kênh.
+  WeeklyReportTick: 'weekly-report.tick',
+  WeeklyReportGenerate: 'weekly-report.generate',
 } as const;
 export type JobName = (typeof JobName)[keyof typeof JobName];
 
@@ -43,4 +46,13 @@ export function meetingRequeueJobId(
  */
 export function notificationFanoutJobId(dedupeKey: string, at: Date): string {
   return `${JobName.NotificationFanout}.${dedupeKey}.${at.getTime()}`;
+}
+
+/**
+ * `weekly-report.generate.<reportId>.g<generation>` (M9). `generation` = `regenerate_count` lúc enqueue:
+ * tạo lại thủ công ra id MỚI (BullMQ bỏ qua `add()` trùng id, kể cả job đã completed còn được giữ).
+ * Enqueue lại cùng lần tạo (tick chạy lại) → cùng id → không nhân đôi.
+ */
+export function reportJobId(reportId: string, generation: number): string {
+  return `${JobName.WeeklyReportGenerate}.${reportId}.g${generation}`;
 }
