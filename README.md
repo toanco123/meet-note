@@ -27,6 +27,7 @@ Trạng thái hiện tại:
 | M6 — Pipeline                  | Xong (PR #10). Worker: ffmpeg chuẩn hoá audio → whisper.cpp → tóm tắt (Claude API hoặc giả), lease + fencing token, retry / chạy lại, tiến độ realtime + thông báo, quét meeting kẹt, lịch dọn dẹp (BullMQ Job Scheduler), image worker riêng |
 | M6b — Chia sẻ & quyền xem      | Xong (PR #6). Chia sẻ meeting vào kênh, một điều kiện xem dùng chung, danh sách meeting (theo org / theo kênh), sửa / xoá meeting                                                                                                             |
 | M7 — Realtime                  | Xong (PR #7). Socket.IO `/realtime`: xác thực handshake, ngắt khi token hết hạn / phiên bị thu hồi, subscribe meeting theo quyền, mất quyền là rời room, nhiều instance qua Redis                                                             |
+| M8 — Transcript                | Xong (PR #11). Tìm toàn văn trong transcript (không dấu ra có dấu, chỉ meeting xem được, snippet an toàn), xuất SRT / VTT stream theo lô                                                                                                      |
 
 Chi tiết từng mốc (các bước, quyết định, bài học) trong [docs/plans/](docs/plans/).
 

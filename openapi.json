@@ -5238,6 +5238,272 @@
         "x-paginated": true
       }
     },
+    "/v1/orgs/{orgId}/search/transcripts": {
+      "get": {
+        "description": "Mỗi kết quả là một cuộc họp kèm tối đa 3 đoạn khớp đầu (mốc thời gian + đoạn trích).\nChỉ tìm trong cuộc họp bạn xem được (cùng điều kiện với danh sách cuộc họp); lọc `channelId` cần\nđọc được nội dung kênh đó. Tìm không dấu ra có dấu. Giới hạn 60 lần / phút.",
+        "operationId": "Transcripts_search",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "description": "Từ khoá, 2–200 ký tự. Không cần gõ dấu: \"ke hoach\" tìm ra \"kế hoạch\". Nhiều từ = đủ mọi từ;\n`\"cụm từ\"` khớp nguyên cụm, `-từ` loại từ, `or` là hoặc.",
+            "schema": {
+              "minLength": 2,
+              "maxLength": 200,
+              "example": "ngan sach marketing",
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": false,
+            "in": "query",
+            "description": "Chỉ meeting được chia sẻ vào kênh này. Phải đọc được nội dung kênh (không thì 403 / 404).",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TranscriptSearchResultResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).\n\nKhông đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tìm trong transcript các cuộc họp bạn xem được, mới họp trước.",
+        "tags": [
+          "Meetings"
+        ],
+        "x-paginated": true
+      }
+    },
+    "/v1/orgs/{orgId}/meetings/{meetingId}/transcript/export": {
+      "get": {
+        "description": "Cần xem được cuộc họp (không xem được → 404) và cuộc họp đã `completed` (chưa xong →\n409). File được stream theo lô nên họp dài không tốn bộ nhớ. Giới hạn 30 lần / phút.",
+        "operationId": "Transcripts_export",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "description": "Định dạng phụ đề: `srt` (SubRip) hoặc `vtt` (WebVTT).",
+            "schema": {
+              "$ref": "#/components/schemas/SubtitleFormat"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File phụ đề.",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).\n\nKhông đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/x-subrip": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              },
+              "text/vtt": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tải transcript dạng phụ đề SRT hoặc VTT.",
+        "tags": [
+          "Meetings"
+        ],
+        "x-raw-response": true
+      }
+    },
     "/v1/orgs/{orgId}/audit-logs": {
       "get": {
         "description": "Lọc theo `action`, `actorId`. Log chỉ ghi thêm, không sửa/xoá được.",
@@ -7371,6 +7637,73 @@
           "attempt",
           "createdAt",
           "sharedAt"
+        ]
+      },
+      "TranscriptSearchHitResponseDto": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "number",
+            "description": "Thứ tự đoạn trong transcript (cursor của `GET …/transcript`)."
+          },
+          "startMs": {
+            "type": "number",
+            "description": "Mốc bắt đầu, mili giây từ đầu bản ghi."
+          },
+          "endMs": {
+            "type": "number"
+          },
+          "snippet": {
+            "type": "string",
+            "description": "Đoạn trích; từ khoá nằm giữa ký tự điều khiển U+0001 (mở) và U+0002 (đóng). Không phải HTML —\nclient tự đổi thành thẻ đánh dấu, và PHẢI escape phần còn lại của chuỗi.",
+            "example": "Chốt \\u0001kế hoạch\\u0002 quý ba"
+          }
+        },
+        "required": [
+          "seq",
+          "startMs",
+          "endMs",
+          "snippet"
+        ]
+      },
+      "TranscriptSearchResultResponseDto": {
+        "type": "object",
+        "properties": {
+          "meetingId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "recordedAt": {
+            "type": "string",
+            "example": "2026-10-21T02:00:00.000Z"
+          },
+          "hitCount": {
+            "type": "number",
+            "description": "Tổng số đoạn khớp trong meeting (có thể nhiều hơn `hits`)."
+          },
+          "hits": {
+            "description": "Tối đa 3 đoạn khớp đầu tiên theo thời gian.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TranscriptSearchHitResponseDto"
+            }
+          }
+        },
+        "required": [
+          "meetingId",
+          "title",
+          "recordedAt",
+          "hitCount",
+          "hits"
+        ]
+      },
+      "SubtitleFormat": {
+        "type": "string",
+        "enum": [
+          "srt",
+          "vtt"
         ]
       },
       "AuditAction": {

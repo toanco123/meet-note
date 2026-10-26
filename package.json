@@ -30,6 +30,7 @@
     "db:studio": "drizzle-kit studio",
     "openapi:export": "node dist/scripts/export-openapi.js",
     "bench:meeting-list": "node scripts/bench/meeting-list.mjs",
+    "bench:transcript-search": "node scripts/bench/transcript-search.mjs",
     "test:whisper": "pnpm build && node scripts/whisper-check.mjs",
     "smoke:pipeline": "node scripts/pipeline-smoke.mjs"
   },
