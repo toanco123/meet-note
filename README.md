@@ -16,17 +16,17 @@
 
 Trạng thái hiện tại:
 
-| Mốc                            | Trạng thái                                                                                                                                                                                               |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0 — Khung                     | Xong                                                                                                                                                                                                     |
-| M1 — Auth                      | Xong (PR #1)                                                                                                                                                                                             |
-| M2 — Tổ chức                   | Xong (PR #2)                                                                                                                                                                                             |
-| M3 — Mời, duyệt, sở hữu, audit | Xong (PR #3)                                                                                                                                                                                             |
-| M4 — Kênh                      | Xong (PR #4). Kênh công khai / riêng tư, 4 vai trò, thành viên, tham gia / rời / chuyển chủ kênh, lưu trữ, xoá mềm + dọn dẹp, xoá tổ chức. Kèm: catalog lỗi, envelope `{ data, meta }`                   |
-| M5 — Upload                    | Xong (PR #5). Upload chunked 8 MiB tới 2 GiB stream thẳng lên S3 (RustFS), resume, complete → meeting `queued` + job sau commit, `Idempotency-Key`, dọn upload hết hạn                                   |
-| M6 — Pipeline                  | Đang làm. Worker: ffmpeg chuẩn hoá audio → whisper.cpp → tóm tắt (Claude API hoặc giả), lease + fencing token, retry / chạy lại, tiến độ realtime, quét meeting kẹt, lịch dọn dẹp (BullMQ Job Scheduler) |
-| M6b — Chia sẻ & quyền xem      | Xong (PR #6). Chia sẻ meeting vào kênh, một điều kiện xem dùng chung, danh sách meeting (theo org / theo kênh), sửa / xoá meeting                                                                        |
-| M7 — Realtime                  | Xong (PR #7). Socket.IO `/realtime`: xác thực handshake, ngắt khi token hết hạn / phiên bị thu hồi, subscribe meeting theo quyền, mất quyền là rời room, nhiều instance qua Redis                        |
+| Mốc                            | Trạng thái                                                                                                                                                                                                                                    |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 — Khung                     | Xong                                                                                                                                                                                                                                          |
+| M1 — Auth                      | Xong (PR #1)                                                                                                                                                                                                                                  |
+| M2 — Tổ chức                   | Xong (PR #2)                                                                                                                                                                                                                                  |
+| M3 — Mời, duyệt, sở hữu, audit | Xong (PR #3)                                                                                                                                                                                                                                  |
+| M4 — Kênh                      | Xong (PR #4). Kênh công khai / riêng tư, 4 vai trò, thành viên, tham gia / rời / chuyển chủ kênh, lưu trữ, xoá mềm + dọn dẹp, xoá tổ chức. Kèm: catalog lỗi, envelope `{ data, meta }`                                                        |
+| M5 — Upload                    | Xong (PR #5). Upload chunked 8 MiB tới 2 GiB stream thẳng lên S3 (RustFS), resume, complete → meeting `queued` + job sau commit, `Idempotency-Key`, dọn upload hết hạn                                                                        |
+| M6 — Pipeline                  | Xong (PR #10). Worker: ffmpeg chuẩn hoá audio → whisper.cpp → tóm tắt (Claude API hoặc giả), lease + fencing token, retry / chạy lại, tiến độ realtime + thông báo, quét meeting kẹt, lịch dọn dẹp (BullMQ Job Scheduler), image worker riêng |
+| M6b — Chia sẻ & quyền xem      | Xong (PR #6). Chia sẻ meeting vào kênh, một điều kiện xem dùng chung, danh sách meeting (theo org / theo kênh), sửa / xoá meeting                                                                                                             |
+| M7 — Realtime                  | Xong (PR #7). Socket.IO `/realtime`: xác thực handshake, ngắt khi token hết hạn / phiên bị thu hồi, subscribe meeting theo quyền, mất quyền là rời room, nhiều instance qua Redis                                                             |
 
 Chi tiết từng mốc (các bước, quyết định, bài học) trong [docs/plans/](docs/plans/).
 

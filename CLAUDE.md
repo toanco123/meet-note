@@ -23,7 +23,7 @@ MeetNote là ứng dụng biên bản họp theo nhóm. Người dùng thuộc t
 | M3 — Mời, duyệt, sở hữu, audit | **Xong** (PR #3)                                                        |
 | M4 — Kênh                      | **Xong** (PR #4)                                                        |
 | M5 — Upload                    | **Xong** (PR #5)                                                        |
-| M6 — Pipeline                  | **Đang làm** (`docs/plans/M6-pipeline.md`)                              |
+| M6 — Pipeline                  | **Xong** (PR #10)                                                       |
 | M6b — Chia sẻ & quyền xem      | **Xong** (PR #6)                                                        |
 | M7 — Realtime                  | **Xong** (PR #7)                                                        |
 | M10 — Thông báo                | **Xong** (PR #8)                                                        |

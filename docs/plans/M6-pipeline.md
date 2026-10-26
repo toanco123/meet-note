@@ -1,6 +1,6 @@
 # M6 — Pipeline xử lý
 
-- **Trạng thái:** Đang làm — plan đã duyệt 2026-10-22: ★ cho Q2–Q8; người dùng **đồng ý gửi transcript lên Claude API** (Q2) (mở lại sau M11; bản nháp 2026-10-19 đã cập nhật theo M6b, M7, M10, M11 — xem "Thay đổi so với bản nháp")
+- **Trạng thái:** **Xong** (2026-10-26): B1–B9, PR #10. B10 rút gọn theo người dùng: **bỏ** chạy tay với whisper `large-v3-turbo` và Claude thật (máy không có `ANTHROPIC_API_KEY`); whisper THẬT đã chạy trọn vòng ở B9 (model `base`, CPU trong Docker, `pnpm smoke:pipeline`). Plan đã duyệt 2026-10-22 (★ Q2–Q8, đồng ý gửi transcript lên Claude API)
 - **Nhánh:** `m6-pipeline`
 - **Tài liệu thiết kế liên quan:** [01-overview D5, D6](../design/01-overview.md), [02-architecture §1, §4](../design/02-architecture.md), [03-database §0 (role, RLS), §4 `transcript_segments`, `meeting_summaries`](../design/03-database.md), [04-authorization §3](../design/04-authorization.md), [05-api Meetings, Realtime, Notifications](../design/05-api.md), [06-flows §1.2](../design/06-flows.md), [08-testing §5](../design/08-testing.md), [10-roadmap M6](../design/10-roadmap.md)
 
@@ -139,18 +139,18 @@ Mỗi bước = 1 commit, chạy được và có test. Chỗ nào có thể ch�
 - [x] **B9 — Docker + CI + tài liệu chạy**
   - Việc: Dockerfile (ffmpeg, whisper.cpp build pin tag), compose (env worker, volume model), CI cài ffmpeg, README (Homebrew, tải model, chạy worker native), 09-versions.
   - Test: `docker compose up --build` → worker trong container chạy pipeline với audio ngắn (whisper `base`, CPU).
-- [ ] **B10 — Đóng mốc**
+- [x] **B10 — Đóng mốc** (rút gọn: bỏ chạy tay model lớn + Claude thật theo người dùng 2026-10-26; đồ cài để test đã gỡ)
   - **Dọn đồ cài để test (người dùng yêu cầu 2026-10-22):** test xong hết chức năng thì gỡ khỏi máy dev — `brew uninstall whisper-cpp ffmpeg` + phụ thuộc kéo theo (`brew autoremove`): dav1d, mpg123, lame, libvmaf, libvpx, openssl@4, opus, sdl3, sdl2-compat, svt-av1, x264, x265, libomp, ggml, llama.cpp (≈ 163M lúc cài); model whisper đã tải: `~/.cache/meetnote/whisper/ggml-base.bin` (148 MB, B3). Lưu ý: gỡ ffmpeg thì `pnpm test:e2e` local không chạy được test media (CI vẫn có ffmpeg).
   - Việc: chạy tay end-to-end: ghi âm tiếng Việt → upload → worker native (whisper `large-v3-turbo`, Metal) → transcript + tóm tắt (Claude thật nếu Q2 duyệt và có key) → thông báo; đo thời gian từng bước; `openapi.json`; đối chiếu tài liệu; ghi "Điều học được".
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở local và CI (CI có ffmpeg); mọi chỗ chạy trùng / song song đã được đột biến
-- [ ] Mọi bước pipeline idempotent: chạy lại cùng job không tạo dữ liệu trùng
-- [ ] Không có process con mồ côi khi timeout / shutdown; dừng worker không làm mất job
-- [ ] Upload file ghi âm tiếng Việt → transcript + tóm tắt tự xuất hiện (chạy tay, whisper thật), người xem thấy tiến độ realtime, chủ nhận thông báo
-- [ ] `openapi.json` đã cập nhật; `docs/design/` khớp code (02, 03, 05, 06 §1.2, 07, 09, 10)
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
+- [x] `pnpm test:e2e` xanh ở local (661, B8) và CI (CI có ffmpeg); mọi chỗ chạy trùng / song song đã được đột biến
+- [x] Mọi bước pipeline idempotent: chạy lại cùng job không tạo dữ liệu trùng
+- [x] Không có process con mồ côi khi timeout / shutdown; dừng worker không làm mất job (kể cả job lấy về trong lúc tắt — bài học 16)
+- [x] Upload file ghi âm tiếng Việt → transcript + tóm tắt tự xuất hiện (chạy tay, whisper thật `base` trong Docker, tóm tắt GIẢ — Claude thật chưa chạy), người xem thấy tiến độ realtime, chủ nhận thông báo (e2e B6)
+- [x] `openapi.json` đã cập nhật; `docs/design/` khớp code (02, 03, 05, 06 §1.2, 07, 09, 10)
 
 ## Điều sẽ học
 
@@ -183,3 +183,4 @@ Mỗi bước = 1 commit, chạy được và có test. Chỗ nào có thể ch�
 17. **Quét kẹt: DB thôi chưa đủ để biết "kẹt".** Meeting `transcribing` lâu không đổi, không lease có thể chỉ đang XẾP HÀNG sau các bản ghi dài (queue `transcription`, concurrency 1) → hỏi thêm trạng thái job thường trong Redis (`getJobState`). JobId enqueue lại có hậu tố `updated_at` (µs, vì `:` của timestamp bị cấm): cùng trạng thái kẹt → cùng id → quét lặp không nhân đôi; meeting đã đổi → id mới. Keyset `(updated_at, id)` trong một lần quét: dòng vừa xử lý VẪN kẹt (job chưa nhận) → không keyset thì lô đầu lặp mãi. Điều kiện trạng thái viết literal đúng như `meetings_stuck_idx`. 5 đột biến đều đỏ: jobId thường → bị nuốt, kẹt ở `preprocessing`; bỏ `hasLiveJob` → B bị requeue; bỏ điều kiện lease → A (đang chạy) lọt vào; bỏ điều kiện `updated_at` → C (vừa đổi) bị requeue; bỏ keyset → 7 phần tử trùng thay vì 3. Test "worker chết cứng" dựng đúng kịch bản thật: lease của token lạ → job chạy lại `completed` mà meeting không tiến → hết lease → quét → `completed`.
 18. **Job Scheduler: tôi đoán sai về `every`, đọc Lua mới biết.** Cảnh báo `"Using option immediately with every … Job will run immediately anyway"` khiến tôi tin `every` chạy ngay MỖI lần upsert (mỗi lần worker khởi động). Đột biến `every` vẫn xanh ở assertion "1 job hẹn giờ mỗi lịch" → đọc `addJobScheduler-11.lua`: chỉ lần TẠO đầu `nextMillis = now`; upsert lại giữ `prevMillis` (thay job hẹn giờ bằng job cùng mốc). Chọn cron vì lý do thật: purge cần mốc giờ trong ngày + `tz`; các lịch còn lại cùng kiểu cho thống nhất. Lịch không còn khai báo bị xoá lúc đăng ký (đột biến bỏ → 5 lịch). Việc dọn chạy ở worker: test gọi CÙNG `ChannelsPurgeService` từ api (RLS, không ngữ cảnh) → `[]`, từ worker → purge 2 kênh ở 2 tổ chức. Một kỳ vọng sai của chính test: abort multipart với id giả không lỗi — `NoSuchUpload` được coi là đã abort (idempotent, M5). Lượt e2e đầy đủ đầu tiên exit 1 mà 0 test đỏ, 8 test `skipped`: `beforeAll` của 2 test integration uploads hỏng vì `MeetingsService` giờ cần `PIPELINE_SCHEDULER` — cấp scheduler THẬT nối vào queue giả có ghi chép, để test "enqueue SAU commit" vẫn đi đúng đường production (payload có thêm `attempt`).
 19. **Docker: target mặc định là stage CUỐI.** Thêm stage `worker` (runtime + ffmpeg + whisper) ở cuối Dockerfile → `docker build` không `--target` (compose của api / migrate, job CI cũ) lặng lẽ build image worker: api mang thêm ffmpeg + whisper (+160 MB: 441 → 601 MB) mà vẫn chạy bình thường, không ai thấy. Compose và CI ghi `target` tường minh cho cả hai. whisper.cpp không có gói Alpine → build từ tag, `GGML_NATIVE=OFF` (mặc định `-march=native` biên dịch theo CPU máy build → image từ runner CI chết `SIGILL` ở máy khác); CI chạy `whisper-cli --version` trong image để lộ thiếu `.so` / lệnh CPU lạ. Model mount từ host (chỉ đọc), không đóng vào image. `docker compose up --build` + `pnpm smoke:pipeline`: audio 14,5 s, whisper `base` CPU trong container → `completed` sau ~5 s. Worker mới khởi động trên DB dev cũ còn là phép thử thật cho B8: meeting đã xoá mềm có job M5 cũ → `claim` bỏ qua; mốc quét 07:15:00 đưa lại 3 meeting `queued` không có job (chèn tay từ các lần smoke trước, không có file gốc) → `MEDIA_UNREADABLE` "Không tìm thấy file gốc", lỗi vĩnh viễn, không retry vô ích.
+20. **Đóng mốc — thứ chưa kiểm bằng tay, và đồ đã gỡ.** Chưa chạy: whisper `large-v3-turbo` (chất lượng tiếng Việt — `base` nhận đúng ý nhưng sai chính tả nhiều: "hợp", "kế hoài", "bìm"), Metal native, Claude thật (adapter chỉ test với stub server ở B3). Khi có key: `LLM_PROVIDER=anthropic`, `ANTHROPIC_API_KEY`, `pnpm smoke:pipeline`. Đã gỡ khỏi máy dev (2026-10-26): `whisper-cpp`, `ffmpeg` + phụ thuộc Homebrew, model `~/.cache/meetnote/whisper/`, image `meetnote-worker:local`. Hệ quả: `pnpm test:e2e` ở local cần cài lại ffmpeg (`brew install ffmpeg`) cho test media / pipeline; CI không ảnh hưởng (apt + image worker tự build).
