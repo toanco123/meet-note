@@ -47,7 +47,7 @@ Tìm "ke hoach" ra đoạn "kế hoạch" kèm timestamp, **chỉ trong những 
 
 ## Các bước
 
-- [ ] **B1 — Câu truy vấn search + test quyền (integration)**
+- [x] **B1 — Câu truy vấn search + test quyền (integration)**
   - Việc: `TranscriptSearchRepository` — ứng viên từ GIN theo lô, ghép `meetingVisibleTo`, gom theo meeting, keyset `(recorded_at, id)`. Chọn chiến lược Q1 bằng **đo** (script kiểu `bench:meeting-list`): ít meeting xem được vs nhiều; từ khoá hiếm vs phổ biến.
   - Test: ma trận người xem × từ khoá (như oracle của M6b/M11): kết quả == (đoạn khớp ∩ meeting xem được) tính bằng cách ngây thơ; duyệt hết trang không lặp/mất; "ke hoach" ra "kế hoạch"; đoạn của org khác không bao giờ lọt (RLS + `org_id`). **Đột biến:** bỏ `meetingVisibleTo` → đỏ; lọc quyền sau LIMIT → trang thiếu (đỏ).
 - [ ] **B2 — `ts_headline` + service + controller**
@@ -80,4 +80,7 @@ Tìm "ke hoach" ra đoạn "kế hoạch" kèm timestamp, **chỉ trong những 
 
 ## Điều học được / bẫy gặp phải
 
-(Ghi sau khi xong mốc)
+1. **Q1 chốt bằng SỐ ĐO, và kết quả ngược với dự đoán trong plan.** Plan đề xuất "ứng viên từ GIN trước, lọc quyền sau". Đo (`pnpm bench:transcript-search`: 10k meeting × 60 đoạn = 600k đoạn, 3 kiểu người xem × 4 mức phổ biến của từ khoá) cho thấy hình dạng **meeting-trước** (đi meeting mới → cũ, `EXISTS` đoạn khớp, dừng ở `LIMIT`) thắng hoặc hoà ở mọi ca: từ khoá phổ biến 3 ms so với 90 ms của "đoạn trước" (GIN gom HẾT đoạn khớp dù chỉ cần 20 meeting). Từ khoá hiếm thì planner tự đổi `EXISTS` thành semi-join qua GIN → ngang nhau (0,5 ms). Ca xấu nhất của meeting-trước: từ khoá vừa (2 %) + người xem thấy ít/không meeting nào → quét gần hết meeting của org, ≈ 25 ms / 10k meeting, tỉ lệ thuận số meeting; không có trần cứng, chặn bởi `statement_timeout` 15 s của M11. Nếu sau này org có hàng triệu meeting thì ca này là chỗ cần xem lại. Lý do không cần "trần K + `truncated`" như plan viết: lọc quyền nằm TRONG câu trước `LIMIT`, nên không có chuyện trang trống/thiếu.
+2. **Số đoạn khớp đếm bằng câu thứ hai, chỉ trên meeting của trang** (`meeting_id = ANY(page)`), thay vì `GROUP BY` trong câu chính (buộc đếm mọi meeting khớp). Đột biến bỏ điều kiện khớp ở câu đếm → đếm cả đoạn không khớp (đỏ).
+3. **Test đối chiếu độc lập với Postgres.** "Sự thật" tính bằng JS (bỏ dấu `NFD` + `đ→d`, chữ thường, tách từ, "đủ mọi từ") và điều kiện xem dựng TAY theo 04 §3 — không dùng `meetingVisibleTo` hay `to_tsvector` để so với chính nó. Lần đầu lệch ở "Owner org": fixture `insertChannel` thêm người tạo làm thành viên MỌI kênh nó tạo → owner thấy meeting qua kênh riêng. Lỗi của "sự thật", không phải của code. Duyệt hết trang limit 3, thứ tự, số đoạn, org khác không lọt, chuỗi lạ (`'`, `"`, `& | !`, `(((`, `or or or`) không làm `websearch_to_tsquery` lỗi cú pháp. Đột biến: bỏ `meetingVisibleTo` → đỏ (cả hai hình dạng).
+4. **Docker phải đang chạy cho `test:e2e`.** OrbStack tắt → "Could not find a working container runtime strategy". `open -a OrbStack` chưa đủ (app mở nhưng VM chưa lên); `orb start` thì lên.
