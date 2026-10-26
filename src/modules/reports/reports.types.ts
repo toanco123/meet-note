@@ -7,3 +7,10 @@ export interface ReportMeeting {
   recordedAt: Date;
   summary: MeetingSummaryContent;
 }
+
+/** Kết quả chọn meeting cho một prompt báo cáo (xem `selectMeetings`). */
+export interface SelectedMeetings {
+  included: ReportMeeting[];
+  /** Có meeting bị bỏ vì vượt trần (ghi vào `weekly_report_versions.truncated`). */
+  truncated: boolean;
+}

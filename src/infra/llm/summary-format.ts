@@ -77,26 +77,32 @@ export function parseSummaryContent(raw: string): MeetingSummaryContent | null {
   } catch {
     return null;
   }
-  const isStrings = (v: unknown): v is string[] =>
-    Array.isArray(v) && v.every((x) => typeof x === 'string');
-  const isNullableString = (v: unknown) => v === null || typeof v === 'string';
   if (typeof value !== 'object' || value === null) return null;
   const v = value as Record<string, unknown>;
   if (typeof v.overview !== 'string' || v.overview.trim() === '') return null;
-  if (!isStrings(v.keyPoints) || !isStrings(v.decisions) || !Array.isArray(v.actionItems)) {
-    return null;
-  }
-  const actionItems = v.actionItems as unknown[];
-  const validItems = actionItems.every((item) => {
-    if (typeof item !== 'object' || item === null) return false;
-    const i = item as Record<string, unknown>;
-    return typeof i.task === 'string' && isNullableString(i.owner) && isNullableString(i.due);
-  });
-  if (!validItems) return null;
+  if (!isStrings(v.keyPoints) || !isStrings(v.decisions)) return null;
+  if (!isActionItems(v.actionItems)) return null;
   return {
     overview: v.overview,
     keyPoints: v.keyPoints,
     decisions: v.decisions,
-    actionItems: actionItems as MeetingSummaryContent['actionItems'],
+    actionItems: v.actionItems,
   };
+}
+
+export const isStrings = (v: unknown): v is string[] =>
+  Array.isArray(v) && v.every((x) => typeof x === 'string');
+
+const isNullableString = (v: unknown) => v === null || typeof v === 'string';
+
+/** Dùng chung với báo cáo tuần (`report-format.ts`): cùng hình dạng việc cần làm. */
+export function isActionItems(v: unknown): v is MeetingSummaryContent['actionItems'] {
+  return (
+    Array.isArray(v) &&
+    v.every((item) => {
+      if (typeof item !== 'object' || item === null) return false;
+      const i = item as Record<string, unknown>;
+      return typeof i.task === 'string' && isNullableString(i.owner) && isNullableString(i.due);
+    })
+  );
 }

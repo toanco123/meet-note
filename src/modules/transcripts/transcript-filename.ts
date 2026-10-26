@@ -9,15 +9,16 @@ const MAX_NAME_LENGTH = 80;
  * Rỗng sau khi làm sạch → `meeting-<id>`.
  */
 export function safeFileBase(title: string, meetingId: string): string {
-  const cleaned = [
-    ...title
+  // `Array.from` tách theo ĐIỂM MÃ Unicode (không cắt đôi cặp thay thế của emoji).
+  const cleaned = Array.from(
+    title
       .normalize('NFC')
       // eslint-disable-next-line no-control-regex
       .replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, ' ')
       .replace(/[\\/:*?"<>|]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim(),
-  ]
+  )
     .slice(0, MAX_NAME_LENGTH)
     .join('')
     .replace(/^[.\s]+|[.\s]+$/g, ''); // không để tên chỉ toàn dấu chấm ("..") hoặc kết thúc bằng chấm

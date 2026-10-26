@@ -1,5 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { LlmPermanentError, LlmTransientError } from './llm.errors.js';
+import type Anthropic from '@anthropic-ai/sdk';
+import { createAnthropicClient, structuredRequest } from './anthropic-client.js';
+import { LlmTransientError } from './llm.errors.js';
 import type {
   AnthropicSummarizerOptions,
   MeetingSummaryContent,
@@ -18,24 +19,14 @@ import {
 } from './summary-format.js';
 
 /**
- * Tóm tắt bằng Claude (M6 Q2, B3) — `@anthropic-ai/sdk`, theo skill `claude-api`:
- * - JSON có cấu trúc qua `output_config.format` (`json_schema`). KHÔNG ép gọi tool: Claude Opus 5.5
- *   trả 400 cho `tool_choice` `any` / `tool`.
- * - `fallbacks: 'default'` (beta `server-side-fallback-2026-07-01`): bộ lọc an toàn từ chối thì API
- *   tự chạy lại trên model dự phòng trong CÙNG lời gọi; cả chuỗi từ chối → `stop_reason: refusal`.
- * - Effort đặt tường minh (mặc định của Claude Opus 5.5 là `medium`, các model khác `high`).
- * - Map-reduce khi transcript vượt `chunkChars` — hiếm: context 1M token, họp 4 giờ ≈ 50–80k token.
+ * Tóm tắt bằng Claude (M6 Q2, B3). Cách gọi (structured output, fallbacks, effort, phân loại lỗi)
+ * dùng chung với `AnthropicReportWriter` ở `anthropic-client.ts`. Map-reduce khi transcript vượt `chunkChars` — hiếm: context 1M token, họp 4 giờ ≈ 50–80k token.
  */
 export class AnthropicSummarizer implements Summarizer {
   private readonly client: Anthropic;
 
   constructor(private readonly options: AnthropicSummarizerOptions) {
-    this.client = new Anthropic({
-      ...(options.apiKey ? { apiKey: options.apiKey } : {}),
-      ...(options.baseURL ? { baseURL: options.baseURL } : {}),
-      maxRetries: options.maxRetries,
-      timeout: options.timeoutMs,
-    });
+    this.client = createAnthropicClient(options);
   }
 
   async summarize(input: SummaryInput, options: SummarizeOptions = {}): Promise<SummaryResult> {
@@ -79,66 +70,21 @@ export class AnthropicSummarizer implements Summarizer {
   }
 
   private async request(prompt: string, signal?: AbortSignal) {
-    let response: Anthropic.Beta.BetaMessage;
-    try {
-      response = await this.client.beta.messages.create(
-        {
-          model: this.options.model,
-          max_tokens: 16_000,
-          betas: ['server-side-fallback-2026-07-01'],
-          fallbacks: 'default',
-          output_config: {
-            effort: this.options.effort,
-            format: { type: 'json_schema', schema: SUMMARY_SCHEMA },
-          },
-          system: SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: prompt }],
-        },
-        { signal },
-      );
-    } catch (error) {
-      throw classify(error);
-    }
-    // Từ chối / bị cắt: nội dung có thể không theo schema → kiểm stop_reason TRƯỚC khi đọc content.
-    if (response.stop_reason === 'refusal') throw new LlmPermanentError('refusal');
-    if (response.stop_reason === 'max_tokens') throw new LlmPermanentError('max_tokens');
-    const text = response.content
-      .flatMap((block) => (block.type === 'text' ? [block.text] : []))
-      .join('');
-    const content = parseSummaryContent(text);
+    const response = await structuredRequest(this.client, {
+      model: this.options.model,
+      effort: this.options.effort,
+      system: SYSTEM_PROMPT,
+      prompt,
+      schema: SUMMARY_SCHEMA,
+      signal,
+    });
+    const content = parseSummaryContent(response.text);
     if (!content) throw new LlmTransientError('kết quả không đúng schema');
-    const u = response.usage;
     return {
       content,
       model: response.model,
-      inputTokens:
-        u.input_tokens + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0),
-      outputTokens: u.output_tokens,
+      inputTokens: response.inputTokens,
+      outputTokens: response.outputTokens,
     };
   }
-}
-
-/**
- * Lỗi SDK → tạm / vĩnh viễn bằng CLASS có kiểu (không so chuỗi thông điệp). SDK đã tự retry 408 /
- * 409 / 429 / 5xx / lỗi mạng `maxRetries` lần trước khi ném tới đây. Huỷ do worker tắt
- * (`APIUserAbortError`) ném nguyên — không phải lỗi của LLM.
- */
-function classify(error: unknown): unknown {
-  if (error instanceof Anthropic.APIUserAbortError) return error;
-  if (
-    error instanceof Anthropic.APIConnectionError || // gồm APIConnectionTimeoutError
-    error instanceof Anthropic.RateLimitError ||
-    error instanceof Anthropic.InternalServerError ||
-    error instanceof Anthropic.ConflictError
-  ) {
-    return new LlmTransientError(error.constructor.name, { cause: error });
-  }
-  if (error instanceof Anthropic.APIError) {
-    // BadRequest / Authentication / PermissionDenied / NotFound / UnprocessableEntity…
-    const status = error.status ?? 0;
-    return status >= 400 && status < 500
-      ? new LlmPermanentError(`${error.constructor.name} (${status})`, { cause: error })
-      : new LlmTransientError(`${error.constructor.name} (${status})`, { cause: error });
-  }
-  return error;
 }
