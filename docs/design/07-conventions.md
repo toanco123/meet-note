@@ -174,7 +174,6 @@ Validate khi khởi động bằng class `EnvironmentVariables` (class-validator
 | `LLM_PROVIDER`                                                  | M6  | `fake`                          | `anthropic` mới gửi transcript lên Claude API (M6 Q2)                                                                                                                                                      |
 | `ANTHROPIC_API_KEY`                                             | M6  | (trống)                         | SDK Anthropic tự đọc (không qua `env.validation`); chỉ cần khi `LLM_PROVIDER=anthropic`                                                                                                                    |
 | `LLM_MODEL`, `LLM_EFFORT`                                       | M6  | `claude-opus-5-5`, `medium`     | Effort đặt tường minh (mặc định của mỗi model khác nhau)                                                                                                                                                   |
-| `REPORT_CRON`, `REPORT_TZ`                                      | M9  | `0 8 * * 1`, `Asia/Ho_Chi_Minh` |                                                                                                                                                                                                            |
 
 Swagger **không có biến bật/tắt riêng**. Swagger bật khi `NODE_ENV ∈ {development, test, staging}` và luôn tắt ở `production`, để không thể vô tình bật trên production.
 

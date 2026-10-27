@@ -5504,6 +5504,444 @@
         "x-raw-response": true
       }
     },
+    "/v1/orgs/{orgId}/channels/{channelId}/reports": {
+      "get": {
+        "description": "Cần đọc được nội dung kênh: thành viên kênh, hoặc thành viên tổ chức với kênh công khai.\nKênh chỉ có báo cáo từ tuần đầu tiên sau khi bật báo cáo; không có dòng cho tuần không có gì.",
+        "operationId": "Reports_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ReportSummaryResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Danh sách báo cáo tuần của kênh, tuần mới nhất trước.",
+        "tags": [
+          "Reports"
+        ],
+        "x-paginated": true
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/reports/{weekStart}": {
+      "get": {
+        "description": "`weekStart` là ngày Thứ Hai (giờ Việt Nam) của tuần, vd `2026-10-05`; sai → 400. Trả\ntrạng thái và PHIÊN BẢN ĐANG HIỂN THỊ: khi đang tạo lại hoặc tạo lại lỗi vẫn là bản cũ.",
+        "operationId": "Reports_get",
+        "parameters": [
+          {
+            "name": "weekStart",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReportResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Báo cáo của một tuần.",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/reports/{weekStart}/versions": {
+      "get": {
+        "operationId": "Reports_versions",
+        "parameters": [
+          {
+            "name": "weekStart",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ReportVersionResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mọi phiên bản của báo cáo (bản theo lịch + tối đa 3 lần tạo lại), mới nhất trước.",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/v1/orgs/{orgId}/channels/{channelId}/reports/{weekStart}/regenerate": {
+      "post": {
+        "description": "Chủ kênh và quản trị viên kênh. Trả 202 ngay: báo cáo về `pending`, bản cũ vẫn hiển thị\ncho tới khi bản mới xong. Đang tạo → 409 `REPORT_IN_PROGRESS`; hết lượt → 409\n`REPORT_REGENERATE_LIMIT`; kênh lưu trữ → 409 `CHANNEL_ARCHIVED`. Tạo lại tính lại danh sách cuộc\nhọp từ đầu nên cuộc họp xong muộn cũng được đưa vào.",
+        "operationId": "Reports_regenerate",
+        "parameters": [
+          {
+            "name": "weekStart",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": true,
+            "in": "path",
+            "description": "Id kênh",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReportResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tạo lại báo cáo (tối đa 3 lần mỗi báo cáo).",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
     "/v1/orgs/{orgId}/audit-logs": {
       "get": {
         "description": "Lọc theo `action`, `actorId`. Log chỉ ghi thêm, không sửa/xoá được.",
@@ -7706,6 +8144,249 @@
           "vtt"
         ]
       },
+      "ReportStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "generating",
+          "completed",
+          "failed",
+          "skipped"
+        ]
+      },
+      "ReportSummaryResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportStatus"
+              }
+            ]
+          },
+          "weekStart": {
+            "type": "string",
+            "description": "Thứ Hai của tuần (giờ VN).",
+            "example": "2026-10-05"
+          },
+          "currentVersion": {
+            "type": "number",
+            "nullable": true,
+            "description": "Phiên bản đang hiển thị; null khi chưa có (đang tạo, bị bỏ qua, lỗi lần đầu)."
+          },
+          "regenerateCount": {
+            "type": "number",
+            "description": "Số lần đã tạo lại thủ công (tối đa 3)."
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-12T01:00:00.000Z"
+          }
+        },
+        "required": [
+          "status",
+          "weekStart",
+          "currentVersion",
+          "regenerateCount",
+          "createdAt"
+        ]
+      },
+      "ReportTrigger": {
+        "type": "string",
+        "enum": [
+          "scheduled",
+          "manual"
+        ]
+      },
+      "ReportActionItemDto": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "nullable": true,
+            "description": "Người nhận việc nếu được nói rõ."
+          },
+          "task": {
+            "type": "string"
+          },
+          "due": {
+            "type": "string",
+            "nullable": true,
+            "description": "Hạn như được nói (vd \"thứ sáu\")."
+          }
+        },
+        "required": [
+          "owner",
+          "task",
+          "due"
+        ]
+      },
+      "ReportMeetingRefDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "recordedAt": {
+            "type": "string",
+            "example": "2026-10-07T03:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "recordedAt"
+        ]
+      },
+      "ReportContentDto": {
+        "type": "object",
+        "properties": {
+          "overview": {
+            "type": "string",
+            "description": "Tóm tắt cả tuần."
+          },
+          "highlights": {
+            "description": "Điểm nổi bật, gom theo chủ đề.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "decisions": {
+            "description": "Quyết định đã chốt.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "actionItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportActionItemDto"
+            }
+          },
+          "meetings": {
+            "description": "Các cuộc họp được tổng hợp (do hệ thống ghi, cũ nhất trước).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportMeetingRefDto"
+            }
+          }
+        },
+        "required": [
+          "overview",
+          "highlights",
+          "decisions",
+          "actionItems",
+          "meetings"
+        ]
+      },
+      "ReportVersionResponseDto": {
+        "type": "object",
+        "properties": {
+          "trigger": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportTrigger"
+              }
+            ]
+          },
+          "version": {
+            "type": "number"
+          },
+          "triggeredBy": {
+            "type": "string",
+            "nullable": true,
+            "description": "Người bấm tạo lại; null với bản theo lịch hoặc khi người đó đã rời hệ thống."
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "Đã bỏ bớt cuộc họp cũ hơn khi quá nhiều cuộc họp trong tuần."
+          },
+          "model": {
+            "type": "string",
+            "description": "Model THỰC SỰ viết báo cáo."
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-12T01:00:30.000Z"
+          },
+          "content": {
+            "$ref": "#/components/schemas/ReportContentDto"
+          }
+        },
+        "required": [
+          "trigger",
+          "version",
+          "triggeredBy",
+          "truncated",
+          "model",
+          "createdAt",
+          "content"
+        ]
+      },
+      "ReportResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportStatus"
+              }
+            ]
+          },
+          "weekStart": {
+            "type": "string",
+            "description": "Thứ Hai của tuần (giờ VN).",
+            "example": "2026-10-05"
+          },
+          "currentVersion": {
+            "type": "number",
+            "nullable": true,
+            "description": "Phiên bản đang hiển thị; null khi chưa có (đang tạo, bị bỏ qua, lỗi lần đầu)."
+          },
+          "regenerateCount": {
+            "type": "number",
+            "description": "Số lần đã tạo lại thủ công (tối đa 3)."
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-12T01:00:00.000Z"
+          },
+          "regenerationsLeft": {
+            "type": "number",
+            "description": "Còn mấy lần tạo lại thủ công."
+          },
+          "lastError": {
+            "type": "string",
+            "nullable": true,
+            "description": "Lý do lỗi nếu `status = failed` (bản cũ nếu có vẫn ở `version`)."
+          },
+          "version": {
+            "nullable": true,
+            "description": "Phiên bản đang hiển thị; null khi chưa có.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportVersionResponseDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "weekStart",
+          "currentVersion",
+          "regenerateCount",
+          "createdAt",
+          "regenerationsLeft",
+          "lastError",
+          "version"
+        ]
+      },
       "AuditAction": {
         "type": "string",
         "enum": [
@@ -7807,7 +8488,8 @@
           "org.join_request_approved",
           "meeting.shared",
           "meeting.completed",
-          "meeting.failed"
+          "meeting.failed",
+          "report.ready"
         ]
       },
       "NotificationResponseDto": {

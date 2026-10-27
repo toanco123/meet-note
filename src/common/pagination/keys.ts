@@ -23,6 +23,14 @@ export function expectTimestampKey(value: CursorKey | undefined): string {
   return value;
 }
 
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Khoá ngày lịch 'YYYY-MM-DD' (vd `week_start` của báo cáo tuần) — kiểm trước khi vào `::date`. */
+export function expectDateKey(value: CursorKey | undefined): string {
+  if (typeof value !== 'string' || !DATE_KEY.test(value)) throw invalidCursor();
+  return value;
+}
+
 /** Khoá số nguyên dương (vd id `bigint identity`) — chặn số thực, số âm, số vượt `Number.MAX_SAFE_INTEGER`. */
 export function expectPositiveIntKey(value: CursorKey | undefined): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0)

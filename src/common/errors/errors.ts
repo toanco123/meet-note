@@ -254,6 +254,20 @@ export const Errors = {
       conflict(ErrorCode.MeetingNotFailed, 'Chỉ chạy lại được cuộc họp đang ở trạng thái lỗi.'),
   },
 
+  report: {
+    /** Kênh chưa có báo cáo cho tuần này (chưa tới lượt, kênh tắt báo cáo, hoặc tuần trước khi có kênh). */
+    notFound: () => notFound('Chưa có báo cáo cho tuần này.', ErrorCode.ReportNotFound),
+    /** Đang chờ / đang tạo — tạo lại lúc này vô nghĩa và làm hai lần tạo giẫm nhau. */
+    inProgress: () =>
+      conflict(ErrorCode.ReportInProgress, 'Báo cáo đang được tạo, hãy thử lại sau.'),
+    /** Hết 3 lần tạo lại thủ công (D8). */
+    regenerateLimit: () =>
+      conflict(
+        ErrorCode.ReportRegenerateLimit,
+        'Báo cáo này đã dùng hết số lần tạo lại cho phép (3 lần).',
+      ),
+  },
+
   channel: {
     /** Không tồn tại, đã xoá, HOẶC riêng tư mà người gọi không được thấy — không lộ khác biệt. */
     notFound: () => notFound('Không tìm thấy kênh.'),

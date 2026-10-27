@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, gte, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import {
@@ -7,6 +7,8 @@ import {
   meetings,
   meetingShares,
   meetingSummaries,
+  type WeeklyReportRow,
+  type WeeklyReportVersionRow,
   weeklyReports,
   weeklyReportVersions,
 } from '../../infra/database/schema/index.js';
@@ -14,7 +16,10 @@ import type { MeetingSummaryContent } from '../../infra/llm/llm.types.js';
 import { REPORT_TIME_ZONE } from './report-week.js';
 import type { ClaimedReport, NewReportVersion, ReportMeeting } from './reports.types.js';
 
-/** Truy vấn của báo cáo tuần (M9) — chạy trong WORKER (user BYPASSRLS), nên luôn lọc `org_id` tường minh. */
+/**
+ * Truy vấn của báo cáo tuần (M9). Worker (user BYPASSRLS) và api (bị RLS, ngữ cảnh tổ chức do
+ * `OrgMemberGuard`) cùng dùng — nên mọi truy vấn lọc `org_id` TƯỜNG MINH, không trông cậy vào RLS.
+ */
 @Injectable()
 export class ReportsRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
@@ -244,5 +249,120 @@ export class ReportsRepository {
       )
       .orderBy(asc(weeklyReports.id))
       .limit(limit);
+  }
+
+  /** Danh sách báo cáo của kênh, tuần mới nhất trước; keyset `week_start` (duy nhất trong kênh). */
+  listByChannel(
+    orgId: string,
+    channelId: string,
+    beforeWeek: string | undefined,
+    limit: number,
+  ): Promise<WeeklyReportRow[]> {
+    return this.db
+      .select()
+      .from(weeklyReports)
+      .where(
+        and(
+          eq(weeklyReports.orgId, orgId),
+          eq(weeklyReports.channelId, channelId),
+          beforeWeek ? lt(weeklyReports.weekStart, beforeWeek) : undefined,
+        ),
+      )
+      .orderBy(desc(weeklyReports.weekStart))
+      .limit(limit + 1);
+  }
+
+  async findByWeek(
+    orgId: string,
+    channelId: string,
+    weekStart: string,
+  ): Promise<WeeklyReportRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(weeklyReports)
+      .where(
+        and(
+          eq(weeklyReports.orgId, orgId),
+          eq(weeklyReports.channelId, channelId),
+          eq(weeklyReports.weekStart, weekStart),
+        ),
+      );
+    return row;
+  }
+
+  /** Mọi phiên bản của một báo cáo, mới nhất trước (tối đa 1 + 3 lần tạo lại = 4). */
+  versionsOf(orgId: string, reportId: string): Promise<WeeklyReportVersionRow[]> {
+    return this.db
+      .select()
+      .from(weeklyReportVersions)
+      .where(
+        and(eq(weeklyReportVersions.orgId, orgId), eq(weeklyReportVersions.reportId, reportId)),
+      )
+      .orderBy(desc(weeklyReportVersions.version));
+  }
+
+  async findVersion(
+    orgId: string,
+    reportId: string,
+    version: number,
+  ): Promise<WeeklyReportVersionRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(weeklyReportVersions)
+      .where(
+        and(
+          eq(weeklyReportVersions.orgId, orgId),
+          eq(weeklyReportVersions.reportId, reportId),
+          eq(weeklyReportVersions.version, version),
+        ),
+      );
+    return row;
+  }
+
+  /** Khoá dòng báo cáo `FOR UPDATE` — bước đầu của "tạo lại" (quota đọc-rồi-ghi phải nguyên tử). */
+  async lockByWeek(
+    tx: DbExecutor,
+    orgId: string,
+    channelId: string,
+    weekStart: string,
+  ): Promise<WeeklyReportRow | undefined> {
+    const [row] = await tx
+      .select()
+      .from(weeklyReports)
+      .where(
+        and(
+          eq(weeklyReports.orgId, orgId),
+          eq(weeklyReports.channelId, channelId),
+          eq(weeklyReports.weekStart, weekStart),
+        ),
+      )
+      .for('update');
+    return row;
+  }
+
+  /**
+   * Ghi yêu cầu tạo lại trên dòng ĐÃ KHOÁ: quota +1, về `pending`, ghi ai bấm. `current_version` giữ
+   * nguyên — người xem vẫn thấy bản cũ cho tới khi bản mới xong (Q5). Xoá lease cũ (nếu còn sót).
+   */
+  async markRegenerating(
+    tx: DbExecutor,
+    reportId: string,
+    userId: string,
+  ): Promise<WeeklyReportRow> {
+    const [row] = await tx
+      .update(weeklyReports)
+      .set({
+        status: 'pending',
+        regenerateCount: sql`${weeklyReports.regenerateCount} + 1`,
+        requestedTrigger: 'manual',
+        requestedBy: userId,
+        lastError: null,
+        generationToken: null,
+        leaseUntil: null,
+      })
+      .where(eq(weeklyReports.id, reportId))
+      .returning();
+    if (!row) throw new Error('markRegenerating: dòng đã khoá mà không cập nhật được');
+    return row;
   }
 }

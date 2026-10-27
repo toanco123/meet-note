@@ -119,16 +119,18 @@ Prefix `/v1/orgs/:orgId`.
 
 ## Reports (tag `Reports`)
 
-Prefix `/v1/orgs/:orgId/channels/:channelId/reports`.
+Prefix `/v1/orgs/:orgId/channels/:channelId/reports`. Mọi route đi qua `@RequireChannelPermission(...)` = `OrgMemberGuard → ChannelAccessGuard → ChannelPermissionGuard`. `:weekStart` là **Thứ Hai** dạng `YYYY-MM-DD` (giờ VN); ngày khác / không có thật → **400** (không phải 404 — không báo cáo nào có thể tồn tại cho giá trị đó).
 
-| Method | Path                            | Ai gọi                                  |
-| ------ | ------------------------------- | --------------------------------------- |
-| GET    | `/?cursor=`                     | Người xem được kênh                     |
-| GET    | `/:weekStart` (vd `2026-10-05`) | Người xem được kênh. Trả bản mới nhất   |
-| GET    | `/:weekStart/versions`          | Người xem được kênh                     |
-| POST   | `/:weekStart/regenerate`        | CO, CA. 409 nếu hết quota hoặc đang tạo |
+| Method | Path                            | Ai gọi                                         | Ghi chú                                                                                                                                                                                                                                                                                |
+| ------ | ------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/?cursor=&limit=`              | `channel.content.read`                         | Tuần mới nhất trước, keyset `week_start`. Mỗi dòng: `{ weekStart, status, currentVersion, regenerateCount, createdAt }` (không kèm nội dung)                                                                                                                                           |
+| GET    | `/:weekStart` (vd `2026-10-05`) | `channel.content.read`                         | `{ ..., regenerationsLeft, lastError, version }` — `version` là BẢN ĐANG HIỂN THỊ (`current_version`) kể cả khi đang tạo lại / tạo lại lỗi; `null` nếu chưa có. Chưa có báo cáo → 404 `REPORT_NOT_FOUND`                                                                               |
+| GET    | `/:weekStart/versions`          | `channel.content.read`                         | Mọi phiên bản (≤ 4: bản theo lịch + 3 lần tạo lại), mới nhất trước, đủ nội dung; không phân trang                                                                                                                                                                                      |
+| POST   | `/:weekStart/regenerate`        | `channel.report.regenerate` (CO, CA) → **202** | Về `pending`, quota +1, bản cũ vẫn hiển thị; job `weekly-report.generate…g{n}` xếp SAU commit. Đang chờ / đang tạo → 409 `REPORT_IN_PROGRESS`; đã dùng 3 lần → 409 `REPORT_REGENERATE_LIMIT`; kênh lưu trữ → 409 `CHANNEL_ARCHIVED`. `skipped` / `failed` tạo lại được (vẫn trừ quota) |
 
-Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReportEnabled }`.
+Quyền xem: thành viên kênh (mọi vai trò kể cả Khách) hoặc thành viên org với kênh công khai; **Org Owner/Admin không ở trong kênh riêng tư → 403** (D2, như `GET …/meetings` của kênh); người không thấy kênh → 404. Tạo lại: Org Owner/Admin không ở trong kênh → 403.
+
+Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReportEnabled }`. Tick theo lịch: 06 §2; chạy bù: `pnpm report:backfill --week 2026-10-05`.
 
 ## Notifications (tag `Notifications`)
 
