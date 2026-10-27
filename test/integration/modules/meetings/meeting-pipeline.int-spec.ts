@@ -22,6 +22,8 @@ import type {
   PipelineScheduler,
   PipelineStep,
 } from '../../../../src/modules/meetings/meetings.types.js';
+import { ActionItemExtractionService } from '../../../../src/modules/action-items/action-item-extraction.service.js';
+import { ActionItemsRepository } from '../../../../src/modules/action-items/action-items.repository.js';
 import { MeetingPipelineRepository } from '../../../../src/modules/meetings/repositories/meeting-pipeline.repository.js';
 import { MeetingPipelineService } from '../../../../src/modules/meetings/services/meeting-pipeline.service.js';
 import {
@@ -115,6 +117,7 @@ describe('MeetingPipelineService (Postgres + RustFS + ffmpeg thật)', () => {
       { ...OPTIONS, ...over.options },
       realtimeStub.useValue,
       new NotificationsService(new NotificationsRepository(t.db), realtimeStub.useValue),
+      new ActionItemExtractionService(new ActionItemsRepository(t.db)),
     );
     return { service, calls: rec.calls };
   }

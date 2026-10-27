@@ -1,5 +1,11 @@
 import type { ActionItemStatus } from '../../infra/database/schema/index.js';
 
+/** Thành viên org (id + tên hiển thị) — ứng viên để map tên người phụ trách. */
+export interface OrgMemberName {
+  userId: string;
+  displayName: string;
+}
+
 /** Việc AI trích ra, đã map người phụ trách (nếu map được) — đầu vào của `insertAiIfAbsent`. */
 export interface NewAiActionItem {
   /** Vị trí trong `actionItems` của tóm tắt: khoá tự nhiên, cùng meeting + cùng vị trí = cùng việc. */

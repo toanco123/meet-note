@@ -93,7 +93,7 @@ sequenceDiagram
 
   Q->>W: meeting.summarize
   W->>L: map: tóm tắt từng đoạn ~N token → reduce: tóm tắt tổng (prompt kèm NGÀY HỌP giờ VN + thứ; model quy hạn ra `dueDate`, server validate lại — M12)
-  W->>DB: UPSERT meeting_summaries; UPDATE status=completed
+  W->>DB: BEGIN; UPDATE status=completed (kiểm token); UPSERT meeting_summaries; INSERT action_items ON CONFLICT DO NOTHING; INSERT notification; COMMIT
   W->>R: emit meeting.status {completed}
   W->>Q: add notification.fanout {type: meeting.completed}
 ```
@@ -109,6 +109,7 @@ Retry & lỗi:
 - Lỗi không retry: ném `UnrecoverableError` của BullMQ.
 - Hết attempts: event `failed` đưa meeting vào `status=failed, failure_code`, emit `meeting.status`, gửi thông báo cho chủ meeting.
 - **Idempotent mọi bước — LEASE + FENCING TOKEN (M6 B4).** Job có thể chạy 2 lần (worker chết giữa chừng, job "stalled" bị chạy lại) và mỗi bước có retry. `status` là CHẶNG hiện tại (đang chờ hoặc đang chạy): preprocess xong → `transcribing`, transcribe xong → `summarizing`, summarize xong → `completed`.
+- **Action items (M12 B3):** việc cần làm được trích TRONG transaction của bước tóm tắt, sau khi `completeSummarize` xác nhận còn giữ lease — tóm tắt, `completed`, việc và thông báo cùng sống / cùng chết. Người phụ trách model nêu ("anh Bình") được map sang thành viên org bằng hàm thuần `matchAssignee`: chỉ gán khi **đúng một** người khớp (cả tên, hoặc tên gọi = từ cuối của họ tên; bỏ xưng hô), mơ hồ / không khớp thì để trống và giữ chữ gốc — **không đoán**. Chèn bằng `ON CONFLICT (meeting_id, source_index) WHERE origin = 'ai' DO NOTHING`: bước tóm tắt chạy lại không sinh trùng và không đè việc người đã sửa. Hệ quả: chạy lại tóm tắt **không** thay danh sách việc (muốn thế cần mốc "trích lại"). Tải danh sách thành viên chỉ khi có việc nêu tên người.
   - **Nhận việc** (`claim`): MỘT câu UPDATE đặt `stage_token` mới + `stage_lease_until`, CHỈ khi đúng `attempt`, chưa xoá, đúng chặng, và lease trống hoặc đã hết hạn. Hai worker cùng nhận → một bên 0 dòng → bỏ qua.
   - **Lỗi** (tạm hay vĩnh viễn) → nhả lease ngay để retry nhận lại được (bản đầu chỉ "UPDATE WHERE status = <chặng trước>": retry của BullMQ thấy status đã đổi → bỏ qua → meeting kẹt mãi).
   - **Ghi kết quả**: một transaction ngắn, chuyển chặng TRƯỚC với điều kiện `stage_token = token của mình` (fencing) — lease hết hạn và worker khác đã nhận thì 0 dòng → không ghi; rồi ghi kết quả kiểu "xoá rồi ghi" / upsert. Enqueue bước kế SAU commit.

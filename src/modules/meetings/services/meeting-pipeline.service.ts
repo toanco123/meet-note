@@ -35,6 +35,7 @@ import type {
   PipelineScheduler,
   PipelineStep,
 } from '../meetings.types.js';
+import { ActionItemExtractionService } from '../../action-items/action-item-extraction.service.js';
 import { localDate } from '../../reports/report-week.js';
 import { PIPELINE_OPTIONS, PIPELINE_SCHEDULER } from '../pipeline.tokens.js';
 import { MeetingPipelineRepository } from '../repositories/meeting-pipeline.repository.js';
@@ -72,6 +73,7 @@ export class MeetingPipelineService {
     @Inject(PIPELINE_OPTIONS) private readonly options: PipelineOptions,
     @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
     private readonly notifications: NotificationsService,
+    private readonly actionItems: ActionItemExtractionService,
   ) {}
 
   /** Tải file gốc (kiểm sha256 trong lúc tải) → probe → WAV 16 kHz mono → đẩy lên S3. */
@@ -246,6 +248,8 @@ export class MeetingPipelineService {
       return this.db.transaction(async (tx) => {
         if (!(await this.repo.completeSummarize(tx, meeting.id, meeting.stageToken))) return false;
         await this.repo.upsertSummary(tx, meeting, summary);
+        // Cùng transaction: tóm tắt + `completed` + việc cùng sống / cùng chết (M12).
+        await this.actionItems.extract(tx, meeting, summary.content.actionItems);
         // Một người nhận (chủ) → ghi TRONG transaction như M10 Q2: rollback thì không có thông báo "ma".
         return meeting.ownerId
           ? this.notifications.recordInTx(tx, [

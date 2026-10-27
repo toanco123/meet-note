@@ -11,6 +11,8 @@ import type {
   PipelineOptions,
   PipelineScheduler,
 } from '../../../../src/modules/meetings/meetings.types.js';
+import { ActionItemExtractionService } from '../../../../src/modules/action-items/action-item-extraction.service.js';
+import { ActionItemsRepository } from '../../../../src/modules/action-items/action-items.repository.js';
 import { MeetingPipelineRepository } from '../../../../src/modules/meetings/repositories/meeting-pipeline.repository.js';
 import { MeetingPipelineService } from '../../../../src/modules/meetings/services/meeting-pipeline.service.js';
 import { NotificationsRepository } from '../../../../src/modules/notifications/notifications.repository.js';
@@ -64,6 +66,7 @@ describe('MeetingPipelineService.summarize (Postgres thật, LLM giả)', () => 
       OPTIONS,
       realtimeStub.useValue,
       new NotificationsService(new NotificationsRepository(t.db), realtimeStub.useValue),
+      new ActionItemExtractionService(new ActionItemsRepository(t.db)),
     );
   }
 

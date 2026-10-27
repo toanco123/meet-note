@@ -2,10 +2,16 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../infra/database/database.types.js';
-import { type ActionItemRow, actionItems } from '../../infra/database/schema/index.js';
+import {
+  type ActionItemRow,
+  actionItems,
+  organizationMembers,
+  users,
+} from '../../infra/database/schema/index.js';
 import type {
   ActionItemPatch,
   NewAiActionItem,
+  OrgMemberName,
   UpdateActionItemOutcome,
 } from './action-items.types.js';
 
@@ -49,6 +55,20 @@ export class ActionItemsRepository {
       })
       .returning({ id: actionItems.id });
     return rows.length;
+  }
+
+  /**
+   * Tên hiển thị của MỌI thành viên org — ứng viên để map "Bình" → người. Chỉ gọi khi có việc nêu
+   * người phụ trách. Org cỡ hàng trăm người thì rẻ; org rất lớn sẽ cần tìm theo `search_text` thay vì
+   * tải hết (ghi ở plan M12).
+   */
+  listMemberNames(orgId: string, executor: DbExecutor = this.db): Promise<OrgMemberName[]> {
+    return executor
+      .select({ userId: organizationMembers.userId, displayName: users.displayName })
+      .from(organizationMembers)
+      .innerJoin(users, eq(users.id, organizationMembers.userId))
+      .where(eq(organizationMembers.orgId, orgId))
+      .orderBy(asc(organizationMembers.userId));
   }
 
   /** Việc của một meeting theo thứ tự tạo (`id` là uuidv7: tăng theo thời gian). */
