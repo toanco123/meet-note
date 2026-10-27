@@ -5771,6 +5771,117 @@
           "Action items"
         ],
         "x-paginated": true
+      },
+      "post": {
+        "description": "Chủ cuộc họp (cuộc họp không còn chủ: Owner / Admin tổ chức). Người được giao (nếu có)\nphải là thành viên tổ chức và xem được cuộc họp, không thì 422. Trả việc mới kèm `ETag`\n(`\"1\"`). Giới hạn 120 lần / phút.",
+        "operationId": "ActionItems_create",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateActionItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ActionItemResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).\n\nKhông đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).\n\nKhông tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Dùng lại `Idempotency-Key` cho một request khác (`IDEMPOTENCY_KEY_REUSED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tạo một việc thủ công cho cuộc họp.",
+        "tags": [
+          "Action items"
+        ]
       }
     },
     "/v1/orgs/{orgId}/action-items": {
@@ -5922,6 +6033,148 @@
           "Action items"
         ],
         "x-paginated": true
+      }
+    },
+    "/v1/orgs/{orgId}/action-items/{itemId}": {
+      "patch": {
+        "description": "Bắt buộc header `If-Match` mang `version` bạn đã đọc (hoặc `ETag` của lần sửa trước). Có\nngười sửa trước bạn → 412, tải lại rồi sửa tiếp; thiếu header → 428. Cần ít nhất một field.\nQuyền: chủ cuộc họp (cuộc họp không còn chủ: Owner / Admin tổ chức) sửa mọi thứ, kể cả bỏ việc\n(`status: dismissed`) và khôi phục; người được giao chỉ đổi `open` ↔ `done` (thử sửa thứ khác →\n403). Đặt `done` ghi người và lúc hoàn thành; rời `done` thì xoá. Việc đã bỏ không bị xoá khỏi\nDB, chỉ ẩn khỏi danh sách mặc định. Giới hạn 120 lần / phút.",
+        "operationId": "ActionItems_update",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Version hiện tại của việc, dạng `\"3\"` (giá trị `ETag` / `version`).",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateActionItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ActionItemResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).\n\nKhông đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).\n\nKhông tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Header `If-Match` không còn khớp version hiện tại: có người sửa trước (`TRANSCRIPT_VERSION_MISMATCH`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Dùng lại `Idempotency-Key` cho một request khác (`IDEMPOTENCY_KEY_REUSED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Thiếu header `If-Match` (`TRANSCRIPT_IF_MATCH_REQUIRED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Sửa một việc: nội dung, người được giao, hạn, trạng thái.",
+        "tags": [
+          "Action items"
+        ]
       }
     },
     "/v1/orgs/{orgId}/channels/{channelId}/reports": {
@@ -8723,6 +8976,64 @@
           "createdAt"
         ]
       },
+      "CreateActionItemDto": {
+        "type": "object",
+        "properties": {
+          "assigneeId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid",
+            "description": "Người được giao: thành viên tổ chức và xem được cuộc họp này (không thì 422). Bỏ trống = chưa giao."
+          },
+          "dueDate": {
+            "type": "string",
+            "nullable": true,
+            "description": "Hạn, `YYYY-MM-DD` (năm 2000–2099). Bỏ trống = không hạn.",
+            "example": "2026-10-30"
+          },
+          "task": {
+            "type": "string",
+            "description": "Nội dung việc (1–500 ký tự sau khi bỏ khoảng trắng hai đầu).",
+            "example": "Gửi báo giá cho khách hàng",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "task"
+        ]
+      },
+      "UpdateActionItemDto": {
+        "type": "object",
+        "properties": {
+          "assigneeId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid",
+            "description": "Người được giao mới (thành viên tổ chức xem được cuộc họp, không thì 422). `null` = bỏ giao."
+          },
+          "dueDate": {
+            "type": "string",
+            "nullable": true,
+            "description": "Hạn mới, `YYYY-MM-DD` (năm 2000–2099). `null` = bỏ hạn. Đặt hạn mới thì `dueText` (chữ gốc \"thứ sáu\") bị xoá.",
+            "example": "2026-10-30"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ActionItemStatus"
+              }
+            ]
+          },
+          "task": {
+            "type": "string",
+            "description": "Nội dung mới (1–500 ký tự sau khi bỏ khoảng trắng hai đầu).",
+            "example": "Gửi báo giá và hợp đồng cho khách hàng",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
       "ReportStatus": {
         "type": "string",
         "enum": [
@@ -8996,7 +9307,9 @@
           "channel.purged",
           "meeting.deleted",
           "meeting.retried",
-          "transcript.segment.edited"
+          "transcript.segment.edited",
+          "action_item.created",
+          "action_item.updated"
         ]
       },
       "AuditLogResponseDto": {

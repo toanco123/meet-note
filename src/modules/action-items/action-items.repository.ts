@@ -16,6 +16,7 @@ import type {
   ActionItemPatch,
   ListVisibleActionItemsParams,
   NewAiActionItem,
+  NewManualActionItem,
   OrgMemberName,
   UpdateActionItemOutcome,
 } from './action-items.types.js';
@@ -129,9 +130,65 @@ export class ActionItemsRepository {
       .limit(p.limit + 1);
   }
 
+  /** Một việc theo id (không kèm quyền xem — caller kiểm bằng meeting của nó). RLS lọc theo org. */
+  async findById(id: string, executor: DbExecutor = this.db): Promise<ActionItemRow | undefined> {
+    const [row] = await executor.select().from(actionItems).where(eq(actionItems.id, id));
+    return row;
+  }
+
+  /** Một việc kèm tên người được giao và tiêu đề meeting — dựng response sau khi ghi. */
+  async findListRow(
+    id: string,
+    executor: DbExecutor = this.db,
+  ): Promise<ActionItemListRow | undefined> {
+    const [row] = await this.withContext(executor).where(eq(actionItems.id, id));
+    return row;
+  }
+
+  /** Tạo việc tay: `version` 1 do DEFAULT, `status` `open` do DEFAULT. */
+  async insertManual(
+    item: NewManualActionItem,
+    executor: DbExecutor = this.db,
+  ): Promise<ActionItemRow> {
+    const [row] = await executor
+      .insert(actionItems)
+      .values({ ...item, origin: 'manual' })
+      .returning();
+    return row!;
+  }
+
+  /**
+   * Người này giao việc cho được không (Q5): là THÀNH VIÊN org VÀ xem được meeting. Quyền xem dùng đúng
+   * `meetingVisibleTo` (một nguồn sự thật) với vai trò THẬT của người được giao — OrgAdm xem được
+   * meeting không chủ, member thì không. Không phải thành viên → false (không phải lỗi).
+   */
+  async canBeAssigned(
+    orgId: string,
+    meetingId: string,
+    userId: string,
+    executor: DbExecutor = this.db,
+  ): Promise<boolean> {
+    const [member] = await executor
+      .select({ role: organizationMembers.role })
+      .from(organizationMembers)
+      .where(and(eq(organizationMembers.orgId, orgId), eq(organizationMembers.userId, userId)));
+    if (!member) return false;
+    const [visible] = await executor
+      .select({ id: meetings.id })
+      .from(meetings)
+      .where(
+        and(
+          eq(meetings.id, meetingId),
+          eq(meetings.orgId, orgId),
+          meetingVisibleTo({ userId, orgRole: member.role }),
+        ),
+      );
+    return visible !== undefined;
+  }
+
   /** SELECT chung: việc + tên người được giao (LEFT JOIN) + tiêu đề meeting (JOIN cùng `org_id`). */
-  private withContext() {
-    return this.db
+  private withContext(executor: DbExecutor = this.db) {
+    return executor
       .select({
         item: actionItems,
         assigneeName: users.displayName,

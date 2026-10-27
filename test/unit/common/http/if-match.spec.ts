@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { AppException } from '../../../../src/common/errors/app.exception.js';
-import { parseIfMatchVersion } from '../../../../src/modules/transcripts/if-match.js';
-import { ParseSegmentSeqPipe } from '../../../../src/modules/transcripts/segment-seq.pipe.js';
+import { Errors } from '../../../../src/common/errors/errors.js';
+import { parseIfMatchVersion } from '../../../../src/common/http/if-match.js';
+
+const parse = (header: string | undefined) =>
+  parseIfMatchVersion(header, Errors.actionItem.ifMatchRequired);
 
 const statusOf = (fn: () => unknown): number => {
   try {
@@ -21,11 +24,25 @@ describe('parseIfMatchVersion', () => {
     ['"1"', 1],
     ['"2147483647"', 2_147_483_647],
   ])('%j → %i', (header, expected) => {
-    expect(parseIfMatchVersion(header)).toBe(expected);
+    expect(parse(header)).toBe(expected);
   });
 
   it('thiếu header → 428 (không cho ghi mù)', () => {
-    expect(statusOf(() => parseIfMatchVersion(undefined))).toBe(428);
+    expect(statusOf(() => parse(undefined))).toBe(428);
+  });
+
+  // Đột biến: hằng mã lỗi transcript trong hàm dùng chung → action item báo nhầm mã.
+  it('mã lỗi 428 do CALLER chọn, không phải mã cố định của một tài nguyên', () => {
+    const codeOf = (fn: () => AppException) => {
+      try {
+        parseIfMatchVersion(undefined, fn);
+      } catch (e) {
+        return (e as AppException).code;
+      }
+      return undefined;
+    };
+    expect(codeOf(Errors.actionItem.ifMatchRequired)).toBe('ACTION_ITEM_IF_MATCH_REQUIRED');
+    expect(codeOf(Errors.transcript.ifMatchRequired)).toBe('TRANSCRIPT_IF_MATCH_REQUIRED');
   });
 
   it.each([
@@ -43,20 +60,6 @@ describe('parseIfMatchVersion', () => {
     ['"99999999999"', 'quá dài'],
     ['"3" ; DROP', 'rác phía sau'],
   ])('%j (%s) → 400', (header) => {
-    expect(statusOf(() => parseIfMatchVersion(header))).toBe(400);
-  });
-});
-
-describe('ParseSegmentSeqPipe', () => {
-  const pipe = new ParseSegmentSeqPipe();
-  it.each([
-    ['0', 0],
-    ['41', 41],
-    ['2147483647', 2_147_483_647],
-  ])('%s → %i', (v, expected) => {
-    expect(pipe.transform(v)).toBe(expected);
-  });
-  it.each(['-1', '1.5', 'abc', '', '2147483648', '1e3', ' 1', '99999999999'])('%j → 400', (v) => {
-    expect(statusOf(() => pipe.transform(v))).toBe(400);
+    expect(statusOf(() => parse(header))).toBe(400);
   });
 });

@@ -26,6 +26,19 @@ export interface ActionItemPatch {
   status?: ActionItemStatus;
 }
 
+/** Việc tạo tay (`origin = 'manual'`): không có `source_index`, `owner_name`, `due_text`. */
+export interface NewManualActionItem {
+  orgId: string;
+  meetingId: string;
+  task: string;
+  assigneeId: string | null;
+  dueDate: string | null;
+  createdBy: string;
+}
+
+/** Quyết định của `decideActionItemWrite` (M12 Q6). */
+export type ActionItemWriteDecision = 'ok' | 'forbidden';
+
 /** Kết quả sửa bằng khoá lạc quan — cùng hình dạng với `EditSegmentOutcome` (M13). */
 export type UpdateActionItemOutcome<Row> =
   | { kind: 'updated'; item: Row }

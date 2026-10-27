@@ -14,6 +14,8 @@ import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import type { AuthUser } from '../../common/auth/auth.types.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
+import { Errors } from '../../common/errors/errors.js';
+import { IfMatchVersion } from '../../common/http/if-match.js';
 import type { Page } from '../../common/pagination/pagination.types.js';
 import { ApiErrorResponses } from '../../common/swagger/api-error-responses.decorator.js';
 import { ApiPaginatedResponse } from '../../common/swagger/api-paginated-response.decorator.js';
@@ -26,7 +28,6 @@ import { UserAuditCtx } from '../audit/audit-context.decorator.js';
 import type { UserAuditContext } from '../audit/audit.types.js';
 import { TranscriptSegmentResponseDto } from '../meetings/dto/meeting-transcript.dto.js';
 import { EditSegmentDto } from './dto/edit-segment.dto.js';
-import { IfMatchVersion } from './if-match.js';
 import { ParseSegmentSeqPipe } from './segment-seq.pipe.js';
 import { ExportTranscriptQueryDto } from './dto/export-transcript-query.dto.js';
 import { SearchTranscriptsQueryDto } from './dto/search-transcripts-query.dto.js';
@@ -114,7 +115,7 @@ export class TranscriptsController {
     @UserAuditCtx() ctx: UserAuditContext,
     @Param('meetingId', ParseUUIDPipe) meetingId: string,
     @Param('seq', ParseSegmentSeqPipe) seq: number,
-    @IfMatchVersion() expectedVersion: number,
+    @IfMatchVersion(Errors.transcript.ifMatchRequired) expectedVersion: number,
     @Body() dto: EditSegmentDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<TranscriptSegmentResponseDto> {

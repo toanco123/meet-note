@@ -30,4 +30,6 @@ export const RateLimit = {
   transcriptExport: { default: { limit: 30, ttl: MINUTE } },
   /** Sửa tay từng đoạn: nhiều lần liên tiếp là bình thường, nhưng vẫn có trần (M13 Q8). */
   transcriptEdit: { default: { limit: 120, ttl: MINUTE } },
+  /** Tạo / sửa việc cần làm (M12): thao tác tay lẻ tẻ, trần rộng. */
+  actionItemWrite: { default: { limit: 120, ttl: MINUTE } },
 } as const;
