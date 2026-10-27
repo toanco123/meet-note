@@ -1,7 +1,7 @@
 import type { MeetingSummaryContent, SummaryInput } from './llm.types.js';
 
 /** Đổi prompt / schema → tăng phiên bản (lưu ở `meeting_summaries.prompt_version`). */
-export const PROMPT_VERSION = 'v1';
+export const PROMPT_VERSION = 'v2';
 
 /**
  * JSON Schema cho structured outputs (`output_config.format`). Giới hạn của API: mọi object phải có
@@ -22,11 +22,16 @@ export const SUMMARY_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['owner', 'task', 'due'],
+        required: ['owner', 'task', 'due', 'dueDate'],
         properties: {
           owner: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Người nhận việc.' },
           task: { type: 'string' },
           due: { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'Hạn như được nói.' },
+          dueDate: {
+            anyOf: [{ type: 'string' }, { type: 'null' }],
+            description:
+              'Hạn quy ra ngày YYYY-MM-DD theo ngày họp; null nếu không có hạn đủ rõ để chỉ ra một ngày.',
+          },
         },
       },
     },
@@ -38,7 +43,52 @@ export const SYSTEM_PROMPT = `Bạn tóm tắt biên bản cuộc họp từ tra
 - Chỉ dựa vào transcript, không thêm thông tin bên ngoài. Transcript có thể sai chính tả vì nhận dạng tự động: sửa khi ngữ cảnh đã rõ, không chắc thì giữ nguyên.
 - decisions chỉ gồm điều đã thực sự được chốt; ý kiến chưa thống nhất đưa vào keyPoints.
 - actionItems: owner là tên người được giao nếu transcript nói rõ, ngược lại null; due là thời hạn đúng như được nói (vd "thứ sáu"), không có thì null.
+- dueDate là hạn của due quy ra ngày YYYY-MM-DD, tính từ NGÀY HỌP được cho ở đầu yêu cầu (giờ Việt Nam). "Thứ sáu" là thứ sáu SẮP TỚI gần nhất, không phải ngày đã qua; "hôm nay" là chính ngày họp. Hạn mơ hồ ("sớm", "cuối quý", "khi nào xong") hoặc không có hạn thì dueDate là null — không đoán.
 - Không có mục nào thì để mảng rỗng.`;
+
+const VN_WEEKDAYS = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+const MS_PER_DAY = 86_400_000;
+
+/** `YYYY-MM-DD` → mili giây UTC nửa đêm; `undefined` nếu không phải ngày thật (30/2, 2026-13-01…). */
+function dayMillis(date: string): number | undefined {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return undefined;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const ms = Date.UTC(y, mo - 1, d);
+  const back = new Date(ms);
+  // Date.UTC "cuốn" ngày vượt tháng (02-30 → 03-02) → so lại để từ chối.
+  return back.getUTCFullYear() === y && back.getUTCMonth() === mo - 1 && back.getUTCDate() === d
+    ? ms
+    : undefined;
+}
+
+/**
+ * Dòng đầu của yêu cầu: ngày họp kèm THỨ — model quy "thứ sáu" ra ngày dễ sai nếu phải tự tính thứ
+ * của một ngày ISO, nên đưa sẵn.
+ */
+export function describeMeetingDate(meetingDate: string): string {
+  const ms = dayMillis(meetingDate);
+  if (ms === undefined) return `Ngày họp: ${meetingDate} (giờ Việt Nam).`;
+  return `Ngày họp: ${VN_WEEKDAYS[new Date(ms).getUTCDay()]}, ${meetingDate} (giờ Việt Nam).`;
+}
+
+/** Hạn cho phép: từ 1 ngày TRƯỚC ngày họp (nói "hôm qua đã gửi") đến 2 năm sau. */
+const DUE_BEFORE_DAYS = 1;
+const DUE_AFTER_DAYS = 730;
+
+/**
+ * Kiểm LẠI `dueDate` model trả (M12 Q2): sai dạng, không phải ngày thật, hoặc ngoài khoảng hợp lý quanh
+ * ngày họp (model quy nhầm năm: "2024-…") → `null`, KHÔNG làm hỏng cả bản tóm tắt. Một hạn sai chỉ
+ * mất một trường; `due` chữ gốc vẫn còn để người đọc.
+ */
+export function resolveDueDate(value: unknown, meetingDate: string): string | null {
+  if (typeof value !== 'string') return null;
+  const due = dayMillis(value);
+  const base = dayMillis(meetingDate);
+  if (due === undefined || base === undefined) return null;
+  const days = (due - base) / MS_PER_DAY;
+  return days >= -DUE_BEFORE_DAYS && days <= DUE_AFTER_DAYS ? value : null;
+}
 
 /** `[mm:ss] câu nói` từng dòng — mốc thời gian giúp model gom ý theo diễn biến cuộc họp. */
 export function formatTranscript(segments: SummaryInput['segments']): string[] {
@@ -70,7 +120,10 @@ export function chunkLines(lines: string[], maxChars: number): string[] {
  * Kiểm LẠI ở server (plan M6): structured outputs bảo đảm đúng hình dạng khi model trả lời bình
  * thường, nhưng refusal / cắt `max_tokens` / API khác hành vi thì không. Sai → `null`.
  */
-export function parseSummaryContent(raw: string): MeetingSummaryContent | null {
+export function parseSummaryContent(
+  raw: string,
+  meetingDate: string,
+): MeetingSummaryContent | null {
   let value: unknown;
   try {
     value = JSON.parse(raw);
@@ -86,7 +139,14 @@ export function parseSummaryContent(raw: string): MeetingSummaryContent | null {
     overview: v.overview,
     keyPoints: v.keyPoints,
     decisions: v.decisions,
-    actionItems: v.actionItems,
+    // `isActionItems` đã bảo đảm hình dạng; `dueDate` tách riêng vì model có thể trả sai mà phần còn
+    // lại vẫn đúng (xem `resolveDueDate`), và tóm tắt cũ / model bỏ sót thì coi là không có hạn.
+    actionItems: v.actionItems.map((item) => ({
+      owner: item.owner,
+      task: item.task,
+      due: item.due,
+      dueDate: resolveDueDate((item as { dueDate?: unknown }).dueDate, meetingDate),
+    })),
   };
 }
 

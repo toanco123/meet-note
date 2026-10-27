@@ -35,6 +35,7 @@ import type {
   PipelineScheduler,
   PipelineStep,
 } from '../meetings.types.js';
+import { localDate } from '../../reports/report-week.js';
 import { PIPELINE_OPTIONS, PIPELINE_SCHEDULER } from '../pipeline.tokens.js';
 import { MeetingPipelineRepository } from '../repositories/meeting-pipeline.repository.js';
 
@@ -222,7 +223,14 @@ export class MeetingPipelineService {
               outputTokens: 0,
             }
           : await this.summarizer
-              .summarize({ meetingTitle: meeting.title, segments }, { signal: run.signal })
+              .summarize(
+                {
+                  meetingTitle: meeting.title,
+                  meetingDate: localDate(meeting.recordedAt),
+                  segments,
+                },
+                { signal: run.signal },
+              )
               .catch((error: unknown) => {
                 if (error instanceof LlmPermanentError) {
                   throw new PermanentPipelineError(

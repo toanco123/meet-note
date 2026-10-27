@@ -8048,6 +8048,12 @@
             "nullable": true,
             "description": "Hạn như được nói, vd \"thứ sáu\"."
           },
+          "dueDate": {
+            "type": "string",
+            "nullable": true,
+            "description": "Hạn đã quy ra ngày (YYYY-MM-DD, theo ngày họp). null nếu không có hạn rõ ràng hoặc tóm tắt tạo bằng phiên bản prompt cũ.",
+            "example": "2026-10-30"
+          },
           "task": {
             "type": "string",
             "example": "Chuẩn bị ngân sách marketing"
@@ -8056,6 +8062,7 @@
         "required": [
           "owner",
           "due",
+          "dueDate",
           "task"
         ]
       },
@@ -8091,7 +8098,7 @@
           },
           "promptVersion": {
             "type": "string",
-            "example": "v1"
+            "example": "v2"
           },
           "createdAt": {
             "type": "string",

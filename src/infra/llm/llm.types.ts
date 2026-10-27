@@ -5,6 +5,11 @@ export interface Summarizer {
 
 export interface SummaryInput {
   meetingTitle: string;
+  /**
+   * Ngày họp theo giờ Việt Nam, 'YYYY-MM-DD' (M12 Q2). Model quy "thứ sáu" / "tuần sau" ra ngày cụ thể
+   * từ mốc này; server validate lại kết quả theo cùng mốc.
+   */
+  meetingDate: string;
   segments: Array<{ startMs: number; text: string }>;
 }
 
@@ -12,12 +17,27 @@ export interface SummarizeOptions {
   signal?: AbortSignal;
 }
 
+/** Việc cần làm trong báo cáo tuần (M9): chữ như model nêu, KHÔNG có ngày đã quy. */
+export interface ReportActionItem {
+  owner: string | null;
+  task: string;
+  due: string | null;
+}
+
+/**
+ * Việc cần làm trong tóm tắt meeting. `dueDate` ('YYYY-MM-DD') thêm từ prompt `v2` (M12); tóm tắt `v1`
+ * đã lưu không có field này — đọc bằng `?? null`.
+ */
+export interface SummaryActionItem extends ReportActionItem {
+  dueDate: string | null;
+}
+
 /** Nội dung lưu ở `meeting_summaries.content` (03 §4). */
 export interface MeetingSummaryContent {
   overview: string;
   keyPoints: string[];
   decisions: string[];
-  actionItems: Array<{ owner: string | null; task: string; due: string | null }>;
+  actionItems: SummaryActionItem[];
 }
 
 export interface SummaryResult {
@@ -50,6 +70,8 @@ export interface FakeSummarizerOptions {
   failTimes?: number;
   /** Luôn ném lỗi VĨNH VIỄN. */
   permanentFailure?: boolean;
+  /** Việc cần làm `FakeSummarizer` trả về (mặc định rỗng) — để test trích action item (M12). */
+  actionItems?: SummaryActionItem[];
 }
 
 /** Viết báo cáo tuần của một kênh từ TÓM TẮT các meeting trong tuần (M9). */
@@ -78,7 +100,7 @@ export interface WeeklyReportBody {
   overview: string;
   highlights: string[];
   decisions: string[];
-  actionItems: Array<{ owner: string | null; task: string; due: string | null }>;
+  actionItems: ReportActionItem[];
 }
 
 export interface ReportResult {

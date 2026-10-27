@@ -92,7 +92,7 @@ sequenceDiagram
   W->>Q: add meeting.summarize
 
   Q->>W: meeting.summarize
-  W->>L: map: tóm tắt từng đoạn ~N token → reduce: tóm tắt tổng
+  W->>L: map: tóm tắt từng đoạn ~N token → reduce: tóm tắt tổng (prompt kèm NGÀY HỌP giờ VN + thứ; model quy hạn ra `dueDate`, server validate lại — M12)
   W->>DB: UPSERT meeting_summaries; UPDATE status=completed
   W->>R: emit meeting.status {completed}
   W->>Q: add notification.fanout {type: meeting.completed}

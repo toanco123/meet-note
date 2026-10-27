@@ -28,7 +28,7 @@ const input = (title = 'Giao ban'): ReportInput => ({
         overview: 'Họp ngân sách.',
         keyPoints: ['a'],
         decisions: ['Chốt ngân sách'],
-        actionItems: [{ owner: 'An', task: 'Gửi báo giá', due: 'thứ sáu' }],
+        actionItems: [{ owner: 'An', task: 'Gửi báo giá', due: 'thứ sáu', dueDate: null }],
       },
     },
     {

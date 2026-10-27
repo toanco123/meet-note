@@ -11,6 +11,7 @@ import type {
 } from './llm.types.js';
 import {
   chunkLines,
+  describeMeetingDate,
   formatTranscript,
   parseSummaryContent,
   PROMPT_VERSION,
@@ -31,9 +32,10 @@ export class AnthropicSummarizer implements Summarizer {
 
   async summarize(input: SummaryInput, options: SummarizeOptions = {}): Promise<SummaryResult> {
     const chunks = chunkLines(formatTranscript(input.segments), this.options.chunkChars);
+    const when = describeMeetingDate(input.meetingDate);
     const usage = { input: 0, output: 0, model: this.options.model };
     const call = async (prompt: string) => {
-      const result = await this.request(prompt, options.signal);
+      const result = await this.request(prompt, input.meetingDate, options.signal);
       usage.input += result.inputTokens;
       usage.output += result.outputTokens;
       usage.model = result.model;
@@ -43,7 +45,7 @@ export class AnthropicSummarizer implements Summarizer {
     let content: MeetingSummaryContent;
     if (chunks.length <= 1) {
       content = await call(
-        `Cuộc họp: "${input.meetingTitle}".\n\nTranscript:\n${chunks[0] ?? '(trống)'}`,
+        `Cuộc họp: "${input.meetingTitle}". ${when}\n\nTranscript:\n${chunks[0] ?? '(trống)'}`,
       );
     } else {
       // MAP: tóm tắt từng phần (tuần tự — vài phần, không cần song song và tránh đụng rate limit).
@@ -51,13 +53,13 @@ export class AnthropicSummarizer implements Summarizer {
       for (const [i, chunk] of chunks.entries()) {
         partials.push(
           await call(
-            `Cuộc họp: "${input.meetingTitle}". Đây là PHẦN ${i + 1}/${chunks.length} của transcript — chỉ tóm tắt phần này.\n\nTranscript:\n${chunk}`,
+            `Cuộc họp: "${input.meetingTitle}". ${when} Đây là PHẦN ${i + 1}/${chunks.length} của transcript — chỉ tóm tắt phần này.\n\nTranscript:\n${chunk}`,
           ),
         );
       }
       // REDUCE: gộp các bản tóm tắt phần thành một (bỏ trùng, giữ thứ tự diễn biến).
       content = await call(
-        `Cuộc họp: "${input.meetingTitle}". Dưới đây là tóm tắt của ${partials.length} phần liên tiếp. Gộp thành MỘT bản tóm tắt cho cả cuộc họp: bỏ trùng lặp, giữ thứ tự diễn biến.\n\n${JSON.stringify(partials)}`,
+        `Cuộc họp: "${input.meetingTitle}". ${when} Dưới đây là tóm tắt của ${partials.length} phần liên tiếp. Gộp thành MỘT bản tóm tắt cho cả cuộc họp: bỏ trùng lặp, giữ thứ tự diễn biến.\n\n${JSON.stringify(partials)}`,
       );
     }
     return {
@@ -69,7 +71,7 @@ export class AnthropicSummarizer implements Summarizer {
     };
   }
 
-  private async request(prompt: string, signal?: AbortSignal) {
+  private async request(prompt: string, meetingDate: string, signal?: AbortSignal) {
     const response = await structuredRequest(this.client, {
       model: this.options.model,
       effort: this.options.effort,
@@ -78,7 +80,7 @@ export class AnthropicSummarizer implements Summarizer {
       schema: SUMMARY_SCHEMA,
       signal,
     });
-    const content = parseSummaryContent(response.text);
+    const content = parseSummaryContent(response.text, meetingDate);
     if (!content) throw new LlmTransientError('kết quả không đúng schema');
     return {
       content,

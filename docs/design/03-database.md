@@ -333,7 +333,7 @@ Search: `search @@ websearch_to_tsquery('meetnote_vi', $q)`, highlight bằng `t
 
 ### `meeting_summaries`
 
-meeting_id PK, org_id (composite FK `meeting_summaries_meeting_fk` → `meetings(id, org_id)` ON DELETE CASCADE, **RLS** theo `org_id`), content jsonb (`{ overview, keyPoints[], decisions[], actionItems[{ owner, task, due }] }`), model, prompt_version, input_tokens, output_tokens (CHECK ≥ 0), created_at. Upsert theo `meeting_id` (M6, migration `0013`).
+meeting_id PK, org_id (composite FK `meeting_summaries_meeting_fk` → `meetings(id, org_id)` ON DELETE CASCADE, **RLS** theo `org_id`), content jsonb (`{ overview, keyPoints[], decisions[], actionItems[{ owner, task, due, dueDate }] }`; `dueDate` 'YYYY-MM-DD' hoặc null, từ prompt `v2` (M12) — tóm tắt `v1` đã lưu không có field này, đọc bằng `?? null`), model, prompt_version, input_tokens, output_tokens (CHECK ≥ 0), created_at. Upsert theo `meeting_id` (M6, migration `0013`).
 
 ### `action_items` (M12)
 

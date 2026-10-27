@@ -63,6 +63,7 @@ export class MeetingPipelineRepository {
         sourceObjectKey: meetings.sourceObjectKey,
         audioObjectKey: meetings.audioObjectKey,
         durationMs: meetings.durationMs,
+        recordedAt: meetings.recordedAt,
         attempt: meetings.attempt,
         stageToken: meetings.stageToken,
       });

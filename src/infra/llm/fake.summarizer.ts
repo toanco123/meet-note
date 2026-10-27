@@ -10,11 +10,14 @@ import { PROMPT_VERSION } from './summary-format.js';
 /** Tóm tắt giả (mặc định `LLM_PROVIDER=fake`, M6 Q2): không gọi mạng, kết quả suy ra từ transcript. */
 export class FakeSummarizer implements Summarizer {
   calls = 0;
+  /** Đầu vào của lần gọi gần nhất — test kiểm pipeline truyền gì (vd ngày họp, M12). */
+  lastInput: SummaryInput | undefined;
 
   constructor(private readonly options: FakeSummarizerOptions = {}) {}
 
   async summarize(input: SummaryInput): Promise<SummaryResult> {
     this.calls++;
+    this.lastInput = input;
     if (this.options.permanentFailure) throw new LlmPermanentError('lỗi giả vĩnh viễn');
     if (this.calls <= (this.options.failTimes ?? 0)) {
       throw new LlmTransientError(`lỗi giả lần ${this.calls}`);
@@ -24,7 +27,7 @@ export class FakeSummarizer implements Summarizer {
         overview: `Cuộc họp "${input.meetingTitle}" (${input.segments.length} đoạn).`,
         keyPoints: input.segments.slice(0, 3).map((s) => s.text),
         decisions: [],
-        actionItems: [],
+        actionItems: (this.options.actionItems ?? []).map((item) => ({ ...item })),
       },
       model: 'fake',
       promptVersion: PROMPT_VERSION,

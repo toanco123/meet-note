@@ -28,7 +28,9 @@ export class FakeReportWriter implements ReportWriter {
         overview: `Tuần ${input.weekStart} của kênh "${input.channelName}": ${input.meetings.length} cuộc họp.`,
         highlights: summaries.map((s) => s.overview),
         decisions: summaries.flatMap((s) => s.decisions),
-        actionItems: summaries.flatMap((s) => s.actionItems),
+        actionItems: summaries.flatMap((s) =>
+          s.actionItems.map(({ owner, task, due }) => ({ owner, task, due })),
+        ),
       },
       model: 'fake',
       promptVersion: REPORT_PROMPT_VERSION,

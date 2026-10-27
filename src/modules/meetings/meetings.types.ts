@@ -118,6 +118,8 @@ export interface ClaimedMeeting {
   sourceObjectKey: string;
   audioObjectKey: string | null;
   durationMs: number | null;
+  /** Ngày họp (để tóm tắt quy hạn "thứ sáu" ra ngày, M12). */
+  recordedAt: Date;
   attempt: number;
   stageToken: string;
 }
