@@ -24,7 +24,7 @@ describe('safeFileBase', () => {
 
   it('cắt 80 ký tự Unicode, không cắt giữa cặp thay thế (emoji)', () => {
     const out = safeFileBase('😀'.repeat(100), ID);
-    expect([...out]).toHaveLength(80);
+    expect(Array.from(out)).toHaveLength(80);
     expect(out).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/); // không có nửa cặp mồ côi
   });
 });

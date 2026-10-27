@@ -54,6 +54,11 @@ export const ErrorCode = {
   MeetingNotCompleted: 'MEETING_NOT_COMPLETED',
   MeetingNotFailed: 'MEETING_NOT_FAILED',
 
+  // M9 — Báo cáo tuần
+  ReportNotFound: 'REPORT_NOT_FOUND',
+  ReportInProgress: 'REPORT_IN_PROGRESS',
+  ReportRegenerateLimit: 'REPORT_REGENERATE_LIMIT',
+
   // M5 — Idempotency-Key (dùng chung cho mọi route `@Idempotent()`)
   IdempotencyKeyReused: 'IDEMPOTENCY_KEY_REUSED',
   IdempotencyInProgress: 'IDEMPOTENCY_IN_PROGRESS',

@@ -50,6 +50,15 @@ export interface NotificationPayloads {
     meetingTitle: string;
     failureCode: MeetingFailureCode;
   };
+  /** Báo cáo tuần xong (M9 Q7): theo lịch → thành viên kênh trừ Khách; tạo lại thủ công → người bấm. */
+  'report.ready': {
+    reportId: string;
+    channelId: string;
+    channelName: string;
+    /** Thứ Hai của tuần, 'YYYY-MM-DD'. */
+    weekStart: string;
+    version: number;
+  };
 }
 
 /** Một thông báo chuẩn bị ghi — kiểu `payload` đi theo `type`. */
@@ -88,4 +97,19 @@ export interface FanoutRecipientsParams {
   /** Keyset: `user_id` cuối của lô trước. */
   afterUserId: string | null;
   limit: number;
+}
+
+/** Một lô người nhận "báo cáo tuần xong" (M9 B7): thành viên kênh trừ Khách, keyset `user_id`. */
+export interface ReportRecipientsParams {
+  channelId: string;
+  afterUserId: string | null;
+  limit: number;
+}
+
+/** Báo cáo + phiên bản còn "sống" lúc job fan-out chạy. */
+export interface LiveReportVersion {
+  orgId: string;
+  channelId: string;
+  channelName: string;
+  weekStart: string;
 }

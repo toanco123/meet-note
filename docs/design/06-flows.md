@@ -144,15 +144,15 @@ sequenceDiagram
     W->>DB: đọc summaries của các meeting
     W->>L: tổng hợp báo cáo
     W->>DB: BEGIN; INSERT versions (version = n); UPDATE reports SET status=completed, current_version=n; COMMIT
-    W->>Q: notification.fanout (thành viên kênh trừ Guest, dedupe_key=report:{id}:v{n})
+    W->>Q: notification.fanout (thành viên kênh trừ Guest, dedupe_key=report-ready.{id}.v{n}) — CHỈ bản theo lịch
   end
 ```
 
 Điểm cần chú ý:
 
 - **Múi giờ.** Cron với `tz` để BullMQ tính đúng 08:00 giờ VN. Khoảng tuần trong SQL: `recorded_at >= ($weekStart::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')`. Không dùng `date_trunc('week', now())`, vì nó chạy theo timezone của session DB.
-- **Tick idempotent.** Tick chạy 2 lần thì `ON CONFLICT DO NOTHING` + `jobId` cố định nên không tạo trùng. Tick chỉ "fan-out" ra job nhỏ, không gọi LLM trực tiếp. Một kênh lỗi không làm hỏng các kênh khác.
-- **Retry AI:** `attempts: 5, backoff: exponential`. Hết lượt thì `status=failed`, `last_error`. Không tính vào quota tạo lại.
+- **Tick idempotent (M9 B5).** Hai pha: (1) `INSERT … SELECT` từ `channels` theo lô keyset (`ON CONFLICT (channel_id, week_start) DO NOTHING`), (2) xếp job `generate` cho **MỌI dòng `pending` của tuần** (không chỉ dòng vừa chèn: tick trước có thể đã chèn rồi chết trước khi enqueue) với `jobId = weekly-report.generate.{id}.g{generation}` cố định nên trùng thì BullMQ bỏ qua. Tick chỉ "fan-out", không gọi LLM. Một job enqueue lỗi không chặn kênh khác; cuối tick ném lỗi để BullMQ chạy lại tick (idempotent → chỉ làm phần thiếu). `weekStart` suy từ MỐC LỊCH BẮN (`job.timestamp + job.delay`), không từ lúc xử lý.
+- **Retry AI:** `attempts: 5, backoff: exponential` từ 30 s. Lỗi vĩnh viễn (LLM từ chối / 4xx) → `failed` ngay, không retry. Hết lượt → `status=failed`, `last_error`; `current_version` giữ nguyên (người xem vẫn thấy bản cũ). Không tính vào quota tạo lại. **Máy trạng thái = lease + fencing token** (`generation_token`, `lease_until`, như meeting M6): `claim` nhận `pending`, hoặc `generating` có lease trống / hết hạn, và đúng `generation` (= `regenerate_count` lúc enqueue); lỗi tạm thì nhả lease nên retry nhận lại ngay. Không dùng `UPDATE … WHERE status IN (pending, failed)` như bản thiết kế đầu: retry thấy `generating` do chính lần thử trước để lại → kẹt mãi.
 - **Tạo lại thủ công** (`POST …/regenerate`):
   1. `BEGIN; SELECT … FOR UPDATE`.
   2. `status = generating` thì 409 `REPORT_IN_PROGRESS`. `regenerate_count >= 3` thì 409 `REPORT_REGENERATE_LIMIT`.
@@ -161,7 +161,9 @@ sequenceDiagram
 
   Tạo lại tính lại danh sách meeting từ đầu, nên meeting xong muộn cũng được đưa vào.
 
-- **Lỡ lịch.** Redis down đúng lúc 08:00 thì tick bị lỡ. Thêm endpoint/CLI admin `report:backfill --week 2026-10-05` để chạy bù. Vì idempotent nên chạy thừa cũng an toàn.
+- **Lỡ lịch.** Redis down đúng lúc 08:00 thì tick bị lỡ. Chạy bù bằng `pnpm report:backfill --week 2026-10-05` (script xếp một job `weekly-report.tick` có `weekStart` tường minh; không có endpoint admin vì dự án chưa có khái niệm quản trị hệ thống). Idempotent nên chạy thừa an toàn; script thất bại nhanh (≈ 2 s) với thông báo rõ nếu Redis không chạy. Báo cáo `pending` mất job / `generating` hết lease được job quét 5 phút xếp lại (B7).
+- **Thông báo (M9 B7, Q7).** Bản THEO LỊCH: sau commit xếp MỘT job `notification.fanout` (`report-ready.{id}.v{n}`) → worker gửi theo lô cho thành viên kênh trừ Khách, `dedupe_key` chặn trùng khi chạy lại. Bản TẠO LẠI thủ công: chỉ người bấm (họ đang chờ; cả kênh nhận thêm tối đa 3 thông báo mỗi tuần là ồn), ghi TRONG transaction của phiên bản — rollback thì không có thông báo "ma" — và chỉ khi người đó CÒN là thành viên tổ chức (`FOR SHARE` dòng thành viên): thông báo có composite FK tới thành viên, người đã rời mà vẫn `INSERT` thì lỗi `23503` rollback cả phiên bản và báo cáo không bao giờ xong. `skipped` / job trùng / mất lease không thông báo. Enqueue fan-out lỗi chỉ log (phiên bản đã commit, báo cáo vẫn đọc được).
+- **Quét báo cáo kẹt (M9 B7, mỗi 5 phút).** Báo cáo `pending` / `generating` lâu không đổi (> 10 phút) và không ai giữ lease: nếu job thường `…g{generation}` còn sống (chờ / chờ retry / đang chạy) thì để yên, không thì xếp lại với jobId riêng `…g{generation}.r{updated_at µs}` (cùng bài học M6 B8: job cũ đã completed còn giữ sẽ nuốt `add()`). Chỉ bảo đảm tiến triển — đúng đắn vẫn ở `claim` (lease + `generation`).
 
 ## 3. Chuyển quyền chủ kênh
 

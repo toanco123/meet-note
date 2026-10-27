@@ -44,6 +44,8 @@ const MATRIX: Array<[ChannelPermission, boolean[], boolean[]]> = [
   ['channel.archive', [T, F, F, F, F, T], [T, F, F, F, F, T]],
   ['channel.delete', [T, F, F, F, F, T], [T, F, F, F, F, T]],
   ['channel.meeting.share', [T, T, T, F, F, F], [T, T, T, F, F, F]],
+  // Tạo lại báo cáo tuần (M9): CO, CA; OrgAdm không ở trong kênh thì không (04 §2).
+  ['channel.report.regenerate', [T, T, F, F, F, F], [T, T, F, F, F, F]],
 ];
 const ORDER: Actor[] = ['CO', 'CA', 'CM', 'G', 'OUT', 'ORGADM'];
 
@@ -81,6 +83,7 @@ describe('channelPolicy — ma trận §2', () => {
       'channel.member.remove',
       'channel.member.role.change',
       'channel.ownership.transfer',
+      'channel.report.regenerate',
       'channel.update',
     ]);
   });

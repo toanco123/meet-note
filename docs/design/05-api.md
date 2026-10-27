@@ -119,16 +119,18 @@ Prefix `/v1/orgs/:orgId`.
 
 ## Reports (tag `Reports`)
 
-Prefix `/v1/orgs/:orgId/channels/:channelId/reports`.
+Prefix `/v1/orgs/:orgId/channels/:channelId/reports`. Mọi route đi qua `@RequireChannelPermission(...)` = `OrgMemberGuard → ChannelAccessGuard → ChannelPermissionGuard`. `:weekStart` là **Thứ Hai** dạng `YYYY-MM-DD` (giờ VN); ngày khác / không có thật → **400** (không phải 404 — không báo cáo nào có thể tồn tại cho giá trị đó).
 
-| Method | Path                            | Ai gọi                                  |
-| ------ | ------------------------------- | --------------------------------------- |
-| GET    | `/?cursor=`                     | Người xem được kênh                     |
-| GET    | `/:weekStart` (vd `2026-10-05`) | Người xem được kênh. Trả bản mới nhất   |
-| GET    | `/:weekStart/versions`          | Người xem được kênh                     |
-| POST   | `/:weekStart/regenerate`        | CO, CA. 409 nếu hết quota hoặc đang tạo |
+| Method | Path                            | Ai gọi                                         | Ghi chú                                                                                                                                                                                                                                                                                |
+| ------ | ------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/?cursor=&limit=`              | `channel.content.read`                         | Tuần mới nhất trước, keyset `week_start`. Mỗi dòng: `{ weekStart, status, currentVersion, regenerateCount, createdAt }` (không kèm nội dung)                                                                                                                                           |
+| GET    | `/:weekStart` (vd `2026-10-05`) | `channel.content.read`                         | `{ ..., regenerationsLeft, lastError, version }` — `version` là BẢN ĐANG HIỂN THỊ (`current_version`) kể cả khi đang tạo lại / tạo lại lỗi; `null` nếu chưa có. Chưa có báo cáo → 404 `REPORT_NOT_FOUND`                                                                               |
+| GET    | `/:weekStart/versions`          | `channel.content.read`                         | Mọi phiên bản (≤ 4: bản theo lịch + 3 lần tạo lại), mới nhất trước, đủ nội dung; không phân trang                                                                                                                                                                                      |
+| POST   | `/:weekStart/regenerate`        | `channel.report.regenerate` (CO, CA) → **202** | Về `pending`, quota +1, bản cũ vẫn hiển thị; job `weekly-report.generate…g{n}` xếp SAU commit. Đang chờ / đang tạo → 409 `REPORT_IN_PROGRESS`; đã dùng 3 lần → 409 `REPORT_REGENERATE_LIMIT`; kênh lưu trữ → 409 `CHANNEL_ARCHIVED`. `skipped` / `failed` tạo lại được (vẫn trừ quota) |
 
-Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReportEnabled }`.
+Quyền xem: thành viên kênh (mọi vai trò kể cả Khách) hoặc thành viên org với kênh công khai; **Org Owner/Admin không ở trong kênh riêng tư → 403** (D2, như `GET …/meetings` của kênh); người không thấy kênh → 404. Tạo lại: Org Owner/Admin không ở trong kênh → 403.
+
+Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReportEnabled }`. Tick theo lịch: 06 §2; chạy bù: `pnpm report:backfill --week 2026-10-05`.
 
 ## Notifications (tag `Notifications`)
 
@@ -142,14 +144,15 @@ Bật/tắt báo cáo: `PATCH /v1/orgs/:orgId/channels/:channelId { weeklyReport
 
 **Loại thông báo (M10)** — `payload` là id + tên lúc tạo:
 
-| `type`                          | Người nhận                                              | `payload`                                                                                                  |
-| ------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `channel.member_added`          | người được thêm vào kênh                                | `channelId, channelName, role, actorId, actorName`                                                         |
-| `channel.ownership_transferred` | chủ mới + chủ cũ, trừ người thực hiện                   | `channelId, channelName, newOwnerId, newOwnerName, previousOwnerId, previousOwnerName, actorId, actorName` |
-| `org.join_request_approved`     | người xin vào                                           | `orgName, role`                                                                                            |
-| `meeting.shared`                | thành viên kênh trừ người chia sẻ và khách (job worker) | `meetingId, meetingTitle, channelId, channelName, actorId, actorName`                                      |
-| `meeting.completed`             | chủ meeting (M6 Q7)                                     | `meetingId, meetingTitle` — xử lý xong                                                                     |
-| `meeting.failed`                | chủ meeting (M6 Q7)                                     | `meetingId, meetingTitle, failureCode` — dừng ở `failed`, chạy lại được                                    |
+| `type`                          | Người nhận                                                                                                                                              | `payload`                                                                                                  |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `channel.member_added`          | người được thêm vào kênh                                                                                                                                | `channelId, channelName, role, actorId, actorName`                                                         |
+| `channel.ownership_transferred` | chủ mới + chủ cũ, trừ người thực hiện                                                                                                                   | `channelId, channelName, newOwnerId, newOwnerName, previousOwnerId, previousOwnerName, actorId, actorName` |
+| `org.join_request_approved`     | người xin vào                                                                                                                                           | `orgName, role`                                                                                            |
+| `meeting.shared`                | thành viên kênh trừ người chia sẻ và khách (job worker)                                                                                                 | `meetingId, meetingTitle, channelId, channelName, actorId, actorName`                                      |
+| `meeting.completed`             | chủ meeting (M6 Q7)                                                                                                                                     | `meetingId, meetingTitle` — xử lý xong                                                                     |
+| `meeting.failed`                | chủ meeting (M6 Q7)                                                                                                                                     | `meetingId, meetingTitle, failureCode` — dừng ở `failed`, chạy lại được                                    |
+| `report.ready`                  | báo cáo THEO LỊCH: thành viên kênh trừ Khách (job worker `notification.fanout`); báo cáo TẠO LẠI thủ công: chỉ người bấm, ghi trong transaction (M9 Q7) | `reportId, channelId, channelName, weekStart, version`                                                     |
 
 Thông báo ít người nhận được ghi **trong transaction** của thao tác (rollback → không có thông báo); đẩy `notification.created` **sau commit**. Nhiều người nhận (`meeting.shared`): share commit → enqueue `notification.fanout` (jobId `notification.fanout.meeting-shared.{meetingId}.{channelId}.{sharedAt ms}`, share lặp lại → cùng jobId); worker đọc lại share + thành viên kênh LÚC CHẠY, INSERT theo lô 500 với `dedupe_key = meeting-shared.{meetingId}.{channelId}`, đẩy realtime sau mỗi lô (M10 B5).
 
@@ -170,6 +173,6 @@ Thông báo ít người nhận được ghi **trong transaction** của thao t�
 | `meeting.status`         | `meeting:{id}`, `user:{ownerId}`     | `{ meetingId, status, failureCode }` — phát SAU commit: complete upload tạo meeting `queued` (M7); pipeline đổi chặng `preprocessing` → `transcribing` → `summarizing` → `completed` / `failed` (M6 B6, cùng helper `publishMeetingStatus`) |
 | `notification.created`   | `user:{id}`                          | `NotificationResponseDto` — sau commit (M10)                                                                                                                                                                                                |
 | `notification.read`      | `user:{id}`                          | `{ ids: [id] }` (đọc một) hoặc `{ all: true, orgId }` (đọc hết; chỉ phát khi có dòng đổi) — để các phiên khác cập nhật số chưa đọc; `{ all }` là gợi ý, client lấy lại `unread-count` (M10 B4)                                              |
-| `report.ready`           | thông qua notification               |                                                                                                                                                                                                                                             |
+| `report.ready`           | thông qua `notification.created`     | (không có event riêng — client nhận thông báo, payload ở bảng loại thông báo)                                                                                                                                                               |
 
 > **Bẫy:** Access token hết hạn khi socket vẫn đang mở. Server lưu `exp` lúc handshake và chủ động ngắt khi hết hạn (`session.ended { reason: token_expired }`), client refresh qua REST rồi kết nối lại bằng token mới. Phiên bị thu hồi (logout, logout-all, xoá phiên ở `/me/sessions`, phát hiện reuse refresh token) → ngắt NGAY mọi socket của phiên đó (room `session:{sid}`; logout-all: `user:{id}`) qua Redis, đúng cả khi socket ở instance khác (M7 B2).

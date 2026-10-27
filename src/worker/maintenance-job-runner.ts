@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ChannelsPurgeService } from '../modules/channels/services/channels-purge.service.js';
 import { IdempotencyRepository } from '../modules/idempotency/idempotency.repository.js';
+import { ReportSweepService } from '../modules/reports/services/report-sweep.service.js';
 import { MeetingSweepService } from '../modules/meetings/services/meeting-sweep.service.js';
 import { UploadsCleanupService } from '../modules/uploads/services/uploads-cleanup.service.js';
 
@@ -20,6 +21,7 @@ const IDEMPOTENCY_BATCH = 1_000;
 export class MaintenanceJobRunner {
   constructor(
     private readonly sweeper: MeetingSweepService,
+    private readonly reportSweeper: ReportSweepService,
     private readonly uploads: UploadsCleanupService,
     private readonly idempotency: IdempotencyRepository,
     private readonly channels: ChannelsPurgeService,
@@ -27,6 +29,11 @@ export class MaintenanceJobRunner {
 
   async sweepStuckMeetings(): Promise<{ requeued: number; skipped: number }> {
     const { requeued, skipped } = await this.sweeper.sweep();
+    return { requeued: requeued.length, skipped: skipped.length };
+  }
+
+  async sweepStuckReports(): Promise<{ requeued: number; skipped: number }> {
+    const { requeued, skipped } = await this.reportSweeper.sweep();
     return { requeued: requeued.length, skipped: skipped.length };
   }
 

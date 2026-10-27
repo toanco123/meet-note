@@ -167,7 +167,8 @@ describe('GET /orgs/:orgId/meetings/:meetingId/transcript/export (e2e)', () => {
     const stranger = await insertUser(db);
     const otherOrg = (await insertOrg(db, stranger.id)).id;
     const foreign = (await insertMeeting(db, otherOrg, stranger.id)).id;
-    await httpReq().get(url(foreign)).set(as(owner)).expect(404);
+    const res = await httpReq().get(url(foreign)).set(as(owner));
+    expect(res.status).toBe(404);
   });
 
   // Đột biến: không bắt lỗi / không huỷ stream → response treo mãi (test hết giờ).

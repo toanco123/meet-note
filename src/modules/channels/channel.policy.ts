@@ -55,6 +55,11 @@ export const channelPolicy = {
    * (`decideUnshare` của module meetings), không nằm ở đây.
    */
   'channel.meeting.share': (c) => isChannelRoleAtLeast(c.channelRole, ChannelRole.Member),
+  /**
+   * Tạo lại báo cáo tuần (M9): CO, CA (04 §2). Org Owner/Admin không ở trong kênh thì KHÔNG — cũng
+   * như họ không đọc nội dung kênh riêng tư (D2).
+   */
+  'channel.report.regenerate': (c) => isChannelRoleAtLeast(c.channelRole, ChannelRole.Admin),
 } satisfies Record<string, (ctx: ChannelAccessContext) => boolean>;
 
 export type ChannelPermission = keyof typeof channelPolicy;
@@ -71,6 +76,7 @@ export const BLOCKED_WHEN_ARCHIVED: ReadonlySet<ChannelPermission> = new Set<Cha
   'channel.member.remove',
   'channel.ownership.transfer',
   'channel.meeting.share',
+  'channel.report.regenerate',
 ]);
 
 /**

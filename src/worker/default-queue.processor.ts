@@ -3,10 +3,16 @@ import { Logger } from '@nestjs/common';
 import { type Job, UnrecoverableError } from 'bullmq';
 import { JobName } from '../infra/queue/jobs.js';
 import { QueueName } from '../infra/queue/queue.module.js';
-import type { MeetingJobData, NotificationFanoutJobData } from '../infra/queue/queue.types.js';
+import type {
+  MeetingJobData,
+  NotificationFanoutJobData,
+  WeeklyReportGenerateJobData,
+  WeeklyReportTickJobData,
+} from '../infra/queue/queue.types.js';
 import { NotificationFanoutService } from '../modules/notifications/services/notification-fanout.service.js';
 import { MaintenanceJobRunner } from './maintenance-job-runner.js';
 import { PipelineJobRunner } from './pipeline-job-runner.js';
+import { ReportJobRunner } from './report-job-runner.js';
 
 /**
  * MỘT processor cho queue `default`, dispatch theo `job.name`. Không tách mỗi domain một
@@ -23,6 +29,7 @@ export class DefaultQueueProcessor extends WorkerHost {
     private readonly fanout: NotificationFanoutService,
     private readonly pipeline: PipelineJobRunner,
     private readonly maintenance: MaintenanceJobRunner,
+    private readonly reports: ReportJobRunner,
   ) {
     super();
   }
@@ -38,12 +45,19 @@ export class DefaultQueueProcessor extends WorkerHost {
       // Việc định kỳ (M6 B8): kết quả đếm được lưu làm `returnvalue` của job — xem lại trong Redis.
       case JobName.MeetingSweepStuck:
         return this.maintenance.sweepStuckMeetings();
+      case JobName.ReportSweepStuck:
+        return this.maintenance.sweepStuckReports();
       case JobName.UploadCleanup:
         return this.maintenance.cleanupUploads();
       case JobName.IdempotencyCleanup:
         return this.maintenance.cleanupIdempotencyKeys();
       case JobName.ChannelPurge:
         return this.maintenance.purgeChannels();
+      // Báo cáo tuần (M9): tick fan-out theo lịch / backfill, generate cho từng báo cáo.
+      case JobName.WeeklyReportTick:
+        return this.reports.runTick(job as Job<WeeklyReportTickJobData>);
+      case JobName.WeeklyReportGenerate:
+        return this.reports.runGenerate(job as Job<WeeklyReportGenerateJobData>, token);
       default:
         throw new UnrecoverableError(`Job không xác định: ${job.name}`);
     }
@@ -54,6 +68,9 @@ export class DefaultQueueProcessor extends WorkerHost {
     if (job?.name === JobName.MeetingPreprocess || job?.name === JobName.MeetingSummarize) {
       const step = job.name === JobName.MeetingPreprocess ? 'preprocess' : 'summarize';
       return this.pipeline.onFailed(step, job as Job<MeetingJobData>, error);
+    }
+    if (job?.name === JobName.WeeklyReportGenerate) {
+      return this.reports.onGenerateFailed(job as Job<WeeklyReportGenerateJobData>, error);
     }
     this.logger.error(
       {

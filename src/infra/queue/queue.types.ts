@@ -16,9 +16,35 @@ export interface MeetingJobData {
  * `notification.fanout` (M10 B5): thông báo NHIỀU người nhận. Không mang danh sách người nhận /
  * tên — worker đọc lại lúc chạy (người vừa rời kênh không nhận; đã gỡ share → không ai nhận).
  */
-export interface NotificationFanoutJobData {
+export type NotificationFanoutJobData = MeetingSharedFanoutJobData | ReportReadyFanoutJobData;
+
+export interface MeetingSharedFanoutJobData {
   type: 'meeting.shared';
   meetingId: string;
   channelId: string;
   requestId: string | null;
+}
+
+/** Báo cáo tuần theo lịch xong (M9 Q7): thành viên kênh trừ Khách. Đọc lại báo cáo lúc chạy. */
+export interface ReportReadyFanoutJobData {
+  type: 'report.ready';
+  reportId: string;
+  version: number;
+  requestId: string | null;
+}
+
+/** `weekly-report.generate` (M9): MỘT báo cáo. `generation` = `regenerate_count` lúc enqueue (fencing). */
+export interface WeeklyReportGenerateJobData {
+  reportId: string;
+  generation: number;
+  requestId: string | null;
+}
+
+/**
+ * `weekly-report.tick` (M9). Lịch (Job Scheduler) tạo job với `{}` — tuần suy từ thời điểm lịch bắn.
+ * Backfill chỉ định `weekStart` (Thứ Hai, 'YYYY-MM-DD') để chạy bù một tuần bất kỳ.
+ */
+export interface WeeklyReportTickJobData {
+  weekStart?: string;
+  requestId?: string | null;
 }
