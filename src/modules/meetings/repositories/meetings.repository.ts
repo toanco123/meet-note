@@ -166,6 +166,8 @@ export class MeetingsRepository {
         startMs: transcriptSegments.startMs,
         endMs: transcriptSegments.endMs,
         text: transcriptSegments.text,
+        version: transcriptSegments.version,
+        editedAt: transcriptSegments.editedAt,
       })
       .from(transcriptSegments)
       .where(
