@@ -14,6 +14,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { meetings } from './meetings.js';
+import { users } from './users.js';
 
 /** Drizzle 0.45 chưa có `tsvector` dựng sẵn — chỉ dùng cho cột generated, không ghi từ app. */
 const tsvector = customType<{ data: string }>({ dataType: () => 'tsvector' });
@@ -39,6 +40,14 @@ export const transcriptSegments = pgTable(
     /** Để dành cho phân biệt người nói (ngoài phạm vi M6). */
     speaker: text(),
     text: text().notNull(),
+    /**
+     * Khoá LẠC QUAN cho sửa tay (M13): bắt đầu 1, mỗi lần sửa +1. Client gửi lại số đã đọc qua
+     * `If-Match`; `UPDATE … WHERE version = $n` chỉ thắng khi chưa ai chen vào.
+     */
+    version: integer().notNull().default(1),
+    /** Lần sửa tay gần nhất; null = còn nguyên bản máy sinh. `version > 1` ⇔ đã sửa. */
+    editedAt: timestamp({ withTimezone: true }),
+    editedBy: uuid(),
     // BẪY (03 §4): config phải là HẰNG `'meetnote_vi'::regconfig` — `to_tsvector(regconfig, text)`
     // với hằng là IMMUTABLE; bản một tham số phụ thuộc `default_text_search_config` → không dùng
     // được trong generated column.
@@ -54,7 +63,18 @@ export const transcriptSegments = pgTable(
       columns: [t.meetingId, t.orgId],
       foreignColumns: [meetings.id, meetings.orgId],
     }).onDelete('cascade'),
+    foreignKey({
+      name: 'transcript_segments_edited_by_fk',
+      columns: [t.editedBy],
+      foreignColumns: [users.id],
+    }).onDelete('set null'),
     check('transcript_segments_seq_ck', sql`${t.seq} >= 0`),
+    check('transcript_segments_version_ck', sql`${t.version} >= 1`),
+    // Cận dưới ở DB; cận trên (5000) là luật của đường SỬA TAY (DTO), không chặn đầu ra của Whisper.
+    check('transcript_segments_text_ck', sql`char_length(${t.text}) >= 1`),
+    index('transcript_segments_edited_by_idx')
+      .on(t.editedBy)
+      .where(sql`${t.editedBy} is not null`),
     check('transcript_segments_time_ck', sql`${t.startMs} >= 0 and ${t.endMs} >= ${t.startMs}`),
     index('transcript_segments_search_idx').using('gin', t.search),
   ],

@@ -120,6 +120,13 @@
       "when": 1793006851517,
       "tag": "0016_report_requested_by",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793083642876,
+      "tag": "0017_transcript_segment_edit",
+      "breakpoints": true
     }
   ]
 }

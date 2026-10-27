@@ -43,3 +43,22 @@ export interface SubtitleDownload {
   contentDisposition: string;
   stream: Readable;
 }
+
+/** Đoạn transcript sau khi sửa tay (M13). */
+export interface EditedSegment {
+  seq: number;
+  startMs: number;
+  endMs: number;
+  text: string;
+  version: number;
+  editedAt: Date;
+}
+
+/**
+ * Kết quả sửa một đoạn bằng khoá lạc quan: `updated` | đoạn không (còn) tồn tại | version đã bị người
+ * khác đổi (`currentVersion` để client biết mình đang cũ — chưa trả nội dung của người kia).
+ */
+export type EditSegmentOutcome =
+  | { kind: 'updated'; segment: EditedSegment }
+  | { kind: 'not_found' }
+  | { kind: 'version_mismatch'; currentVersion: number };

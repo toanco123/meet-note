@@ -313,17 +313,20 @@ Index: `meeting_shares_channel_shared_idx (channel_id, shared_at DESC, meeting_i
 
 ### `transcript_segments`
 
-| Cột                | Kiểu                                                                     | Ghi chú                                                                                                                 |
-| ------------------ | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| id                 | bigint identity PK                                                       |                                                                                                                         |
-| meeting_id, org_id | uuid                                                                     | composite FK `transcript_segments_meeting_fk` → `meetings(id, org_id)` ON DELETE CASCADE; **RLS** theo `org_id` (M6 Q8) |
-| seq                | int                                                                      | `UNIQUE (meeting_id, seq)`                                                                                              |
-| start_ms, end_ms   | int                                                                      | `CHECK (end_ms >= start_ms)`                                                                                            |
-| speaker            | text NULL                                                                | để dành                                                                                                                 |
-| text               | text                                                                     |                                                                                                                         |
-| search             | tsvector GENERATED ALWAYS AS (`to_tsvector('meetnote_vi', text)`) STORED | `GIN (search)`                                                                                                          |
+| Cột                  | Kiểu                                                                     | Ghi chú                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| id                   | bigint identity PK                                                       |                                                                                                                                               |
+| meeting_id, org_id   | uuid                                                                     | composite FK `transcript_segments_meeting_fk` → `meetings(id, org_id)` ON DELETE CASCADE; **RLS** theo `org_id` (M6 Q8)                       |
+| seq                  | int                                                                      | `UNIQUE (meeting_id, seq)`                                                                                                                    |
+| start_ms, end_ms     | int                                                                      | `CHECK (end_ms >= start_ms)`                                                                                                                  |
+| speaker              | text NULL                                                                | để dành                                                                                                                                       |
+| text                 | text                                                                     |                                                                                                                                               |
+| version              | int NOT NULL DEFAULT 1                                                   | khoá LẠC QUAN cho sửa tay (M13): mỗi lần sửa +1; `CHECK (version >= 1)`; `version > 1` ⇔ đã sửa                                               |
+| edited_at, edited_by | timestamptz NULL, uuid NULL                                              | lần sửa tay gần nhất; FK `transcript_segments_edited_by_fk` → `users` ON DELETE SET NULL + index một phần `transcript_segments_edited_by_idx` |
+| search               | tsvector GENERATED ALWAYS AS (`to_tsvector('meetnote_vi', text)`) STORED | `GIN (search)`                                                                                                                                |
 
 Id `bigint identity`, `seq ≥ 0`, `transcript_segments_meeting_seq_uq` cũng là index phía tham chiếu của FK (migration `0013`). Ghi transcript = **xoá rồi chèn lại** trong 1 transaction. Job chạy lại vẫn ra cùng kết quả (idempotent).
+Sửa tay (M13): `UPDATE … SET text, version = version + 1 WHERE meeting_id AND seq AND version = $n` — một câu nguyên tử, 0 dòng thì đọc lại để phân biệt "đoạn không còn" với "version lệch". `CHECK (char_length(text) >= 1)` (`transcript_segments_text_ck`); cận trên 5000 ký tự là luật của DTO, không đặt ở DB để không chặn đầu ra Whisper. Cột `search` là generated nên tự theo `text`.
 Search: `search @@ websearch_to_tsquery('meetnote_vi', $q)`, highlight bằng `ts_headline`. Quyền xem: điều kiện `meetingVisibleTo` nằm TRONG câu truy vấn, trước `LIMIT` (M8). Hình dạng "meeting trước" — đi meeting mới → cũ, `EXISTS` đoạn khớp — thắng hình dạng "đoạn trước" 30× với từ khoá phổ biến (đo trên 600k đoạn, plan M8 bài học 1).
 
 > **Bẫy:** `to_tsvector` trong generated column phải nhận tên config dạng hằng (`'meetnote_vi'::regconfig`). Hàm 2 tham số với hằng là immutable. Hàm 1 tham số thì không.

@@ -1,6 +1,6 @@
 # M13 — Sửa transcript
 
-- **Trạng thái:** Chờ duyệt plan
+- **Trạng thái:** Đang làm
 - **Nhánh:** `m13-edit-transcript`
 - **Tài liệu thiết kế liên quan:** `docs/design/03-database.md` (`transcript_segments`), `04-authorization.md` (§ meeting), `05-api.md` (Meetings), `07-conventions.md`, `10-roadmap.md` (M13). Plan M8 (search / export), M6b (`canManageMeeting`)
 
@@ -37,7 +37,7 @@ Mốc này dạy **khoá lạc quan** (cột `version`, `ETag` / `If-Match`) và
 - **Bảng / cột / index mới** (migration `0017`, chỉ `ALTER TABLE transcript_segments`):
   - `version integer NOT NULL DEFAULT 1`, `CHECK (version >= 1)` (`transcript_segments_version_ck`)
   - `edited_at timestamptz NULL`, `edited_by uuid NULL` (FK `transcript_segments_edited_by_fk` → `users(id)` `ON DELETE SET NULL`, index phía tham chiếu `transcript_segments_edited_by_idx` partial `WHERE edited_by IS NOT NULL`)
-  - `CHECK (char_length(text) BETWEEN 1 AND 5000)` (`transcript_segments_text_ck`) — kiểm dữ liệu cũ trước (Whisper có thể tạo đoạn rỗng? nếu có, lọc ở bước này)
+  - `CHECK (char_length(text) >= 1)` (`transcript_segments_text_ck`). Cận trên 5000 chỉ ở DTO (đổi so với bản duyệt đầu, xem bài học 1)
   - Không bảng mới ⇒ **không thêm policy RLS**; bảng đã có RLS theo `org_id`. Cột `search` là generated nên tự cập nhật khi `text` đổi
 - **API mới:** `PATCH /orgs/:orgId/meetings/:meetingId/transcript/segments/:seq` — header `If-Match`, body `{ text }` → 200 đoạn mới + `ETag`. Lỗi: 400 (body / `seq`), 403, 404, 409 (meeting chưa `completed`), 412 (version lệch), 428 (thiếu `If-Match`). `GET …/transcript` thêm `version`, `editedAt`
 - **Quyền mới:** không thêm quyền trong ma trận kênh; dùng `canManageMeeting` (04 §meeting thêm một dòng "Sửa transcript")
@@ -45,7 +45,7 @@ Mốc này dạy **khoá lạc quan** (cột `version`, `ETag` / `If-Match`) và
 
 ## Các bước
 
-- [ ] **B1 — Schema + repository**
+- [x] **B1 — Schema + repository**
   - Việc: cột `version`, `edited_at`, `edited_by`, 2 CHECK, index, migration `0017` (đọc SQL sinh ra; `NOT NULL DEFAULT 1` an toàn với dữ liệu cũ); `TranscriptsRepository.editSegment(meetingId, seq, expectedVersion, text, actorId)` — một `UPDATE … WHERE meeting_id AND seq AND version = $n RETURNING`, 0 dòng thì một `SELECT` phân biệt 404 / 412; sửa 03 §`transcript_segments`.
   - Test (integration, Postgres thật): sửa đúng version → `version + 1`, `edited_*` đặt; sai version → trả "lệch" và dữ liệu nguyên; đoạn không có → "không thấy"; CHECK chặn `text` rỗng / quá dài; `search` đổi theo (tìm từ mới ra, từ cũ không còn); **concurrency: hai `editSegment` song song cùng version → đúng một thành công** (đột biến: bỏ điều kiện `version = $n` → đỏ).
 - [ ] **B2 — Service + policy**
@@ -78,4 +78,5 @@ Mốc này dạy **khoá lạc quan** (cột `version`, `ETag` / `If-Match`) và
 
 ## Điều học được / bẫy gặp phải
 
-(Ghi sau khi xong mốc)
+1. **CHECK cận trên của DB sẽ chặn nhầm đầu ra Whisper.** Bản plan đầu đặt `CHECK (char_length(text) BETWEEN 1 AND 5000)`. Nhưng cận 5000 là luật của đường SỬA TAY; đặt ở DB thì một đoạn Whisper dài bất thường làm `replaceSegments` lỗi và cả pipeline meeting `failed` vì một luật không liên quan. Đã đọc `whisper-cpp.speech-to-text.ts`: đoạn rỗng đã bị lọc, nên cận dưới `>= 1` an toàn; cận trên chuyển sang DTO (B3).
+2. **Đột biến B1 (4/4 đỏ):** bỏ `version = $n` khỏi WHERE (2 test đỏ, gồm test 10 lần song song), không tăng version, `version_mismatch` luôn thành `not_found`, không ghi `edited_by`. Script đột biến khôi phục bằng `cp` từ bản lưu thay vì `git checkout`, vì file chưa commit — `git checkout` sẽ xoá luôn code mới.
