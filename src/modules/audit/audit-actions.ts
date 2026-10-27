@@ -32,6 +32,8 @@ export const AUDIT_ACTIONS = [
   'meeting.deleted',
   /** OrgAdm chạy lại meeting không chủ (M6 B7). */
   'meeting.retried',
+  /** Người KHÔNG phải chủ (OrgAdm, meeting không chủ) sửa một đoạn transcript (M13). */
+  'transcript.segment.edited',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

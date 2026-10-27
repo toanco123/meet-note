@@ -1,18 +1,23 @@
 import { Readable } from 'node:stream';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { decodeCursor, toPage } from '../../common/pagination/cursor.js';
 import { expectTimestampKey, expectUuidKey } from '../../common/pagination/keys.js';
 import type { Page } from '../../common/pagination/pagination.types.js';
 import { Errors } from '../../common/errors/errors.js';
+import { DRIZZLE } from '../../infra/database/database.module.js';
+import type { Database } from '../../infra/database/database.types.js';
 import { OrgContext } from '../../infra/database/org-context.js';
+import type { UserAuditContext } from '../audit/audit.types.js';
+import { AuditService } from '../audit/audit.service.js';
 import { MeetingsService, viewerOf } from '../meetings/services/meetings.service.js';
 import type { OrgMembershipContext } from '../organizations/organizations.types.js';
 import { SearchTranscriptsQueryDto } from './dto/search-transcripts-query.dto.js';
 import { TranscriptSearchResultResponseDto } from './dto/transcript-search-result.dto.js';
+import { decideTranscriptEdit } from './transcript.policy.js';
 import { contentDisposition } from './transcript-filename.js';
 import { coalesce, formatSubtitles, type SubtitleFormat } from './transcript-formats.js';
 import { TranscriptsRepository } from './transcripts.repository.js';
-import type { SubtitleCue, SubtitleDownload } from './transcripts.types.js';
+import type { EditedSegment, SubtitleCue, SubtitleDownload } from './transcripts.types.js';
 
 /** Số đoạn khớp hiển thị cho mỗi meeting (M8 Q3). */
 const HITS_PER_MEETING = 3;
@@ -27,8 +32,10 @@ const CONTENT_TYPES: Record<SubtitleFormat, string> = {
 @Injectable()
 export class TranscriptsService {
   constructor(
+    @Inject(DRIZZLE) private readonly db: Database,
     private readonly repo: TranscriptsRepository,
     private readonly meetings: MeetingsService,
+    private readonly audit: AuditService,
   ) {}
 
   async search(
@@ -64,6 +71,59 @@ export class TranscriptsService {
       ),
       nextCursor: page.nextCursor,
     };
+  }
+
+  /**
+   * Sửa `text` một đoạn (M13). Thứ tự kiểm tra cố ý: XEM được? (không → 404, không lộ meeting tồn
+   * tại) → quyền sửa (403) → đã `completed`? (409) → sửa có điều kiện theo `version` (404 / 412).
+   *
+   * KHÔNG khoá dòng meeting (khác `MeetingManagementService`): tranh chấp ở đây là giữa hai LẦN SỬA
+   * cùng đoạn, và `version` trong WHERE đã phân xử nguyên tử. Hai thứ có thể đổi giữa lúc kiểm tra
+   * và lúc ghi — chủ meeting rời org (→ không chủ), meeting bị xoá mềm — đều vô hại: tệ nhất là
+   * thêm MỘT lần sửa của người vừa mất quyền vào dữ liệu họ từng sở hữu (cùng cân nhắc với tạo lại
+   * báo cáo, M9 bài học 30). Nếu thao tác ghi sau này gây hậu quả không đảo ngược được thì phải khoá.
+   *
+   * Audit trong CÙNG transaction, chỉ khi người sửa không phải chủ (như `meeting.deleted`), và KHÔNG
+   * ghi nội dung đoạn — audit sống lâu hơn transcript.
+   */
+  async editSegment(
+    membership: OrgMembershipContext,
+    ctx: UserAuditContext,
+    meetingId: string,
+    seq: number,
+    expectedVersion: number,
+    text: string,
+  ): Promise<EditedSegment> {
+    const meeting = await this.meetings.assertVisible(membership, ctx.actorId, meetingId);
+    const decision = decideTranscriptEdit(meeting, {
+      userId: ctx.actorId,
+      orgRole: membership.role,
+    });
+    if (decision === 'forbidden') throw Errors.meeting.notManager();
+    if (decision === 'not_completed') throw Errors.transcript.notEditable();
+
+    return await this.db.transaction(async (tx) => {
+      const out = await this.repo.editSegment(
+        meetingId,
+        seq,
+        expectedVersion,
+        text,
+        ctx.actorId,
+        tx,
+      );
+      if (out.kind === 'not_found') throw Errors.transcript.segmentNotFound();
+      if (out.kind === 'version_mismatch') throw Errors.transcript.versionMismatch();
+      if (meeting.ownerId !== ctx.actorId) {
+        await this.audit.record(tx, ctx, {
+          orgId: membership.orgId,
+          action: 'transcript.segment.edited',
+          targetType: 'meeting',
+          targetId: meetingId,
+          metadata: { seq, fromVersion: expectedVersion, toVersion: out.segment.version },
+        });
+      }
+      return out.segment;
+    });
   }
 
   /**

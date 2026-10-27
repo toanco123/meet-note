@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, count, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { timestampKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
-import type { Database } from '../../infra/database/database.types.js';
+import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import { meetings, meetingShares, transcriptSegments } from '../../infra/database/schema/index.js';
 import { meetingVisibleTo } from '../meetings/meeting-visibility.js';
 import type {
@@ -171,8 +171,9 @@ export class TranscriptsRepository {
     expectedVersion: number,
     text: string,
     actorId: string,
+    executor: DbExecutor = this.db,
   ): Promise<EditSegmentOutcome> {
-    const [row] = await this.db
+    const [row] = await executor
       .update(transcriptSegments)
       .set({
         text,
@@ -196,7 +197,7 @@ export class TranscriptsRepository {
         editedAt: transcriptSegments.editedAt,
       });
     if (row?.editedAt) return { kind: 'updated', segment: { ...row, editedAt: row.editedAt } };
-    const [current] = await this.db
+    const [current] = await executor
       .select({ version: transcriptSegments.version })
       .from(transcriptSegments)
       .where(and(eq(transcriptSegments.meetingId, meetingId), eq(transcriptSegments.seq, seq)));

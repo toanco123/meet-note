@@ -54,6 +54,11 @@ export const ErrorCode = {
   MeetingNotCompleted: 'MEETING_NOT_COMPLETED',
   MeetingNotFailed: 'MEETING_NOT_FAILED',
 
+  // M13 — Sửa transcript
+  TranscriptSegmentNotFound: 'TRANSCRIPT_SEGMENT_NOT_FOUND',
+  TranscriptVersionMismatch: 'TRANSCRIPT_VERSION_MISMATCH',
+  TranscriptIfMatchRequired: 'TRANSCRIPT_IF_MATCH_REQUIRED',
+
   // M9 — Báo cáo tuần
   ReportNotFound: 'REPORT_NOT_FOUND',
   ReportInProgress: 'REPORT_IN_PROGRESS',

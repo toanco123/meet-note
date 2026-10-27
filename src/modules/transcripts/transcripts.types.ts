@@ -62,3 +62,6 @@ export type EditSegmentOutcome =
   | { kind: 'updated'; segment: EditedSegment }
   | { kind: 'not_found' }
   | { kind: 'version_mismatch'; currentVersion: number };
+
+/** Quyết định của `decideTranscriptEdit`: quyền xét trước, trạng thái meeting sau (M13). */
+export type TranscriptEditDecision = 'ok' | 'forbidden' | 'not_completed';
