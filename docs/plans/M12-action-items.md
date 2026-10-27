@@ -1,6 +1,6 @@
 # M12 — Action items
 
-- **Trạng thái:** Chờ duyệt plan
+- **Trạng thái:** Đang làm
 - **Nhánh:** `m12-action-items`
 - **Tài liệu thiết kế liên quan:** `docs/design/03-database.md` (§ meeting, RLS), `04-authorization.md` (§3 quyền xem meeting, mục sửa transcript M13), `05-api.md`, `06-flows.md` §1.2 (pipeline) và §2 (báo cáo tuần), `10-roadmap.md` (M12). Plan M6 (summarizer), M9 (báo cáo), M13 (khoá lạc quan `If-Match`)
 
@@ -57,7 +57,7 @@ Sau khi pipeline xong, mỗi meeting có danh sách **việc cần làm** có ng
 
 ## Các bước
 
-- [ ] **B1 — Schema + repository**
+- [x] **B1 — Schema + repository**
   - Việc: bảng, CHECK, index, RLS, migration `0018` (đọc SQL sinh ra, thêm `ON DELETE SET NULL (assignee_id)` và RLS bằng tay); repository cơ bản (`insertAiIfAbsent` bằng `ON CONFLICT DO NOTHING`, `listByMeeting`, `update` có điều kiện version); sửa 03.
   - Test (integration): CHECK từng cái; unique AI chặn trùng nhưng `manual` không dính; `ON CONFLICT DO NOTHING` chạy hai lần → một bộ; gỡ thành viên org → `assignee_id` NULL còn `org_id` nguyên; RLS (api không thấy org khác, đúng mẫu `meetings`); sửa đúng / sai version (đột biến bỏ điều kiện `version`).
 - [ ] **B2 — Summarizer trả `dueDate`**
@@ -99,4 +99,8 @@ Sau khi pipeline xong, mỗi meeting có danh sách **việc cần làm** có ng
 
 ## Điều học được / bẫy gặp phải
 
-(Ghi sau khi xong mốc)
+1. **CHECK + NULL: `NULL >= 0` là NULL và CHECK coi NULL là thoả.** `action_items_source_ck` lần đầu viết `(origin='ai' and source_index >= 0) or (origin='manual' and source_index is null)`: việc AI với `source_index` NULL cho `(NULL) OR (false)` = NULL → lọt. Test `source_ck` bắt được (ca `ai` + NULL không bị từ chối). Sửa thành `… and source_index is not null and source_index >= 0`. Migration chưa commit nên xoá `0018_*.sql` + snapshot, `git checkout _journal.json`, sinh lại rồi nối lại phần viết tay (lưu phần đó ra file trước khi xoá).
+2. **`ON CONFLICT` với index một phần phải nêu lại `WHERE`.** Drizzle: `onConflictDoNothing({ target: [...], where: sql`origin = 'ai'` })`; thiếu `where` Postgres không suy ra được index đích ("no unique constraint matching the ON CONFLICT"). Đột biến đổi sang `DO UPDATE` làm 4 test đỏ, gồm "không đè việc đã sửa / đã done" và "dismissed không chèn lại".
+3. **FK assignee và RLS viết tay, cùng mẫu `meetings.owner_id` (0007).** `ON DELETE SET NULL (assignee_id)` chỉ null một cột của composite FK; Drizzle chỉ sinh `SET NULL` cả hai → `org_id NOT NULL` vỡ. Khai báo trong comment của schema để không ai "sửa cho đẹp". Index `(org_id, assignee_id, status, due_date, id)` không partial vì cũng là index phía tham chiếu của FK đó.
+4. **Đột biến B1: 7/8 đỏ + 1 tương đương.** Đỏ: `DO UPDATE`, bỏ điều kiện version, `completed_at` không giữ bản đầu, không xoá `due_text`, không tăng version, bỏ policy RLS, FK `SET NULL` cả hai cột. Tương đương: bỏ `WHERE origin='ai'` khỏi unique — `source_ck` đã ép việc thủ công có `source_index` NULL, mà NULL không bao giờ trùng. Giữ `WHERE` để ý định rõ và vì `ON CONFLICT` cần nó nếu `source_ck` sau này nới.
+5. **Quyết định nhỏ ghi lại:** đặt `done` lần nữa trên việc đã `done` giữ NGƯỜI và LÚC hoàn thành đầu tiên (`coalesce`); patch rỗng vẫn tăng `version` (nhất quán M13); `due_text` bị xoá khi `due_date` sửa tay vì chữ "thứ sáu" của model không còn khớp ngày mới.

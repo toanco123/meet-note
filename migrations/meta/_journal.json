@@ -127,6 +127,13 @@
       "when": 1793083642876,
       "tag": "0017_transcript_segment_edit",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793086863344,
+      "tag": "0018_action_items",
+      "breakpoints": true
     }
   ]
 }

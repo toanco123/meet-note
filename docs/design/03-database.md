@@ -27,7 +27,7 @@ Lớp phòng thủ THỨ HAI (lớp một: guard + `org_id` trong mọi query + 
 
 - `app.org_id` do pool của app (`OrgContextPool` trong `createPgPool`) đặt mỗi lần cho mượn connection, từ `OrgContext` (`AsyncLocalStorage`): middleware HTTP mở ngữ cảnh rỗng, `OrgMemberGuard` điền org sau khi xác nhận thành viên; realtime bọc `runInOrg`. Chỉ gửi `set_config` khi giá trị ĐỔI so với lần trước trên connection (~1 round-trip ≈ 150 µs mỗi lần đổi tổ chức; thời gian thực thi query không đổi đáng kể — đo ở plan M11).
 - Policy chỉ giữ ranh giới tổ chức, KHÔNG chứa quy tắc xem meeting (04 §3 ở code).
-- M6 (migration `0013`) thêm `transcript_segments`, `meeting_summaries` cùng mẫu (M6 Q8).
+- M6 (migration `0013`) thêm `transcript_segments`, `meeting_summaries` cùng mẫu (M6 Q8). M9 thêm `weekly_reports`, `weekly_report_versions` (`0015`); M12 thêm `action_items` (`0018`).
 - Không RLS: bảng tài khoản (`users`, `sessions`…), `organizations` / `organization_members` (đăng nhập, "tổ chức của tôi" đọc xuyên tổ chức), `notifications` (theo người dùng), `invites` / `join_requests` (chấp nhận link mời chưa là thành viên), `audit_logs`, `idempotency_keys`.
 - Superuser và role `BYPASSRLS` (worker) luôn được miễn — vì thế api không được chạy bằng superuser (B6). Kiểm tra FK / cascade (gỡ thành viên → xoá `channel_members`) là thao tác toàn vẹn tham chiếu, không bị RLS chặn.
 
@@ -334,6 +334,32 @@ Search: `search @@ websearch_to_tsquery('meetnote_vi', $q)`, highlight bằng `t
 ### `meeting_summaries`
 
 meeting_id PK, org_id (composite FK `meeting_summaries_meeting_fk` → `meetings(id, org_id)` ON DELETE CASCADE, **RLS** theo `org_id`), content jsonb (`{ overview, keyPoints[], decisions[], actionItems[{ owner, task, due }] }`), model, prompt_version, input_tokens, output_tokens (CHECK ≥ 0), created_at. Upsert theo `meeting_id` (M6, migration `0013`).
+
+### `action_items` (M12)
+
+Việc cần làm của một meeting. Dữ liệu **hai nguồn**: máy (`origin = 'ai'`, trích từ tóm tắt) và người (`manual`, hoặc việc AI đã bị sửa).
+
+| Cột                    | Kiểu                 | Ghi chú                                                                                                                          |
+| ---------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| id                     | uuid PK uuidv7       | tăng theo thời gian: `ORDER BY id` = thứ tự tạo                                                                                  |
+| org_id, meeting_id     | uuid                 | composite FK `action_items_meeting_fk` → `meetings(id, org_id)` ON DELETE CASCADE; **RLS** theo `org_id` (`0018`)                |
+| origin                 | text                 | `ai` \| `manual` (CHECK)                                                                                                         |
+| source_index           | int NULL             | vị trí trong `actionItems` của tóm tắt. `action_items_source_ck`: `ai` ⇒ không NULL và ≥ 0; `manual` ⇒ NULL                      |
+| task                   | text                 | 1–500 ký tự                                                                                                                      |
+| owner_name             | text NULL            | tên người phụ trách model nêu, giữ chữ gốc (1–200)                                                                               |
+| assignee_id            | uuid NULL            | FK `action_items_assignee_fk` `(org_id, assignee_id)` → `organization_members` **`ON DELETE SET NULL (assignee_id)`** (viết tay) |
+| due_text, due_date     | text NULL, date NULL | chữ hạn model nêu ("thứ sáu", 1–200) và ngày đã quy; sửa `due_date` tay thì xoá `due_text`                                       |
+| status                 | text                 | `open` \| `done` \| `dismissed`; CHECK `(status = 'done') = (completed_at IS NOT NULL)`                                          |
+| completed_at/by        | timestamptz, uuid    | `completed_by` FK `users` SET NULL                                                                                               |
+| version                | int DEFAULT 1        | khoá lạc quan (`If-Match`), `CHECK >= 1`                                                                                         |
+| created_by             | uuid NULL            | người tạo việc thủ công, FK `users` SET NULL                                                                                     |
+| created_at, updated_at | timestamptz          |                                                                                                                                  |
+
+Index: `action_items_ai_source_uq` UNIQUE `(meeting_id, source_index) WHERE origin = 'ai'` — **khoá idempotency** của pipeline: chèn bằng `ON CONFLICT (meeting_id, source_index) WHERE origin = 'ai' DO NOTHING` (phải nêu lại `WHERE` để Postgres suy ra index đích). Pipeline **chỉ chèn**, không UPDATE / DELETE → chạy lại không sinh trùng và không đè việc đã sửa. Không có xoá: bỏ việc = `dismissed` (xoá hẳn việc AI thì lần chạy lại chèn lại nó). `action_items_meeting_idx (meeting_id, id)` — danh sách theo meeting. `action_items_org_assignee_due_idx (org_id, assignee_id, status, due_date ASC NULLS LAST, id)` — "việc của tôi"; **cố ý không partial**: cũng là index phía tham chiếu cho FK assignee (gỡ thành viên phải tìm mọi việc, mọi trạng thái của người đó — cùng bẫy với `meetings_org_owner_*`). Hai index một phần cho `completed_by`, `created_by`.
+
+> **Bẫy CHECK + NULL:** `source_index >= 0` với NULL cho NULL, mà CHECK coi NULL là _thoả_ — nên `ai` ⇒ `source_index IS NOT NULL AND source_index >= 0` phải viết tường minh (lần đầu thiếu `IS NOT NULL`, test schema bắt được).
+
+Meeting `completed` trước M12 **không** có việc (không backfill).
 
 ## 5. Báo cáo tuần
 
