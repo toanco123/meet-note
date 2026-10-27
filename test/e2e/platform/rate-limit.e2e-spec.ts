@@ -155,6 +155,39 @@ describe('Rate limit (e2e)', () => {
     ]).toEqual([new Set([200]), 429, new Set([404]), 429, 'RATE_LIMITED']);
   });
 
+  // Đột biến: bỏ `@Throttle(RateLimit.transcriptEdit)` → rơi về 300 / phút, lần 121 vẫn 404 (đỏ).
+  it('sửa đoạn transcript 120 / phút / người', async () => {
+    const reg = await request(app.getHttpServer())
+      .post('/v1/auth/register')
+      .set('X-Forwarded-For', '10.7.0.2')
+      .send({ email: uniqueEmail(), password: DEFAULT_PASSWORD, displayName: 'E' })
+      .expect(201);
+    const token = reg.body.data.accessToken as string;
+    const orgId = (
+      await request(app.getHttpServer())
+        .post('/v1/orgs')
+        .set(bearer(token))
+        .send({ name: 'RL sửa transcript' })
+        .expect(201)
+    ).body.data.id as string;
+    const edit = () =>
+      request(app.getHttpServer())
+        .patch(
+          `/v1/orgs/${orgId}/meetings/00000000-0000-7000-8000-000000000000/transcript/segments/0`,
+        )
+        .set(bearer(token))
+        .set('If-Match', '"1"')
+        .send({ text: 'x' });
+
+    const first = await statuses(times(120, () => edit));
+    const blocked = await edit();
+    expect([new Set(first), blocked.status, blocked.body.error?.code]).toEqual([
+      new Set([404]),
+      429,
+      'RATE_LIMITED',
+    ]);
+  });
+
   // Đột biến: storage trong bộ nhớ (mặc định của thư viện) → instance thứ hai có bộ đếm riêng.
   it('hai instance api dùng chung Redis → chung bộ đếm', async () => {
     const second = await createTestApp();

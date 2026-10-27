@@ -254,6 +254,32 @@ export const Errors = {
       conflict(ErrorCode.MeetingNotFailed, 'Chỉ chạy lại được cuộc họp đang ở trạng thái lỗi.'),
   },
 
+  transcript: {
+    /** Meeting xem được nhưng không có đoạn với `seq` này (hoặc đoạn đã bị thay khi dựng lại transcript). */
+    segmentNotFound: () =>
+      notFound('Không tìm thấy đoạn transcript.', ErrorCode.TranscriptSegmentNotFound),
+    /** Sửa transcript chỉ khi pipeline đã xong — đang dựng dở thì đoạn còn đổi. */
+    notEditable: () =>
+      conflict(
+        ErrorCode.MeetingNotCompleted,
+        'Cuộc họp chưa xử lý xong, chưa sửa được transcript.',
+      ),
+    /** `If-Match` lệch version hiện tại: có người sửa trước. Client tải lại đoạn rồi sửa tiếp. */
+    versionMismatch: () =>
+      new AppException(
+        ErrorCode.TranscriptVersionMismatch,
+        HttpStatus.PRECONDITION_FAILED,
+        'Đoạn này vừa được người khác sửa. Hãy tải lại rồi sửa tiếp.',
+      ),
+    /** Thiếu `If-Match`: không cho ghi mù — ghi đè không biết mình đang đè bản nào. */
+    ifMatchRequired: () =>
+      new AppException(
+        ErrorCode.TranscriptIfMatchRequired,
+        HttpStatus.PRECONDITION_REQUIRED,
+        'Cần header If-Match mang version của đoạn đang sửa.',
+      ),
+  },
+
   report: {
     /** Kênh chưa có báo cáo cho tuần này (chưa tới lượt, kênh tắt báo cáo, hoặc tuần trước khi có kênh). */
     notFound: () => notFound('Chưa có báo cáo cho tuần này.', ErrorCode.ReportNotFound),

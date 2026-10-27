@@ -11,9 +11,11 @@ const DESCRIPTIONS: Record<DocumentedErrorStatus, string> = {
   409: 'Xung đột trạng thái hoặc dữ liệu trùng (`CONFLICT` hoặc mã cụ thể).',
   410: 'Từng hợp lệ nhưng không còn dùng được, vd link mời hết hạn / hết lượt (`INVITE_EXPIRED`, `INVITE_EXHAUSTED`).',
   411: 'Thiếu header `Content-Length` (`LENGTH_REQUIRED`).',
+  412: 'Header `If-Match` không còn khớp version hiện tại: có người sửa trước (`TRANSCRIPT_VERSION_MISMATCH`).',
   413: 'Payload quá lớn (`PAYLOAD_TOO_LARGE`).',
   415: 'Sai `Content-Type` cho route này (`UNSUPPORTED_MEDIA_TYPE`).',
   422: 'Dùng lại `Idempotency-Key` cho một request khác (`IDEMPOTENCY_KEY_REUSED`).',
+  428: 'Thiếu header `If-Match` (`TRANSCRIPT_IF_MATCH_REQUIRED`).',
   429: 'Gửi quá nhiều request (`RATE_LIMITED`).',
 };
 

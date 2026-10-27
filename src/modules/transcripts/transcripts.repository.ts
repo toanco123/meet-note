@@ -2,10 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, count, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { timestampKey } from '../../common/pagination/keys.js';
 import { DRIZZLE } from '../../infra/database/database.module.js';
-import type { Database } from '../../infra/database/database.types.js';
+import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import { meetings, meetingShares, transcriptSegments } from '../../infra/database/schema/index.js';
 import { meetingVisibleTo } from '../meetings/meeting-visibility.js';
 import type {
+  EditSegmentOutcome,
   SearchHitRow,
   SearchMeetingRow,
   SearchMeetingsParams,
@@ -154,5 +155,54 @@ export class TranscriptsRepository {
       .where(and(eq(transcriptSegments.meetingId, meetingId), gt(transcriptSegments.seq, afterSeq)))
       .orderBy(asc(transcriptSegments.seq))
       .limit(limit);
+  }
+  /**
+   * Sửa `text` một đoạn bằng KHOÁ LẠC QUAN (M13): một câu `UPDATE … WHERE version = $expected` là
+   * nguyên tử — hai người cùng gửi `version = 3` thì Postgres khoá dòng cho người đến trước, người sau
+   * đọc lại dòng đã là `version = 4` và không khớp → 0 dòng. Không cần transaction hay `FOR UPDATE`.
+   *
+   * 0 dòng có hai nghĩa (đoạn không còn / version lệch) nên đọc thêm MỘT lần để phân biệt. Đọc sau
+   * không race: giữa hai câu, đoạn có thể bị sửa tiếp (vẫn là "lệch") hoặc bị xoá (→ "không thấy"),
+   * cả hai đều là kết luận đúng tại thời điểm đọc.
+   */
+  async editSegment(
+    meetingId: string,
+    seq: number,
+    expectedVersion: number,
+    text: string,
+    actorId: string,
+    executor: DbExecutor = this.db,
+  ): Promise<EditSegmentOutcome> {
+    const [row] = await executor
+      .update(transcriptSegments)
+      .set({
+        text,
+        version: sql`${transcriptSegments.version} + 1`,
+        editedAt: sql`now()`,
+        editedBy: actorId,
+      })
+      .where(
+        and(
+          eq(transcriptSegments.meetingId, meetingId),
+          eq(transcriptSegments.seq, seq),
+          eq(transcriptSegments.version, expectedVersion),
+        ),
+      )
+      .returning({
+        seq: transcriptSegments.seq,
+        startMs: transcriptSegments.startMs,
+        endMs: transcriptSegments.endMs,
+        text: transcriptSegments.text,
+        version: transcriptSegments.version,
+        editedAt: transcriptSegments.editedAt,
+      });
+    if (row?.editedAt) return { kind: 'updated', segment: { ...row, editedAt: row.editedAt } };
+    const [current] = await executor
+      .select({ version: transcriptSegments.version })
+      .from(transcriptSegments)
+      .where(and(eq(transcriptSegments.meetingId, meetingId), eq(transcriptSegments.seq, seq)));
+    return current
+      ? { kind: 'version_mismatch', currentVersion: current.version }
+      : { kind: 'not_found' };
   }
 }

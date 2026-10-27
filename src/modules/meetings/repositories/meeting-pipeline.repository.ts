@@ -136,12 +136,32 @@ export class MeetingPipelineRepository {
     return this.advance(tx, meetingId, token, 'completed');
   }
 
-  /** Ghi kiểu THAY THẾ: xoá rồi chèn lại theo lô — chạy lại bước transcribe không nhân đôi đoạn. */
+  /**
+   * Ghi kiểu THAY THẾ: xoá rồi chèn lại theo lô — chạy lại bước transcribe không nhân đôi đoạn.
+   *
+   * INVARIANT (M13 Q4): từ chối nếu meeting đã có đoạn SỬA TAY (`version > 1`). Hôm nay không đường
+   * nào tới đây với meeting đã sửa (chỉ `completed` mới sửa được, và `completed` không chạy lại
+   * pipeline), nhưng một tính năng "tạo lại transcript" sau này sẽ lặng lẽ xoá công người dùng nếu
+   * không có chốt này. Ném lỗi thường (job retry rồi `failed`) thay vì `PermanentPipelineError`: mã
+   * lỗi của meeting là enum có CHECK ở DB, thêm mã cho một đường chưa tồn tại là thừa.
+   */
   async replaceSegments(
     tx: DbExecutor,
     meeting: { id: string; orgId: string },
     segments: TranscriptSegmentInput[],
   ): Promise<void> {
+    const [edited] = await tx
+      .select({ seq: transcriptSegments.seq })
+      .from(transcriptSegments)
+      .where(
+        and(eq(transcriptSegments.meetingId, meeting.id), sql`${transcriptSegments.version} > 1`),
+      )
+      .limit(1);
+    if (edited) {
+      throw new Error(
+        `Meeting ${meeting.id} có đoạn đã sửa tay (seq ${edited.seq}): không được ghi đè transcript`,
+      );
+    }
     await tx.delete(transcriptSegments).where(eq(transcriptSegments.meetingId, meeting.id));
     for (let i = 0; i < segments.length; i += SEGMENT_BATCH) {
       await tx.insert(transcriptSegments).values(

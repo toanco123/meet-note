@@ -14,9 +14,25 @@ export class TranscriptSegmentResponseDto {
   /** @example "Chào mọi người, hôm nay họp về kế hoạch quý ba." */
   text: string;
 
+  /**
+   * Số lần đoạn đã được sửa + 1 (bản máy sinh là 1). Gửi lại qua `If-Match` khi sửa.
+   * @example 1
+   */
+  version: number;
+
+  /** Lần sửa tay gần nhất; `null` nếu còn nguyên bản máy sinh. */
+  editedAt: string | null;
+
   static from(
-    row: Pick<TranscriptSegmentRow, 'seq' | 'startMs' | 'endMs' | 'text'>,
+    row: Pick<TranscriptSegmentRow, 'seq' | 'startMs' | 'endMs' | 'text' | 'version' | 'editedAt'>,
   ): TranscriptSegmentResponseDto {
-    return { seq: row.seq, startMs: row.startMs, endMs: row.endMs, text: row.text };
+    return {
+      seq: row.seq,
+      startMs: row.startMs,
+      endMs: row.endMs,
+      text: row.text,
+      version: row.version,
+      editedAt: row.editedAt?.toISOString() ?? null,
+    };
   }
 }
