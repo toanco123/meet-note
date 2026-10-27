@@ -1,3 +1,4 @@
+import type { ReportStatus } from '../../infra/database/schema/index.js';
 import type { MeetingSummaryContent } from '../../infra/llm/llm.types.js';
 
 /** Meeting đủ điều kiện vào báo cáo tuần của một kênh (M9 Q2), kèm tóm tắt — đầu vào của `ReportWriter`. */
@@ -74,4 +75,21 @@ export interface TickResult {
   created: number;
   /** Số job đã xếp (mọi dòng `pending` của tuần, kể cả của tick trước). */
   enqueued: number;
+}
+
+/** Báo cáo chưa xong, lâu không đổi và không ai giữ lease — ứng viên của quét kẹt (B7). */
+export interface StuckReport {
+  id: string;
+  generation: number;
+  status: ReportStatus;
+  /** `updated_at` dạng text (đủ micro giây) — keyset giữa các lô. */
+  updatedAt: string;
+  /** `updated_at` tính bằng micro giây epoch — hậu tố jobId. */
+  version: string;
+}
+
+export interface ReportSweepResult {
+  requeued: string[];
+  /** Job thường còn sống (chờ / chờ retry / đang chạy) → để yên. */
+  skipped: string[];
 }

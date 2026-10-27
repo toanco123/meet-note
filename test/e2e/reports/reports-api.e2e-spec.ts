@@ -9,6 +9,7 @@ import type { Database } from '../../../src/infra/database/database.types.js';
 import {
   channels,
   meetingSummaries,
+  notifications,
   weeklyReports,
   weeklyReportVersions,
 } from '../../../src/infra/database/schema/index.js';
@@ -476,6 +477,13 @@ describe('Reports API (e2e)', () => {
         [1, 'scheduled', null],
       ]);
       expect(versions.body.data[0].content.meetings).toHaveLength(2);
+      // Tạo lại THỦ CÔNG → chỉ người bấm (CA) nhận; chủ kênh / thành viên khác thì không (Q7).
+      const got = (
+        await db.select().from(notifications).where(eq(notifications.type, 'report.ready'))
+      ).filter((n) => (n.payload as { channelId?: string }).channelId === ch);
+      expect(got.map((n) => [n.userId, n.dedupeKey])).toEqual([
+        [ca!.id, expect.stringMatching(/^report-ready\..+\.v2$/)],
+      ]);
     });
   });
 });

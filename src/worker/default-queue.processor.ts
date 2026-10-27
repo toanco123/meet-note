@@ -45,6 +45,8 @@ export class DefaultQueueProcessor extends WorkerHost {
       // Việc định kỳ (M6 B8): kết quả đếm được lưu làm `returnvalue` của job — xem lại trong Redis.
       case JobName.MeetingSweepStuck:
         return this.maintenance.sweepStuckMeetings();
+      case JobName.ReportSweepStuck:
+        return this.maintenance.sweepStuckReports();
       case JobName.UploadCleanup:
         return this.maintenance.cleanupUploads();
       case JobName.IdempotencyCleanup:

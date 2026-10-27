@@ -17,6 +17,7 @@ const TZ = 'Asia/Ho_Chi_Minh';
  */
 export const SCHEDULES = [
   { id: 'meeting-sweep-stuck', pattern: '*/5 * * * *', name: JobName.MeetingSweepStuck },
+  { id: 'report-sweep-stuck', pattern: '*/5 * * * *', name: JobName.ReportSweepStuck },
   { id: 'upload-cleanup', pattern: '*/10 * * * *', name: JobName.UploadCleanup },
   { id: 'idempotency-cleanup', pattern: '*/10 * * * *', name: JobName.IdempotencyCleanup },
   { id: 'channel-purge', pattern: '0 3 * * *', name: JobName.ChannelPurge },

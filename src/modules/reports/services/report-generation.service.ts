@@ -1,6 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DRIZZLE } from '../../../infra/database/database.module.js';
 import type { Database } from '../../../infra/database/database.types.js';
+import {
+  NotificationFanoutService,
+  reportReadyKey,
+} from '../../notifications/services/notification-fanout.service.js';
+import { NotificationsService } from '../../notifications/services/notifications.service.js';
 import { LlmPermanentError } from '../../../infra/llm/llm.errors.js';
 import { REPORT_WRITER } from '../../../infra/llm/llm.module.js';
 import type { ReportWriter } from '../../../infra/llm/llm.types.js';
@@ -39,6 +44,8 @@ export class ReportGenerationService {
     private readonly repo: ReportsRepository,
     @Inject(REPORT_WRITER) private readonly writer: ReportWriter,
     @Inject(REPORT_OPTIONS) private readonly options: ReportGenerationOptions,
+    private readonly notifications: NotificationsService,
+    private readonly fanout: NotificationFanoutService,
   ) {}
 
   async generate(job: ReportJob, run: { signal?: AbortSignal } = {}): Promise<ReportOutcome> {
@@ -94,8 +101,8 @@ export class ReportGenerationService {
         throw error;
       });
 
-    const version = await this.db.transaction((tx) =>
-      this.repo.completeGenerated(tx, report, report.generationToken, {
+    const completed = await this.db.transaction(async (tx) => {
+      const version = await this.repo.completeGenerated(tx, report, report.generationToken, {
         trigger: report.requestedTrigger,
         triggeredBy: report.requestedBy,
         // Danh sách meeting do SERVER ghép (id do model trả không đáng tin).
@@ -113,9 +120,42 @@ export class ReportGenerationService {
         promptVersion: result.promptVersion,
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,
-      }),
-    );
-    return this.finish(version === undefined ? 'ignored' : 'completed', report, job);
+      });
+      if (version === undefined) return undefined;
+      // Tạo lại THỦ CÔNG (Q7): chỉ người bấm — MỘT người nhận nên ghi TRONG transaction như
+      // `meeting.completed` (rollback thì không có thông báo "ma"). Bản theo lịch: cả kênh, fan-out dưới.
+      const notifyUser =
+        report.requestedTrigger === 'manual' && report.requestedBy
+          ? (await this.repo.lockOrgMember(tx, report.orgId, report.requestedBy))
+            ? report.requestedBy
+            : null
+          : null;
+      const rows = notifyUser
+        ? await this.notifications.recordInTx(tx, [
+            {
+              userId: notifyUser,
+              orgId: report.orgId,
+              type: 'report.ready',
+              payload: {
+                reportId: report.id,
+                channelId: report.channelId,
+                channelName: report.channelName,
+                weekStart: report.weekStart,
+                version,
+              },
+              dedupeKey: reportReadyKey(report.id, version),
+            },
+          ])
+        : [];
+      return { version, rows };
+    });
+    if (!completed) return this.finish('ignored', report, job);
+    // SAU commit: đẩy realtime / xếp fan-out (đẩy trong transaction mà rollback → client thấy "ma").
+    this.notifications.publish(completed.rows);
+    if (report.requestedTrigger === 'scheduled') {
+      await this.fanout.enqueueReportReady(report.id, completed.version, job.requestId);
+    }
+    return this.finish('completed', report, job);
   }
 
   private finish(outcome: ReportOutcome, report: ClaimedReport, job: ReportJob): ReportOutcome {

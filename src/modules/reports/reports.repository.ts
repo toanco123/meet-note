@@ -7,6 +7,7 @@ import {
   meetings,
   meetingShares,
   meetingSummaries,
+  organizationMembers,
   type WeeklyReportRow,
   type WeeklyReportVersionRow,
   weeklyReports,
@@ -14,7 +15,12 @@ import {
 } from '../../infra/database/schema/index.js';
 import type { MeetingSummaryContent } from '../../infra/llm/llm.types.js';
 import { REPORT_TIME_ZONE } from './report-week.js';
-import type { ClaimedReport, NewReportVersion, ReportMeeting } from './reports.types.js';
+import type {
+  ClaimedReport,
+  NewReportVersion,
+  ReportMeeting,
+  StuckReport,
+} from './reports.types.js';
 
 /**
  * Truy vấn của báo cáo tuần (M9). Worker (user BYPASSRLS) và api (bị RLS, ngữ cảnh tổ chức do
@@ -364,5 +370,52 @@ export class ReportsRepository {
       .returning();
     if (!row) throw new Error('markRegenerating: dòng đã khoá mà không cập nhật được');
     return row;
+  }
+
+  /**
+   * Quét kẹt (B7): `pending` / `generating` lâu không đổi và KHÔNG ai giữ lease. Điều kiện trạng thái
+   * viết literal đúng như `weekly_reports_stuck_idx`. Keyset `(updated_at, id)` trong một lần quét —
+   * dòng vừa xử lý vẫn còn kẹt (job chưa nhận) nên không keyset thì lô đầu lặp mãi (M6 B8).
+   */
+  findStuck(
+    idleMs: number,
+    limit: number,
+    after?: { updatedAt: string; id: string },
+  ): Promise<StuckReport[]> {
+    return this.db
+      .select({
+        id: weeklyReports.id,
+        generation: weeklyReports.regenerateCount,
+        status: weeklyReports.status,
+        updatedAt: sql<string>`${weeklyReports.updatedAt}::text`,
+        version: sql<string>`(extract(epoch from ${weeklyReports.updatedAt}) * 1000000)::bigint::text`,
+      })
+      .from(weeklyReports)
+      .where(
+        and(
+          sql`${weeklyReports.status} in ('pending', 'generating')`,
+          sql`${weeklyReports.updatedAt} < now() - ${idleMs} * interval '1 millisecond'`,
+          or(isNull(weeklyReports.leaseUntil), sql`${weeklyReports.leaseUntil} < now()`),
+          after &&
+            sql`(${weeklyReports.updatedAt}, ${weeklyReports.id}) > (${after.updatedAt}::timestamptz, ${after.id}::uuid)`,
+        ),
+      )
+      .orderBy(asc(weeklyReports.updatedAt), asc(weeklyReports.id))
+      .limit(limit);
+  }
+
+  /**
+   * Người này còn là thành viên tổ chức không — và GIỮ khoá `FOR SHARE` dòng thành viên tới hết
+   * transaction để họ không bị gỡ giữa chừng. Thông báo có composite FK `(org_id, user_id)` →
+   * thành viên: người yêu cầu tạo lại đã RỜI tổ chức thì `INSERT` thông báo lỗi 23503, rollback cả
+   * phiên bản vừa sinh và retry mãi — báo cáo không bao giờ xong chỉ vì một thông báo phụ.
+   */
+  async lockOrgMember(tx: DbExecutor, orgId: string, userId: string): Promise<boolean> {
+    const rows = await tx
+      .select({ userId: organizationMembers.userId })
+      .from(organizationMembers)
+      .where(and(eq(organizationMembers.orgId, orgId), eq(organizationMembers.userId, userId)))
+      .for('share');
+    return rows.length > 0;
   }
 }

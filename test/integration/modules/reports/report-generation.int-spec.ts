@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   channels,
   meetingSummaries,
+  notifications,
   weeklyReports,
   weeklyReportVersions,
 } from '../../../../src/infra/database/schema/index.js';
@@ -15,9 +16,14 @@ import type {
 } from '../../../../src/infra/llm/llm.types.js';
 import { PermanentReportError } from '../../../../src/modules/reports/report.errors.js';
 import { ReportGenerationService } from '../../../../src/modules/reports/services/report-generation.service.js';
+import type { RealtimePublisher } from '../../../../src/infra/realtime/realtime.types.js';
+import { NotificationsRepository } from '../../../../src/modules/notifications/notifications.repository.js';
+import { NotificationFanoutService } from '../../../../src/modules/notifications/services/notification-fanout.service.js';
+import { NotificationsService } from '../../../../src/modules/notifications/services/notifications.service.js';
 import { ReportsRepository } from '../../../../src/modules/reports/reports.repository.js';
 import type { ReportJob } from '../../../../src/modules/reports/reports.types.js';
 import {
+  addMember,
   insertChannel,
   insertMeeting,
   insertOrg,
@@ -53,8 +59,28 @@ class GatedWriter implements ReportWriter {
 describe('ReportGenerationService (Postgres thật)', () => {
   let t: TestDb;
   let repo: ReportsRepository;
+  /** Realtime ghi lại: kiểm "đẩy SAU commit" và ai nhận. */
+  const emitted: Array<{ rooms: string[]; event: string }> = [];
+  const publisher = {
+    emit: (rooms: string[], event: string) => emitted.push({ rooms, event }),
+  } as unknown as RealtimePublisher;
+  /** Fan-out theo lịch được XẾP (không chạy) — việc chạy có test riêng ở notification-fanout. */
+  const fanoutCalls: Array<{ reportId: string; version: number }> = [];
+  const fanout = {
+    enqueueReportReady: (reportId: string, version: number) => {
+      fanoutCalls.push({ reportId, version });
+      return Promise.resolve();
+    },
+  } as unknown as NotificationFanoutService;
   const service = (writer: ReportWriter, over: { leaseMs?: number; maxMeetings?: number } = {}) =>
-    new ReportGenerationService(t.db, repo, writer, { leaseMs: 60_000, maxMeetings: 100, ...over });
+    new ReportGenerationService(
+      t.db,
+      repo,
+      writer,
+      { leaseMs: 60_000, maxMeetings: 100, ...over },
+      new NotificationsService(new NotificationsRepository(t.db), publisher),
+      fanout,
+    );
 
   beforeAll(() => {
     t = createTestDb(8);
@@ -358,5 +384,99 @@ describe('ReportGenerationService (Postgres thật)', () => {
     await service(new FakeReportWriter()).generate(s.job(1));
     const vs = await versions(s.report.id);
     expect(vs[1]?.meetingIds).toEqual(s.meetingIds.slice(1)); // tính lại: không còn meeting đã gỡ
+  });
+
+  describe('thông báo report.ready (B7, Q7)', () => {
+    const notificationsOf = (userId: string) =>
+      t.db.select().from(notifications).where(eq(notifications.userId, userId));
+
+    it('bản THEO LỊCH: không ghi thông báo trong transaction; xếp đúng MỘT fan-out cho phiên bản vừa ghi', async () => {
+      const s = await scenario(2);
+      fanoutCalls.length = 0;
+      await service(new FakeReportWriter()).generate(s.job());
+      expect(fanoutCalls).toEqual([{ reportId: s.report.id, version: 1 }]);
+      expect(await notificationsOf(s.owner.id)).toHaveLength(0); // cả kênh nhận qua fan-out, không phải ở đây
+    });
+
+    // Đột biến: ghi thông báo ngoài transaction / quên điều kiện manual → người khác cũng nhận.
+    it('bản TẠO LẠI THỦ CÔNG: CHỈ người bấm nhận, ghi trong transaction, dedupe theo phiên bản; không xếp fan-out', async () => {
+      const s = await scenario(2);
+      const clicker = await insertUser(t.db);
+      await addMember(t.db, s.org.id, clicker.id); // người bấm là thành viên tổ chức
+      await t.db
+        .update(weeklyReports)
+        .set({ requestedTrigger: 'manual', requestedBy: clicker.id })
+        .where(eq(weeklyReports.id, s.report.id));
+      fanoutCalls.length = 0;
+      emitted.length = 0;
+      await service(new FakeReportWriter()).generate(s.job());
+
+      const [mine] = await notificationsOf(clicker.id);
+      expect(fanoutCalls).toEqual([]);
+      expect(mine).toMatchObject({
+        type: 'report.ready',
+        orgId: s.org.id,
+        dedupeKey: `report-ready.${s.report.id}.v1`,
+        payload: {
+          reportId: s.report.id,
+          channelId: s.channel.id,
+          channelName: 'Kinh doanh',
+          weekStart: WEEK,
+          version: 1,
+        },
+      });
+      expect(await notificationsOf(s.owner.id)).toHaveLength(0);
+      expect(emitted).toEqual([{ rooms: [`user:${clicker.id}`], event: 'notification.created' }]);
+    });
+
+    // Đột biến: điều kiện chỉ còn `requestedBy` (bỏ `trigger === 'manual'`) → bản theo lịch cũng thông báo riêng.
+    it('bản THEO LỊCH mà `requested_by` còn sót → vẫn fan-out cả kênh, KHÔNG thông báo riêng', async () => {
+      const s = await scenario(2);
+      const leftover = await insertUser(t.db);
+      await addMember(t.db, s.org.id, leftover.id);
+      await t.db
+        .update(weeklyReports)
+        .set({ requestedTrigger: 'scheduled', requestedBy: leftover.id })
+        .where(eq(weeklyReports.id, s.report.id));
+      fanoutCalls.length = 0;
+      await service(new FakeReportWriter()).generate(s.job());
+      expect([fanoutCalls.length, (await notificationsOf(leftover.id)).length]).toEqual([1, 0]);
+    });
+
+    // Đột biến: bỏ `lockOrgMember` → INSERT thông báo lỗi 23503, rollback cả phiên bản, retry mãi.
+    it('người bấm đã RỜI tổ chức trước khi báo cáo xong → báo cáo VẪN hoàn tất, chỉ không thông báo', async () => {
+      const s = await scenario(2);
+      const gone = await insertUser(t.db); // không phải thành viên org
+      await t.db
+        .update(weeklyReports)
+        .set({ requestedTrigger: 'manual', requestedBy: gone.id })
+        .where(eq(weeklyReports.id, s.report.id));
+      emitted.length = 0;
+      const outcome = await service(new FakeReportWriter()).generate(s.job());
+      expect([
+        outcome,
+        (await row(s.report.id)).status,
+        (await versions(s.report.id)).length,
+      ]).toEqual(['completed', 'completed', 1]);
+      expect([await notificationsOf(gone.id), emitted]).toEqual([[], []]);
+    });
+
+    it('tạo lại thủ công mà người bấm đã bị xoá (requested_by NULL) → hoàn tất, không thông báo, không lỗi', async () => {
+      const s = await scenario(2, { requestedTrigger: 'manual', requestedBy: null });
+      fanoutCalls.length = 0;
+      expect(await service(new FakeReportWriter()).generate(s.job())).toBe('completed');
+      expect(fanoutCalls).toEqual([]);
+    });
+
+    it('báo cáo `skipped` / job bị bỏ qua / mất lease → KHÔNG thông báo, KHÔNG fan-out', async () => {
+      const skipped = await scenario(1);
+      const done = await scenario(2);
+      await service(new FakeReportWriter()).generate(done.job());
+      fanoutCalls.length = 0;
+      emitted.length = 0;
+      await service(new FakeReportWriter()).generate(skipped.job()); // skipped
+      await service(new FakeReportWriter()).generate(done.job()); // job trùng → ignored
+      expect([fanoutCalls, emitted]).toEqual([[], []]);
+    });
   });
 });

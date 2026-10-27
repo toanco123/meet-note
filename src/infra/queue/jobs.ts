@@ -12,6 +12,7 @@ export const JobName = {
   // Báo cáo tuần (M9): tick theo lịch fan-out ra một job `generate` cho mỗi kênh.
   WeeklyReportTick: 'weekly-report.tick',
   WeeklyReportGenerate: 'weekly-report.generate',
+  ReportSweepStuck: 'weekly-report.sweep-stuck',
 } as const;
 export type JobName = (typeof JobName)[keyof typeof JobName];
 
@@ -55,4 +56,21 @@ export function notificationFanoutJobId(dedupeKey: string, at: Date): string {
  */
 export function reportJobId(reportId: string, generation: number): string {
   return `${JobName.WeeklyReportGenerate}.${reportId}.g${generation}`;
+}
+
+/**
+ * `notification.fanout.report-ready.<reportId>.v<version>` (M9 B7): MỘT job cho mỗi phiên bản; enqueue
+ * lại (retry, quét) cùng id → BullMQ bỏ qua. Người nhận trùng thì `dedupe_key` trong DB chặn.
+ */
+export function reportReadyFanoutJobId(reportId: string, version: number): string {
+  return `${JobName.NotificationFanout}.report-ready.${reportId}.v${version}`;
+}
+
+/**
+ * Quét báo cáo kẹt xếp LẠI job tạo: không dùng lại `reportJobId` (job cũ đã completed / failed còn
+ * giữ nên `add()` cùng id bị nuốt — bài học M6 B8). Hậu tố `.r<version>` = `updated_at` (µs): cùng
+ * trạng thái kẹt → cùng id → quét lặp không nhân đôi.
+ */
+export function reportRequeueJobId(reportId: string, generation: number, version: string): string {
+  return `${reportJobId(reportId, generation)}.r${version}`;
 }

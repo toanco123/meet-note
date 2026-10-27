@@ -98,3 +98,18 @@ export interface FanoutRecipientsParams {
   afterUserId: string | null;
   limit: number;
 }
+
+/** Một lô người nhận "báo cáo tuần xong" (M9 B7): thành viên kênh trừ Khách, keyset `user_id`. */
+export interface ReportRecipientsParams {
+  channelId: string;
+  afterUserId: string | null;
+  limit: number;
+}
+
+/** Báo cáo + phiên bản còn "sống" lúc job fan-out chạy. */
+export interface LiveReportVersion {
+  orgId: string;
+  channelId: string;
+  channelName: string;
+  weekStart: string;
+}

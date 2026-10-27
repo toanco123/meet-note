@@ -8,6 +8,7 @@ import type { Database } from '../../../src/infra/database/database.types.js';
 import {
   channels,
   meetingSummaries,
+  notifications,
   weeklyReports,
   weeklyReportVersions,
 } from '../../../src/infra/database/schema/index.js';
@@ -19,6 +20,8 @@ import { ReportScheduler } from '../../../src/modules/reports/report.scheduler.j
 import { createTestApp, createTestWorker } from '../../support/app.js';
 import { fixtureDb } from '../../support/db.js';
 import {
+  addChannelMember,
+  addMember,
   insertChannel,
   insertMeeting,
   insertOrg,
@@ -97,7 +100,13 @@ describe('Báo cáo tuần: tick → generate (e2e)', () => {
     await db.update(channels).set({ weeklyReportEnabled: false }).where(eq(channels.id, ch.tat));
     await db.update(channels).set({ archivedAt: new Date() }).where(eq(channels.id, ch.luuTru));
     await db.update(channels).set({ deletedAt: new Date() }).where(eq(channels.id, ch.daXoa));
-    return { org, ch, channelIds: Object.values(ch), names: { du: `du-${org.id.slice(-4)}` } };
+    return {
+      owner,
+      org,
+      ch,
+      channelIds: Object.values(ch),
+      names: { du: `du-${org.id.slice(-4)}` },
+    };
   }
   const reportsOf = (channelIds: string[]) =>
     db.select().from(weeklyReports).where(inArray(weeklyReports.channelId, channelIds));
@@ -303,6 +312,45 @@ describe('Báo cáo tuần: tick → generate (e2e)', () => {
     expect((await reportsOf([w2.ch.du]))[0]?.lastError).toBe(
       'Không tạo được báo cáo. Hãy thử tạo lại.',
     );
+  });
+
+  // Đột biến: fan-out gửi cả Khách / cả người ngoài kênh; quên xếp fan-out → không ai nhận.
+  it('báo cáo theo lịch xong → thành viên kênh TRỪ Khách nhận `report.ready` (đúng 1 lần dù tick 2 lần)', async () => {
+    const w = await world();
+    const member = await insertUser(db);
+    const admin = await insertUser(db);
+    const guest = await insertUser(db);
+    const bystander = await insertUser(db); // thành viên org nhưng KHÔNG ở kênh
+    for (const u of [member, admin, guest, bystander]) await addMember(db, w.org.id, u.id);
+    const du = { id: w.ch.du };
+    await addChannelMember(db, du, w.org.id, member.id, 'member');
+    await addChannelMember(db, du, w.org.id, admin.id, 'admin');
+    await addChannelMember(db, du, w.org.id, guest.id, 'guest');
+    await startWorker();
+    await tick();
+    await tick();
+    const expected = [w.owner.id, member.id, admin.id].sort();
+    await vi.waitFor(
+      async () => {
+        const got = await db
+          .select()
+          .from(notifications)
+          .where(eq(notifications.type, 'report.ready'));
+        expect(
+          got
+            .filter((n) => n.orgId === w.org.id)
+            .map((n) => n.userId)
+            .sort(),
+        ).toEqual(expected);
+      },
+      { timeout: 20_000, interval: 100 },
+    );
+    const rows = (
+      await db.select().from(notifications).where(eq(notifications.orgId, w.org.id))
+    ).filter((n) => n.type === 'report.ready');
+    expect(rows).toHaveLength(3);
+    expect(rows.some((n) => n.userId === guest.id || n.userId === bystander.id)).toBe(false);
+    expect(rows[0]?.payload).toMatchObject({ channelId: w.ch.du, weekStart: WEEK, version: 1 });
   });
 
   it('lịch: cron 08:00 Thứ Hai (giờ VN) — job hẹn giờ bắn đúng mốc, tuần suy từ mốc đó', async () => {

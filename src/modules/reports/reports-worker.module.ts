@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { LlmModule } from '../../infra/llm/llm.module.js';
+import { NotificationsCoreModule } from '../notifications/notifications-core.module.js';
 import { MAX_REPORT_MEETINGS } from './report-input.js';
 import { ReportGenerationService } from './services/report-generation.service.js';
+import { ReportSweepService } from './services/report-sweep.service.js';
 import { ReportTickService } from './services/report-tick.service.js';
 import { ReportsCoreModule } from './reports-core.module.js';
 import { REPORT_OPTIONS } from './reports.tokens.js';
@@ -13,10 +15,11 @@ const MINUTE = 60_000;
  * Tạo báo cáo — CHỈ tiến trình worker import (cần LLM). Api chỉ cần `ReportsCoreModule` để xếp job.
  */
 @Module({
-  imports: [ReportsCoreModule, LlmModule],
+  imports: [ReportsCoreModule, LlmModule, NotificationsCoreModule],
   providers: [
     ReportGenerationService,
     ReportTickService,
+    ReportSweepService,
     {
       provide: REPORT_OPTIONS,
       useValue: {
@@ -26,6 +29,6 @@ const MINUTE = 60_000;
       } satisfies ReportGenerationOptions,
     },
   ],
-  exports: [ReportGenerationService, ReportTickService],
+  exports: [ReportGenerationService, ReportTickService, ReportSweepService],
 })
 export class ReportsWorkerModule {}

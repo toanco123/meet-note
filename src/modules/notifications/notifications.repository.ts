@@ -25,9 +25,13 @@ import {
   notifications,
   organizations,
   users,
+  weeklyReports,
+  weeklyReportVersions,
 } from '../../infra/database/schema/index.js';
 import type {
   FanoutRecipientsParams,
+  LiveReportVersion,
+  ReportRecipientsParams,
   ListNotificationsParams,
   NotificationDraft,
 } from './notifications.types.js';
@@ -123,6 +127,51 @@ export class NotificationsRepository {
               .innerJoin(channels, eq(channels.id, meetingShares.channelId))
               .where(liveShare(p.meetingId, p.channelId)),
           ),
+        ),
+      )
+      .orderBy(asc(channelMembers.userId))
+      .limit(p.limit);
+    return rows.map((r) => r.userId);
+  }
+
+  /**
+   * Phiên bản báo cáo còn "sống" lúc job chạy (M9 B7): báo cáo + phiên bản còn, kênh chưa xoá. `undefined`
+   * = kênh bị xoá / báo cáo bị cascade trước khi job tới lượt → không gửi cho ai.
+   */
+  async findLiveReportVersion(
+    reportId: string,
+    version: number,
+  ): Promise<LiveReportVersion | undefined> {
+    const [row] = await this.db
+      .select({
+        orgId: weeklyReports.orgId,
+        channelId: weeklyReports.channelId,
+        channelName: channels.name,
+        weekStart: weeklyReports.weekStart,
+      })
+      .from(weeklyReportVersions)
+      .innerJoin(weeklyReports, eq(weeklyReports.id, weeklyReportVersions.reportId))
+      .innerJoin(channels, eq(channels.id, weeklyReports.channelId))
+      .where(
+        and(
+          eq(weeklyReportVersions.reportId, reportId),
+          eq(weeklyReportVersions.version, version),
+          isNull(channels.deletedAt),
+        ),
+      );
+    return row;
+  }
+
+  /** Một lô người nhận báo cáo tuần: thành viên kênh TRỪ Khách (04: "Nhận thông báo báo cáo tuần"). */
+  async reportRecipients(p: ReportRecipientsParams): Promise<string[]> {
+    const rows = await this.db
+      .select({ userId: channelMembers.userId })
+      .from(channelMembers)
+      .where(
+        and(
+          eq(channelMembers.channelId, p.channelId),
+          ne(channelMembers.role, 'guest'),
+          p.afterUserId ? gt(channelMembers.userId, p.afterUserId) : undefined,
         ),
       )
       .orderBy(asc(channelMembers.userId))

@@ -379,7 +379,7 @@ Nếu không có `FOR UPDATE`, 2 cú bấm cùng lúc đều đọc được `co
 
 ### `notifications`
 
-id, user_id (FK `users` ON DELETE CASCADE), org_id NULL, type text (CHECK `notifications_type_ck`: `channel.member_added`, `channel.ownership_transferred`, `org.join_request_approved`, `meeting.shared`, `meeting.completed`, `meeting.failed` (M6, migration `0013`) — M9 thêm loại bằng migration), payload jsonb (id + tên lúc tạo, M10 Q4), dedupe_key text NULL, read_at, deleted_at, created_at. Migration `0009` (M10).
+id, user_id (FK `users` ON DELETE CASCADE), org_id NULL, type text (CHECK `notifications_type_ck`: `channel.member_added`, `channel.ownership_transferred`, `org.join_request_approved`, `meeting.shared`, `meeting.completed`, `meeting.failed`, `report.ready` (M6, migration `0013`) — M9 thêm loại bằng migration), payload jsonb (id + tên lúc tạo, M10 Q4), dedupe_key text NULL, read_at, deleted_at, created_at. Migration `0009` (M10).
 
 - **FK `notifications_org_member_fk (org_id, user_id)` → `organization_members` ON DELETE CASCADE** (M10 Q3): rời / bị gỡ khỏi tổ chức → thông báo của tổ chức đó bị xoá theo, thay vì JOIN membership ở mọi truy vấn đọc. `org_id` NULL → FK không áp (MATCH SIMPLE).
 
