@@ -28,6 +28,7 @@ Trạng thái hiện tại:
 | M6b — Chia sẻ & quyền xem      | Xong (PR #6). Chia sẻ meeting vào kênh, một điều kiện xem dùng chung, danh sách meeting (theo org / theo kênh), sửa / xoá meeting                                                                                                             |
 | M7 — Realtime                  | Xong (PR #7). Socket.IO `/realtime`: xác thực handshake, ngắt khi token hết hạn / phiên bị thu hồi, subscribe meeting theo quyền, mất quyền là rời room, nhiều instance qua Redis                                                             |
 | M8 — Transcript                | Xong (PR #11). Tìm toàn văn trong transcript (không dấu ra có dấu, chỉ meeting xem được, snippet an toàn), xuất SRT / VTT stream theo lô                                                                                                      |
+| M9 — Báo cáo tuần              | Xong (PR #12). Cron 08:00 Thứ Hai giờ VN tạo báo cáo cho từng kênh (tick hai pha, idempotent), AI viết từ tóm tắt meeting, phiên bản + tạo lại tối đa 3 lần, thông báo `report.ready`, quét báo cáo kẹt, `pnpm report:backfill` chạy bù       |
 
 Chi tiết từng mốc (các bước, quyết định, bài học) trong [docs/plans/](docs/plans/).
 

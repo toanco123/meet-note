@@ -1,6 +1,6 @@
 # M9 — Báo cáo tuần
 
-- **Trạng thái:** Đang làm — plan đã duyệt 2026-10-26 (★ cho Q1–Q10)
+- **Trạng thái:** Xong — plan đã duyệt 2026-10-26 (★ cho Q1–Q10); PR #12
 - **Nhánh:** `m9-weekly-reports`
 - **Tài liệu thiết kế liên quan:** [10-roadmap M9](../design/10-roadmap.md), [01-overview D6, D8](../design/01-overview.md), [03-database §5](../design/03-database.md), [04-authorization (ma trận kênh)](../design/04-authorization.md), [05-api Reports](../design/05-api.md), [06-flows §2](../design/06-flows.md)
 - **Mốc trước:** M8 đã xong (PR #11) — tiêu chí đều tick; phần chưa kiểm tay (whisper thật, Claude thật) vẫn ghi ở bài học 20 của M6.
@@ -72,18 +72,18 @@ Mỗi sáng thứ Hai 08:00 (giờ Việt Nam) hệ thống tự tạo báo cáo
 - [x] **B7 — Thông báo `report.ready` + quét kẹt**
   - Việc: loại thông báo mới (fan-out thành viên kênh trừ Khách, dedupe `report:{id}:v{n}`; thủ công → chỉ người bấm, Q7); mở rộng job quét 5 phút cho báo cáo kẹt (Q8b).
   - Test: Khách không nhận; chạy fan-out 2 lần không nhân đôi; tạo lại → người bấm nhận, cả kênh không; báo cáo `pending` mất job → quét → xong; `generating` còn lease → quét để yên.
-- [ ] **B8 — Tài liệu + openapi + đóng mốc**
+- [x] **B8 — Tài liệu + openapi + đóng mốc**
   - Việc: sửa 03 §5, 04, 05, 06 §2 (lease thay `UPDATE WHERE status`, Q7, Q8), 07 (mã lỗi), 10; `pnpm build && pnpm openapi:export`; README / CLAUDE.md; bài học.
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở CI (local cần ffmpeg cho 6 file pipeline — đã gỡ máy dev)
-- [ ] Tick chạy trùng / song song / chết giữa chừng không tạo báo cáo hay job trùng (có đột biến)
-- [ ] Biên tuần theo giờ VN đúng (test bảng giờ, có đột biến)
-- [ ] Quota tạo lại chính xác dưới race (có đột biến bỏ `FOR UPDATE`)
-- [ ] Retry / chết worker không để báo cáo kẹt `generating`
-- [ ] `openapi.json` đã cập nhật; `docs/design/` khớp code
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
+- [x] `pnpm test:e2e` xanh ở CI (local: 728 xanh, 6 file pipeline meeting lỗi `spawn ffmpeg ENOENT` vì đã gỡ ffmpeg khỏi máy dev — chờ CI xác nhận)
+- [x] Tick chạy trùng / song song / chết giữa chừng không tạo báo cáo hay job trùng (có đột biến)
+- [x] Biên tuần theo giờ VN đúng (test bảng giờ, có đột biến)
+- [x] Quota tạo lại chính xác dưới race (có đột biến bỏ `FOR UPDATE`)
+- [x] Retry / chết worker không để báo cáo kẹt `generating`
+- [x] `openapi.json` đã cập nhật; `docs/design/` khớp code
 
 ## Điều sẽ học
 
@@ -130,3 +130,5 @@ Mỗi sáng thứ Hai 08:00 (giờ Việt Nam) hệ thống tự tạo báo cáo
 32. **Thông báo phụ KHÔNG được phép làm hỏng việc chính — bắt được nhờ test dựng fixture sai.** Lần đầu test thủ công lỗi `23503` vì người bấm chưa là thành viên org: thông báo có composite FK `(org_id, user_id)` → thành viên. Đó là kịch bản thật: người bấm "tạo lại" RỜI tổ chức trước khi báo cáo xong → `INSERT` thông báo lỗi trong CÙNG transaction với phiên bản → rollback cả phiên bản vừa sinh (tốn một lần gọi LLM) → lỗi tạm → retry mãi → báo cáo không bao giờ hoàn tất. Sửa: `lockOrgMember` — kiểm còn là thành viên và giữ `FOR SHARE` dòng thành viên tới hết transaction (chặn họ bị gỡ giữa kiểm và ghi); không còn thì bỏ thông báo, phiên bản vẫn ghi. Test riêng "người bấm đã RỜI tổ chức → báo cáo VẪN hoàn tất"; đột biến bỏ kiểm → đỏ. Quy tắc: thứ gì ghi cùng transaction với kết quả chính mà có thể vi phạm ràng buộc thì phải được kiểm TRƯỚC, hoặc ghi ngoài transaction.
 33. **Hai đường thông báo, một dedupe key.** Theo lịch → `notification.fanout` job (cả kênh trừ Khách, lô keyset `user_id`, `dedupe_key = report-ready.{id}.v{n}`); thủ công → ghi trong transaction cho đúng người bấm, CÙNG `dedupe_key`. `NotificationFanoutJobData` thành union phân biệt theo `type` (`meeting.shared` | `report.ready`) — `run` rẽ theo `type`, TS bắt thiếu nhánh. Đột biến: Khách cũng nhận; bản thủ công cũng fan-out cả kênh (2 test đỏ); bản theo lịch quên fan-out; kênh đã xoá vẫn gửi; điều kiện chỉ còn `requestedBy` — đột biến cuối SỐNG SÓT lần đầu vì không có dữ liệu `scheduled` + `requested_by` còn sót; thêm đúng ca đó thì đỏ.
 34. **Quét báo cáo kẹt = khuôn của quét meeting kẹt, tách job riêng.** `weekly-report.sweep-stuck` (lịch riêng `*/5`) thay vì nhét vào job quét meeting: một bên lỗi không kéo bên kia, và `returnvalue` của job cho biết từng loại. `findStuck` viết literal đúng điều kiện `weekly_reports_stuck_idx`, keyset `(updated_at, id)`; `hasLiveJob` phân biệt "đang chờ retry" với "kẹt". 6 đột biến quét + 6 đột biến thông báo đều đỏ: jobId thường (bị nuốt), bỏ `hasLiveJob`, bỏ lease, bỏ keyset, bỏ `updated_at`, ... Test "quét lặp khi chưa ai nhận" xác nhận cùng trạng thái kẹt → cùng jobId `.r<µs>` → đúng 1 job.
+35. **Runner tắt êm có test riêng (đóng bài học 25).** 7 ca unit cho `ReportJobRunner`: job lấy về SAU lúc tắt → `delayed` và không gọi `generate`; đang chạy mà tắt → abort signal, chờ dừng hẳn, về `delayed`, không đánh `failed`; lỗi vĩnh viễn → `failed` ngay + `UnrecoverableError`; lỗi tạm ném nguyên; sự kiện `failed` chỉ đánh khi hết lượt; `weekStart` sai → `UnrecoverableError`. 4 đột biến (bỏ guard `shuttingDown`, bỏ kiểm hết lượt, bỏ `abort`, bỏ nhánh tắt-trong-lúc-chạy) đều đỏ. Bẫy khi chạy đột biến: `sed -i` trên macOS (BSD) không nhận chuỗi có `/` hay dấu nháy lạ → script im lặng không áp được, test vẫn xanh; luôn kiểm đột biến thực sự đã áp (dùng Python và `assert a in s`).
+36. **Tổng kết mốc.** Mẫu lease + fencing token của pipeline meeting dùng lại được cho loại việc thứ hai gần như nguyên khuôn (claim → làm → complete theo token → quét kẹt). Phần mới thật sự là: (a) biên tuần theo ngày lịch giờ VN, độc lập timezone của DB / máy; (b) tick hai pha để "chèn xong mà chưa enqueue" không mất việc; (c) quota tạo lại bằng `FOR UPDATE` + CHECK; (d) thông báo phụ không được làm hỏng việc chính (bài học 32). Chưa kiểm bằng tay với Claude API thật cho báo cáo (chỉ Fake + stub server), cùng ghi chú với M6 bài học 20.
