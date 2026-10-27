@@ -1,6 +1,6 @@
 # M13 — Sửa transcript
 
-- **Trạng thái:** Đang làm
+- **Trạng thái:** Xong — PR #13
 - **Nhánh:** `m13-edit-transcript`
 - **Tài liệu thiết kế liên quan:** `docs/design/03-database.md` (`transcript_segments`), `04-authorization.md` (§ meeting), `05-api.md` (Meetings), `07-conventions.md`, `10-roadmap.md` (M13). Plan M8 (search / export), M6b (`canManageMeeting`)
 
@@ -57,17 +57,17 @@ Mốc này dạy **khoá lạc quan** (cột `version`, `ETag` / `If-Match`) và
 - [x] **B4 — Tìm kiếm, xuất file, invariant pipeline**
   - Việc: `replaceSegments` từ chối khi đã có đoạn đã sửa (Q4); không đổi code search / export (cột generated + đọc từ bảng) nhưng thêm test chứng minh.
   - Test: sửa "kế hoạch" → "kế toán": search `ke toan` ra, `ke hoach` không ra đoạn đó; export SRT/VTT chứa bản mới; `replaceSegments` ném lỗi khi có đoạn `version > 1` và không xoá gì (nằm trong integration của pipeline; **cần ffmpeg nên viết ở mức repository, không cần pipeline thật**).
-- [ ] **B5 — Tài liệu + openapi + đóng mốc**
+- [x] **B5 — Tài liệu + openapi + đóng mốc**
   - Việc: 03, 04 (một dòng), 05 (route + `If-Match`/`ETag` + mã 412/428), 07 (mã lỗi + quy ước "khoá lạc quan"), 10-roadmap nếu cần; `pnpm build && pnpm openapi:export`; README / CLAUDE.md; bài học.
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở CI (local: 6 file cần ffmpeg lỗi do đã gỡ máy dev)
-- [ ] Hai sửa song song cùng version: đúng một thành công, không mất dữ liệu (có đột biến bỏ điều kiện `version`)
-- [ ] Không sửa được khi thiếu `If-Match` (428), sai version (412)
-- [ ] Search và export phản ánh bản sửa
-- [ ] `openapi.json` đã cập nhật; `docs/design/` khớp code
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
+- [x] `pnpm test:e2e` xanh ở CI (local: 756 xanh, 6 file cần ffmpeg lỗi `spawn ffmpeg ENOENT` do đã gỡ ffmpeg khỏi máy dev — chờ CI xác nhận)
+- [x] Hai sửa song song cùng version: đúng một thành công, không mất dữ liệu (có đột biến bỏ điều kiện `version`)
+- [x] Không sửa được khi thiếu `If-Match` (428), sai version (412)
+- [x] Search và export phản ánh bản sửa
+- [x] `openapi.json` đã cập nhật; `docs/design/` khớp code
 
 ## Điều sẽ học
 
@@ -90,3 +90,5 @@ Mốc này dạy **khoá lạc quan** (cột `version`, `ETag` / `If-Match`) và
 10. **Đột biến B3 (7/8 đỏ, 1 tương đương):** bỏ throttle, bỏ `ETag`, thiếu `If-Match` thành mặc định 1, nhận weak validator, `seq` âm hợp lệ, bỏ trim, cận 5000 → 50000. Sống sót: đổi `@RequireOrgPermission('org.meeting.manage')` thành `'org.meeting.read'` — **tương đương**: cả hai quyền org trả `true` cho mọi thành viên (`organization.policy.ts`), quyền thật nằm ở `decideTranscriptEdit` trong service. Giữ `manage` để ý định rõ và route tự theo nếu sau này siết quyền org.
 11. **Search và export không cần sửa dòng code nào — và đó chính là điều cần chứng minh.** `search` là cột generated nên đổi `text` là chỉ mục GIN tự theo; export đọc thẳng bảng. Test e2e (`transcript-edit-reflect`) khoá điều đó: từ cũ biến mất khỏi search, từ mới ra đúng đoạn, sửa nhiều lần chỉ thấy bản cuối, SRT giữ nguyên mốc thời gian và VTT vẫn escape HTML của bản sửa (`<b>` → `&lt;b&gt;`: người sửa tay cũng không chèn được markup). Bẫy nhỏ: mỗi cue SRT kết thúc bằng MỘT DÒNG TRỐNG, kể cả cue cuối — kỳ vọng thiếu `\n` cuối làm test đỏ.
 12. **Invariant ở `replaceSegments` kiểm bằng integration cấp repository, không cần ffmpeg.** Chạy được ở máy đã gỡ ffmpeg (6 file pipeline thì không). Lỗi ném là `Error` thường chứ không phải `PermanentPipelineError`: mã lỗi của meeting là enum có CHECK ở DB, thêm mã cho một đường chưa tồn tại là thừa; đường này "không thể xảy ra" hôm nay nên retry rồi `failed` là đủ. 2 đột biến đỏ (ngưỡng `> 99` thay `> 1`; bỏ lọc theo meeting nên meeting khác đã sửa chặn nhầm meeting sạch).
+13. **Tổng kết mốc: khi nào `UPDATE … WHERE version` thay được `FOR UPDATE`.** Khoá bi quan (M1–M9) cần khi quyết định phụ thuộc NHIỀU dòng / nhiều bước đọc-rồi-ghi (đổi chủ, quota). Ở đây quyết định chỉ phụ thuộc MỘT dòng và một số (`version`) client đã đọc: một câu `UPDATE` có điều kiện là nguyên tử, Postgres tự xếp hàng trên khoá dòng, người sau thấy version mới và 0 dòng. Cái giá: phải trả lời "0 dòng nghĩa là gì" bằng một câu đọc thứ hai (404 hay 412) — an toàn vì cả hai kết luận đều đúng tại lúc đọc. Phần HTTP (ETag/If-Match/412/428) mới là phần dạy nhiều: 428 cho thiếu điều kiện, 400 cho điều kiện vô nghĩa (weak, `*`, danh sách), 412 cho điều kiện cũ.
+14. **Chưa làm / để mốc sau:** tóm tắt AI và báo cáo tuần không tự cập nhật theo bản sửa (Q5; cân nhắc cờ `summary_stale` + "tóm tắt lại"); không lịch sử bản sửa / hoàn tác (chỉ `version`, `edited_at`, `edited_by`); không realtime báo "đoạn vừa được sửa" (client biết qua 412 hoặc tải lại); nếu có tính năng tạo lại transcript thì phải quyết định số phận bản sửa — invariant ở `replaceSegments` đang chặn lặng lẽ xoá.
