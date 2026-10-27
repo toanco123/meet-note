@@ -1,15 +1,20 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, lt, or, type SQL, sql } from 'drizzle-orm';
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import {
   type ActionItemRow,
   actionItems,
+  meetings,
+  meetingShares,
   organizationMembers,
   users,
 } from '../../infra/database/schema/index.js';
+import { meetingVisibleTo } from '../meetings/meeting-visibility.js';
 import type {
+  ActionItemListRow,
   ActionItemPatch,
+  ListVisibleActionItemsParams,
   NewAiActionItem,
   OrgMemberName,
   UpdateActionItemOutcome,
@@ -71,6 +76,75 @@ export class ActionItemsRepository {
       .orderBy(asc(organizationMembers.userId));
   }
 
+  /**
+   * Việc của MỘT meeting (caller đã kiểm quyền xem meeting), theo `id` tăng dần = thứ tự tạo, keyset
+   * `id > after`. Kèm tên người được giao và tiêu đề meeting.
+   */
+  async listForMeeting(
+    meetingId: string,
+    afterId: string | undefined,
+    limit: number,
+  ): Promise<ActionItemListRow[]> {
+    const rows = await this.withContext()
+      .where(
+        and(
+          eq(actionItems.meetingId, meetingId),
+          afterId ? gt(actionItems.id, afterId) : undefined,
+        ),
+      )
+      .orderBy(asc(actionItems.id))
+      .limit(limit + 1);
+    return rows;
+  }
+
+  /**
+   * "Việc của tôi" và các biến thể — xuyên meeting (Q8). ĐIỀU KIỆN XEM nằm TRONG câu truy vấn, trước
+   * `LIMIT` (bài học M8: lọc quyền sau khi cắt trang thì trang có thể trống dù còn kết quả xem được).
+   * `meetingVisibleTo` tham chiếu `meetings.id` trong `EXISTS` tương quan nên query phải đi từ bảng
+   * `meetings` không alias — ở đây `meetings` được JOIN vào, đúng điều kiện đó.
+   *
+   * Thứ tự `(due_date ASC NULLS LAST, id ASC)`: việc gần hạn trước, việc không hạn cuối. Keyset trên
+   * cột có NULL không so sánh được bằng row-comparison nên viết tay hai nhánh (xem `afterCondition`).
+   */
+  async listVisible(p: ListVisibleActionItemsParams): Promise<ActionItemListRow[]> {
+    return this.withContext()
+      .where(
+        and(
+          eq(actionItems.orgId, p.orgId),
+          meetingVisibleTo(p.viewer),
+          p.assignedToViewer ? eq(actionItems.assigneeId, p.viewer.userId) : undefined,
+          eq(actionItems.status, p.status),
+          // "Quá hạn" chỉ có nghĩa với việc ĐANG MỞ: việc đã xong / đã bỏ không bao giờ quá hạn, nên
+          // `status=done&overdue=true` ra rỗng (không phải "việc done có hạn đã qua").
+          p.overdueBefore
+            ? and(eq(actionItems.status, 'open'), lt(actionItems.dueDate, p.overdueBefore))
+            : undefined,
+          p.channelId
+            ? sql`exists (select 1 from ${meetingShares} where ${meetingShares.meetingId} = ${meetings.id} and ${meetingShares.channelId} = ${p.channelId})`
+            : undefined,
+          p.after ? afterCondition(p.after) : undefined,
+        ),
+      )
+      .orderBy(sql`${actionItems.dueDate} asc nulls last`, asc(actionItems.id))
+      .limit(p.limit + 1);
+  }
+
+  /** SELECT chung: việc + tên người được giao (LEFT JOIN) + tiêu đề meeting (JOIN cùng `org_id`). */
+  private withContext() {
+    return this.db
+      .select({
+        item: actionItems,
+        assigneeName: users.displayName,
+        meetingTitle: meetings.title,
+      })
+      .from(actionItems)
+      .innerJoin(
+        meetings,
+        and(eq(meetings.id, actionItems.meetingId), eq(meetings.orgId, actionItems.orgId)),
+      )
+      .leftJoin(users, eq(users.id, actionItems.assigneeId));
+  }
+
   /** Việc của một meeting theo thứ tự tạo (`id` là uuidv7: tăng theo thời gian). */
   listByMeeting(meetingId: string, executor: DbExecutor = this.db): Promise<ActionItemRow[]> {
     return executor
@@ -125,4 +199,20 @@ export class ActionItemsRepository {
       ? { kind: 'version_mismatch', currentVersion: current.version }
       : { kind: 'not_found' };
   }
+}
+
+/**
+ * Điều kiện "sau" vị trí `(dueDate, id)` trong thứ tự `due_date ASC NULLS LAST, id ASC`.
+ * - Đang ở việc CÓ hạn `d`: sau nó là hạn lớn hơn, hoặc cùng hạn mà `id` lớn hơn, hoặc MỌI việc không hạn.
+ * - Đang ở việc KHÔNG hạn: chỉ còn việc không hạn có `id` lớn hơn.
+ */
+function afterCondition(after: { dueDate: string | null; id: string }): SQL {
+  if (after.dueDate === null) {
+    return and(isNull(actionItems.dueDate), gt(actionItems.id, after.id)) as SQL;
+  }
+  return or(
+    gt(actionItems.dueDate, after.dueDate),
+    and(eq(actionItems.dueDate, after.dueDate), gt(actionItems.id, after.id)),
+    isNull(actionItems.dueDate),
+  ) as SQL;
 }

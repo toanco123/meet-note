@@ -35,7 +35,7 @@ import type {
   PipelineScheduler,
   PipelineStep,
 } from '../meetings.types.js';
-import { ActionItemExtractionService } from '../../action-items/action-item-extraction.service.js';
+import { ActionItemExtractionService } from '../../action-items/services/action-item-extraction.service.js';
 import { localDate } from '../../reports/report-week.js';
 import { PIPELINE_OPTIONS, PIPELINE_SCHEDULER } from '../pipeline.tokens.js';
 import { MeetingPipelineRepository } from '../repositories/meeting-pipeline.repository.js';

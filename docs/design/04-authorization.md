@@ -54,6 +54,8 @@ CO = Chủ kênh, CA = QTV kênh, CM = Thành viên kênh, G = Khách.
 
 **Gỡ meeting khỏi kênh:** chủ meeting luôn gỡ được meeting của mình, kể cả khi không (còn) ở trong kênh (M6b Q4). Kiểm theo đối tượng: `decideUnshare` (`src/modules/meetings/meeting-share.policy.ts`); share là `channel.meeting.share` trong `channelPolicy`.
 
+**Đọc action items (M12):** không có quyền riêng — quyền đọc = quyền XEM meeting chứa việc (§3). Danh sách xuyên meeting (`GET /action-items`) ghép `meetingVisibleTo` trong câu truy vấn; người được giao việc mà không xem được meeting thì KHÔNG thấy việc đó (việc nằm trong nội dung họp).
+
 **Sửa transcript (M13 Q1):** cùng quyền sửa / xoá meeting — chủ meeting; meeting không còn chủ thì Owner / Admin org (`canManageMeeting`, `decideTranscriptEdit` trong `src/modules/transcripts/transcript.policy.ts`). Thứ tự: không xem được → 404; xem được mà không đủ quyền → 403 (kể cả Admin org với meeting CÓ chủ); chưa `completed` → 409; rồi mới tới đoạn (404) và version (412). Chủ tự sửa không audit; người khác sửa → audit `transcript.segment.edited` (seq + version, không nội dung).
 **Kênh đã lưu trữ:** mọi hành động ghi đều trả `409 CHANNEL_ARCHIVED`, trừ bỏ lưu trữ, xoá và **rời kênh** (để không ai bị kẹt trong kênh chỉ đọc). Danh sách nằm ở `BLOCKED_WHEN_ARCHIVED` trong `channel.policy.ts`.
 **Kênh riêng tư mà người gọi không có quyền thấy:** trả `404`, không trả `403`, để không lộ việc kênh tồn tại.

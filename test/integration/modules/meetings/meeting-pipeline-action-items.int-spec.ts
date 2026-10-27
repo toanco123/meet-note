@@ -8,7 +8,7 @@ import {
 import { FakeSummarizer } from '../../../../src/infra/llm/fake.summarizer.js';
 import type { SummaryActionItem } from '../../../../src/infra/llm/llm.types.js';
 import { FakeSpeechToText } from '../../../../src/infra/speech/fake.speech-to-text.js';
-import { ActionItemExtractionService } from '../../../../src/modules/action-items/action-item-extraction.service.js';
+import { ActionItemExtractionService } from '../../../../src/modules/action-items/services/action-item-extraction.service.js';
 import { ActionItemsRepository } from '../../../../src/modules/action-items/action-items.repository.js';
 import type {
   PipelineOptions,

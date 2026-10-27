@@ -5654,6 +5654,276 @@
         ]
       }
     },
+    "/v1/orgs/{orgId}/meetings/{meetingId}/action-items": {
+      "get": {
+        "description": "Người xem được cuộc họp (không xem được → 404). Theo thứ tự tạo; cuộc họp chưa xử lý xong\nthì chưa có việc nào (trang rỗng). Mọi trạng thái, kể cả `done` và `dismissed`.",
+        "operationId": "ActionItems_listForMeeting",
+        "parameters": [
+          {
+            "name": "meetingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ActionItemResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Việc cần làm của một cuộc họp.",
+        "tags": [
+          "Action items"
+        ],
+        "x-paginated": true
+      }
+    },
+    "/v1/orgs/{orgId}/action-items": {
+      "get": {
+        "description": "Chỉ việc của cuộc họp bạn xem được. `assignee=me` lọc việc giao cho bạn; mặc định chỉ việc\n`open`; `overdue=true` chỉ việc đã quá hạn theo ngày hôm nay giờ Việt Nam. Sắp xếp theo hạn (gần\nhạn trước, việc không hạn cuối).",
+        "operationId": "ActionItems_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Số phần tử mỗi trang (1–100).\n@default 20",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "assignee",
+            "required": false,
+            "in": "query",
+            "description": "`me`: chỉ việc được giao cho bạn (\"việc của tôi\"). Bỏ trống: mọi việc bạn xem được.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "me"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Trạng thái việc. Mặc định `open`.\n@default \"open\"",
+            "schema": {
+              "$ref": "#/components/schemas/ActionItemStatus"
+            }
+          },
+          {
+            "name": "overdue",
+            "required": false,
+            "in": "query",
+            "description": "`true`: chỉ việc `open` đã quá hạn (hạn trước ngày hôm nay theo giờ Việt Nam). Kết hợp với\n`status` khác `open` thì không có kết quả.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "channelId",
+            "required": false,
+            "in": "query",
+            "description": "Chỉ việc của cuộc họp được chia sẻ vào kênh này. Phải đọc được nội dung kênh (không thì 403 / 404).",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Giá trị `nextCursor` của trang trước. Bỏ trống để lấy trang đầu.",
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ActionItemResponseDto"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginatedMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).\n\nKhông đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Việc cần làm xuyên các cuộc họp (\"việc của tôi\").",
+        "tags": [
+          "Action items"
+        ],
+        "x-paginated": true
+      }
+    },
     "/v1/orgs/{orgId}/channels/{channelId}/reports": {
       "get": {
         "description": "Cần đọc được nội dung kênh: thành viên kênh, hoặc thành viên tổ chức với kênh công khai.\nKênh chỉ có báo cáo từ tuần đầu tiên sau khi bật báo cáo; không có dòng cho tuần không có gì.",
@@ -6521,6 +6791,10 @@
     {
       "name": "Meetings",
       "description": "Upload, cuộc họp, transcript, tóm tắt, tìm kiếm"
+    },
+    {
+      "name": "Action items",
+      "description": "Việc cần làm của cuộc họp, \"việc của tôi\""
     },
     {
       "name": "Reports",
@@ -8326,6 +8600,127 @@
         },
         "required": [
           "text"
+        ]
+      },
+      "ActionItemOrigin": {
+        "type": "string",
+        "enum": [
+          "ai",
+          "manual"
+        ],
+        "description": "`ai`: model trích từ tóm tắt; `manual`: người tạo tay. Việc `ai` đã sửa vẫn là `ai`."
+      },
+      "ActionItemAssigneeDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Nguyễn Văn Bình"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ]
+      },
+      "ActionItemStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "done",
+          "dismissed"
+        ]
+      },
+      "ActionItemResponseDto": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "description": "`ai`: model trích từ tóm tắt; `manual`: người tạo tay. Việc `ai` đã sửa vẫn là `ai`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ActionItemOrigin"
+              }
+            ]
+          },
+          "ownerName": {
+            "type": "string",
+            "nullable": true,
+            "description": "Tên người phụ trách đúng như model nghe được (\"anh Bình\"), kể cả khi chưa map được thành viên."
+          },
+          "assignee": {
+            "nullable": true,
+            "description": "Thành viên được giao. null = chưa giao, không map được tên, hoặc người đó đã rời tổ chức.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ActionItemAssigneeDto"
+              }
+            ]
+          },
+          "dueText": {
+            "type": "string",
+            "nullable": true,
+            "description": "Hạn như được nói, vd \"thứ sáu\"."
+          },
+          "dueDate": {
+            "type": "string",
+            "nullable": true,
+            "description": "Hạn đã quy ra ngày (YYYY-MM-DD, giờ VN).",
+            "example": "2026-10-30"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ActionItemStatus"
+              }
+            ]
+          },
+          "completedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "Có khi `status = done`."
+          },
+          "id": {
+            "type": "string"
+          },
+          "meetingId": {
+            "type": "string"
+          },
+          "meetingTitle": {
+            "type": "string",
+            "example": "Giao ban kỹ thuật tuần 43"
+          },
+          "task": {
+            "type": "string",
+            "example": "Gửi báo giá cho khách hàng"
+          },
+          "version": {
+            "type": "number",
+            "description": "Gửi lại qua `If-Match` khi sửa.",
+            "example": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2026-10-27T03:00:00.000Z"
+          }
+        },
+        "required": [
+          "origin",
+          "ownerName",
+          "assignee",
+          "dueText",
+          "dueDate",
+          "status",
+          "completedAt",
+          "id",
+          "meetingId",
+          "meetingTitle",
+          "task",
+          "version",
+          "createdAt"
         ]
       },
       "ReportStatus": {

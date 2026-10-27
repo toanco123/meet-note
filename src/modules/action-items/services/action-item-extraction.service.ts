@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import type { DbExecutor } from '../../infra/database/database.types.js';
-import type { SummaryActionItem } from '../../infra/llm/llm.types.js';
-import { buildAiActionItems } from './action-item-builder.js';
-import { ActionItemsRepository } from './action-items.repository.js';
+import type { DbExecutor } from '../../../infra/database/database.types.js';
+import type { SummaryActionItem } from '../../../infra/llm/llm.types.js';
+import { buildAiActionItems } from '../action-item-builder.js';
+import { ActionItemsRepository } from '../action-items.repository.js';
 
 /**
  * Biến việc trong tóm tắt thành `action_items` (M12 B3). Gọi TRONG transaction của bước tóm tắt, sau
