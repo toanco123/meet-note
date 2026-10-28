@@ -19,6 +19,28 @@ export class ReportActionItemDto {
   due: string | null;
 }
 
+export class ReportOverdueActionItemDto {
+  id: string;
+
+  /** @example "Gửi báo giá cho khách hàng" */
+  task: string;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      'Người phụ trách: tên thành viên được giao, hoặc tên model nghe được. null = chưa ai.',
+  })
+  assignee: string | null;
+
+  /** Hạn đã qua, `YYYY-MM-DD` (giờ VN). @example "2026-10-02" */
+  dueDate: string;
+
+  meetingId: string;
+
+  meetingTitle: string;
+}
+
 export class ReportMeetingRefDto {
   id: string;
 
@@ -43,6 +65,24 @@ export class ReportContentDto {
 
   /** Các cuộc họp được tổng hợp (do hệ thống ghi, cũ nhất trước). */
   meetings: ReportMeetingRefDto[];
+
+  /**
+   * Việc còn mở đã quá hạn (hạn trước khi tuần này kết thúc) của các cuộc họp trong kênh, do hệ thống
+   * ghép (không qua AI), hạn cũ nhất trước, tối đa 20. Báo cáo tạo trước M12 không có: trả `[]`.
+   */
+  overdueActionItems: ReportOverdueActionItemDto[];
+
+  /** Còn việc quá hạn khác không hiện ở đây (vượt 20). */
+  overdueActionItemsTruncated: boolean;
+}
+
+/** Phiên bản lưu trước M12 chưa có hai field việc quá hạn (jsonb không migrate) → mặc định rỗng. */
+function withOverdueDefaults(content: Partial<ReportContentDto>): ReportContentDto {
+  // `Object.assign` thay vì spread: DTO là class, spread bị lint chặn (mất prototype) dù ở đây content là jsonb thuần.
+  return Object.assign({}, content, {
+    overdueActionItems: content.overdueActionItems ?? [],
+    overdueActionItemsTruncated: content.overdueActionItemsTruncated ?? false,
+  }) as ReportContentDto;
 }
 
 export class ReportVersionResponseDto {
@@ -74,7 +114,7 @@ export class ReportVersionResponseDto {
       model: row.model,
       createdAt: row.createdAt.toISOString(),
       // Đã validate khi ghi (`parseReportBody`) và do server ghép `meetings`.
-      content: row.content as unknown as ReportContentDto,
+      content: withOverdueDefaults(row.content as unknown as Partial<ReportContentDto>),
     };
   }
 }

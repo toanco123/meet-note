@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  actionItems,
   channels,
   meetingSummaries,
   notifications,
@@ -169,6 +170,73 @@ describe('ReportGenerationService (Postgres thật)', () => {
       meetings: s.meetingIds.map((id, i) => ({ id, title: `Họp ${i}` })),
     });
     expect(writer.lastInput?.channelName).toBe('Kinh doanh');
+  });
+
+  // M12 Q9: danh sách việc quá hạn do SERVER ghép từ bảng `action_items`, không qua model.
+  describe('việc quá hạn (M12)', () => {
+    const addItems = (orgId: string, meetingId: string, n: number, over = {}) =>
+      t.db.insert(actionItems).values(
+        Array.from({ length: n }, (_, i) => ({
+          orgId,
+          meetingId,
+          origin: 'manual' as const,
+          task: `Quá hạn ${String(i).padStart(2, '0')}`,
+          // hạn tăng dần: Quá hạn 00 cũ nhất
+          dueDate: `2026-09-${String(i + 1).padStart(2, '0')}`,
+          ...over,
+        })),
+      );
+    const contentOf = async (id: string) =>
+      (await versions(id))[0]!.content as {
+        overdueActionItems: Array<{ task: string; dueDate: string; meetingTitle: string }>;
+        overdueActionItemsTruncated: boolean;
+      };
+
+    it('ghép vào nội dung báo cáo: chỉ việc open quá hạn, hạn cũ nhất trước, KHÔNG gửi cho model', async () => {
+      const s = await scenario(3);
+      await addItems(s.org.id, s.meetingIds[0]!, 2);
+      await addItems(s.org.id, s.meetingIds[1]!, 1, {
+        status: 'done',
+        completedAt: new Date(),
+        task: 'Đã xong',
+      });
+      const writer = new FakeReportWriter();
+      await service(writer).generate(s.job());
+      const content = await contentOf(s.report.id);
+      expect(content.overdueActionItems.map((i) => i.task)).toEqual(['Quá hạn 00', 'Quá hạn 01']);
+      expect(content.overdueActionItemsTruncated).toBe(false);
+      expect(content.overdueActionItems[0]).toMatchObject({
+        dueDate: '2026-09-01',
+        meetingTitle: 'Họp 0',
+      });
+      // model không nhìn thấy danh sách này (chỉ server ghép) → prompt không đổi
+      expect(JSON.stringify(writer.lastInput)).not.toContain('Quá hạn');
+    });
+
+    it('đúng 20 → không cắt; 21 → cắt còn 20 (giữ hạn cũ nhất) và truncated', async () => {
+      const exact = await scenario(2);
+      await addItems(exact.org.id, exact.meetingIds[0]!, 20);
+      await service(new FakeReportWriter()).generate(exact.job());
+      const c20 = await contentOf(exact.report.id);
+      expect([c20.overdueActionItems.length, c20.overdueActionItemsTruncated]).toEqual([20, false]);
+
+      const over = await scenario(2);
+      await addItems(over.org.id, over.meetingIds[0]!, 21);
+      await service(new FakeReportWriter()).generate(over.job());
+      const c21 = await contentOf(over.report.id);
+      expect([c21.overdueActionItems.length, c21.overdueActionItemsTruncated]).toEqual([20, true]);
+      expect(c21.overdueActionItems[0]!.task).toBe('Quá hạn 00');
+      expect(c21.overdueActionItems.at(-1)!.task).toBe('Quá hạn 19');
+    });
+
+    it('không có việc quá hạn → danh sách rỗng, không phải thiếu field', async () => {
+      const s = await scenario(2);
+      await service(new FakeReportWriter()).generate(s.job());
+      expect(await contentOf(s.report.id)).toMatchObject({
+        overdueActionItems: [],
+        overdueActionItemsTruncated: false,
+      });
+    });
   });
 
   it('dưới 2 meeting → skipped, KHÔNG gọi LLM, không có phiên bản', async () => {

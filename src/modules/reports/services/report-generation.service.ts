@@ -9,7 +9,12 @@ import { NotificationsService } from '../../notifications/services/notifications
 import { LlmPermanentError } from '../../../infra/llm/llm.errors.js';
 import { REPORT_WRITER } from '../../../infra/llm/llm.module.js';
 import type { ReportWriter } from '../../../infra/llm/llm.types.js';
-import { buildReportInput, selectMeetings } from '../report-input.js';
+import {
+  buildReportInput,
+  MAX_OVERDUE_ACTION_ITEMS,
+  selectMeetings,
+  selectOverdueItems,
+} from '../report-input.js';
 import { PermanentReportError } from '../report.errors.js';
 import { REPORT_OPTIONS } from '../reports.tokens.js';
 import { ReportsRepository } from '../reports.repository.js';
@@ -92,6 +97,15 @@ export class ReportGenerationService {
     }
 
     const { included, truncated } = selectMeetings(meetings, this.options.maxMeetings);
+    // Việc quá hạn do SERVER lấy (không qua model), ngoài transaction như phần LLM.
+    const overdue = selectOverdueItems(
+      await this.repo.overdueActionItems(
+        report.orgId,
+        report.channelId,
+        report.weekStart,
+        MAX_OVERDUE_ACTION_ITEMS + 1,
+      ),
+    );
     const result = await this.writer
       .write(buildReportInput(report.channelName, report.weekStart, included), { signal })
       .catch((error: unknown) => {
@@ -113,6 +127,8 @@ export class ReportGenerationService {
             title: m.title,
             recordedAt: m.recordedAt.toISOString(),
           })),
+          overdueActionItems: overdue.items,
+          overdueActionItemsTruncated: overdue.truncated,
         },
         meetingIds: included.map((m) => m.id),
         truncated,

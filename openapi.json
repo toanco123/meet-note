@@ -9131,6 +9131,42 @@
           "recordedAt"
         ]
       },
+      "ReportOverdueActionItemDto": {
+        "type": "object",
+        "properties": {
+          "assignee": {
+            "type": "string",
+            "nullable": true,
+            "description": "Người phụ trách: tên thành viên được giao, hoặc tên model nghe được. null = chưa ai."
+          },
+          "id": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string",
+            "example": "Gửi báo giá cho khách hàng"
+          },
+          "dueDate": {
+            "type": "string",
+            "description": "Hạn đã qua, `YYYY-MM-DD` (giờ VN).",
+            "example": "2026-10-02"
+          },
+          "meetingId": {
+            "type": "string"
+          },
+          "meetingTitle": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "assignee",
+          "id",
+          "task",
+          "dueDate",
+          "meetingId",
+          "meetingTitle"
+        ]
+      },
       "ReportContentDto": {
         "type": "object",
         "properties": {
@@ -9164,6 +9200,17 @@
             "items": {
               "$ref": "#/components/schemas/ReportMeetingRefDto"
             }
+          },
+          "overdueActionItems": {
+            "description": "Việc còn mở đã quá hạn (hạn trước khi tuần này kết thúc) của các cuộc họp trong kênh, do hệ thống\nghép (không qua AI), hạn cũ nhất trước, tối đa 20. Báo cáo tạo trước M12 không có: trả `[]`.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportOverdueActionItemDto"
+            }
+          },
+          "overdueActionItemsTruncated": {
+            "type": "boolean",
+            "description": "Còn việc quá hạn khác không hiện ở đây (vượt 20)."
           }
         },
         "required": [
@@ -9171,7 +9218,9 @@
           "highlights",
           "decisions",
           "actionItems",
-          "meetings"
+          "meetings",
+          "overdueActionItems",
+          "overdueActionItemsTruncated"
         ]
       },
       "ReportVersionResponseDto": {
