@@ -48,7 +48,7 @@ Owner / Admin xem **số liệu tổng hợp** của tổ chức trong một kho
 
 ## Các bước
 
-- [ ] **B1 — Schema + câu tính lại một ngày**
+- [x] **B1 — Schema + câu tính lại một ngày**
   - Việc: bảng `org_daily_stats` + migration `0019` (đọc SQL sinh ra, thêm RLS bằng tay); repository `rollupDay(orgId, day)` bằng MỘT câu `INSERT … SELECT … ON CONFLICT DO UPDATE` (biên ngày VN tính bằng `(day)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'` như `meetingsForWeek`); `readRange(orgId, from, to)`; sửa 03.
   - Test (integration): từng CHECK; biên 16:59:59.999Z / 17:00:00Z; đếm đúng theo trạng thái, meeting đang xử lý không vào `completed`/`failed`; meeting đã xoá bị loại; **chạy hai lần cho cùng kết quả**; sửa nguồn rồi tính lại → số đổi theo; ngày không còn meeting → dòng về 0 (không để số cũ); org khác không lẫn; RLS (api không thấy org khác).
 - [ ] **B2 — Job rollup + tick + sự kiện + đêm**
@@ -88,4 +88,6 @@ Mỗi bước kèm **đột biến** cho phần có logic (bỏ lọc `deleted_a
 
 ## Điều học được / bẫy gặp phải
 
-(Ghi sau khi xong mốc)
+1. **Aggregate không `GROUP BY` luôn trả đúng một dòng — kể cả khi bảng rỗng.** `rollupDay` dựa vào đó: ngày hết meeting (xoá, hoặc `recorded_at` chuyển sang ngày khác) được ghi đè về 0 thay vì để số cũ. Nếu viết `GROUP BY day` thì ngày rỗng không ra dòng nào, `ON CONFLICT` không chạy và số cũ nằm lại. Test "ngày hết meeting → về 0" canh điều này.
+2. **Ngày mới của một meeting bị chuyển KHÔNG tự cập nhật ngày cũ** (test cuối cùng ghi lại bằng chính hành vi: ngày cũ về 0 chỉ khi nó được tính lại). Đó là lý do cần job theo sự kiện (B2): rollup chỉ biết ngày đang được hỏi.
+3. **Đột biến B1: 19/19 đỏ** (cắt ngày UTC, biên +2, bỏ `deleted_at`, `DO NOTHING`, failed đếm nhầm completed, transcribed không lọc completed, bỏ lọc org / `total`, `readRange` lệch biên / org / thứ tự; migration: policy RLS, hai CHECK, CASCADE, `bigint` → `integer`). Ba đột biến đầu bị lỗi cách viết (chuỗi sai sau khi prettier định dạng lại; SQL hỏng → "NO RESULT" không phải tín hiệu) nên chạy lại — vẫn là quy tắc cũ: xác nhận đột biến thật sự áp được và biên dịch.
