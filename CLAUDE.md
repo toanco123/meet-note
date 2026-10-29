@@ -31,6 +31,7 @@ MeetNote là ứng dụng biên bản họp theo nhóm. Người dùng thuộc t
 | M8 — Transcript                | **Xong** (PR #11)                                                       |
 | M9 — Báo cáo tuần              | **Xong** (PR #12)                                                       |
 | M12 — Action items             | **Xong** (PR #14)                                                       |
+| M17 — Dashboard tổ chức        | **Xong** (PR #15)                                                       |
 | M13 — Sửa transcript           | **Xong** (PR #13)                                                       |
 
 Lộ trình đầy đủ: `docs/design/10-roadmap.md`.

@@ -1,6 +1,6 @@
 # M17 — Dashboard tổ chức
 
-- **Trạng thái:** Đang làm
+- **Trạng thái:** Xong (PR #15)
 - **Nhánh:** `m17-dashboard`
 - **Tài liệu thiết kế liên quan:** `docs/design/01-overview.md` (D2: quản trị ≠ đọc nội dung), `03-database.md` (§ meeting, RLS), `04-authorization.md`, `05-api.md`, `06-flows.md`, `10-roadmap.md` (M17). Plan M9 (cron + múi giờ VN, `REPORT_TIME_ZONE`), M12 (`action_items`), M11 (RLS)
 
@@ -63,20 +63,20 @@ Owner / Admin xem **số liệu tổng hợp** của tổ chức trong một kho
 - [x] **B5 — Controller + DTO + e2e + Swagger**
   - Việc: route, DTO (`*ResponseDto`, JSDoc), `@ApiErrorResponses(400, 403)`, `RateLimit` nếu cần, `openapi.json`; sửa 05.
   - Test (e2e): Owner / Admin 200, Member 403, người ngoài 404; **JSON không chứa tiêu đề meeting / tên việc / tên người** đã dựng trong fixture; xoá meeting rồi (gọi rollup) số giảm đúng; đầu vào sai → 400; tuần vs ngày cho cùng tổng.
-- [ ] **B6 — Tài liệu + đóng mốc**
+- [x] **B6 — Tài liệu + đóng mốc**
   - Việc: 02 (module), 03, 04, 05, 06, 07 nếu có mã lỗi mới; README + CLAUDE.md (hàng M17); bài học; `pnpm build && pnpm openapi:export`; chạy đủ `test:e2e`.
 
 Mỗi bước kèm **đột biến** cho phần có logic (bỏ lọc `deleted_at`, `completed` ↔ `failed` lẫn, bỏ khoá advisory, biên ngày lệch UTC, bỏ điền ngày trống, bỏ kiểm quyền…) như M12.
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở CI
-- [ ] Admin xem số liệu 30 ngày; Member gọi bị 403; người ngoài 404
-- [ ] Xoá meeting (kể cả meeting cũ) rồi rollup → số giảm đúng; sửa `recorded_at` → cả hai ngày đúng
-- [ ] Rollup chạy lại / chạy song song không đếm trùng, không để số cũ ghi đè số mới (có đột biến)
-- [ ] Response không chứa tiêu đề / nội dung / tên người (có test)
-- [ ] `openapi.json` đã cập nhật; `docs/design/` khớp code
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
+- [ ] `pnpm test:e2e` xanh ở CI (tick sau khi CI xanh)
+- [x] Admin xem số liệu 30 ngày; Member gọi bị 403; người ngoài 404
+- [x] Xoá meeting (kể cả meeting cũ) rồi rollup → số giảm đúng; sửa `recorded_at` → cả hai ngày đúng
+- [x] Rollup chạy lại / chạy song song không đếm trùng, không để số cũ ghi đè số mới (có đột biến)
+- [x] Response không chứa tiêu đề / nội dung / tên người (có test)
+- [x] `openapi.json` đã cập nhật; `docs/design/` khớp code
 
 ## Điều sẽ học
 
