@@ -36,6 +36,18 @@ function format(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
+/** Đúng định dạng `YYYY-MM-DD` và là ngày có thật (không phải 2026-02-30). */
+export function isCalendarDate(value: string): boolean {
+  return utcMillis(value) !== undefined;
+}
+
+/** Số ngày từ `from` tới `to` (`to - from`; hai ngày liền kề = 1). Cả hai phải là ngày thật. */
+export function daysBetween(from: string, to: string): number {
+  const [a, b] = [utcMillis(from), utcMillis(to)];
+  if (a === undefined || b === undefined) throw new Error(`Ngày không hợp lệ: ${from} / ${to}`);
+  return Math.round((b - a) / MS_PER_DAY);
+}
+
 export function addDays(date: string, days: number): string {
   const ms = utcMillis(date);
   if (ms === undefined) throw new Error(`Ngày không hợp lệ: ${date}`);

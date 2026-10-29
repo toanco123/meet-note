@@ -42,6 +42,8 @@ export const orgPolicy = {
   'org.meeting.read': () => true,
   /** Share / gỡ share / sửa / xoá meeting (M6b): mọi thành viên gọi được, service kiểm theo đối tượng. */
   'org.meeting.manage': () => true,
+  /** Dashboard tổ chức (M17): số liệu tổng hợp, chỉ Owner / Admin. Member → 403. */
+  'org.dashboard.read': (ctx) => isOrgRoleAtLeast(ctx.role, OrgRole.Admin),
 } satisfies Record<string, (ctx: OrgMembershipContext) => boolean>;
 
 export type OrgPermission = keyof typeof orgPolicy;

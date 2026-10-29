@@ -211,14 +211,14 @@ Vì sao làm như vậy:
 ```mermaid
 flowchart LR
     T["cron */5 (tick)"] -->|"(org, ngày) có meeting đổi 10 phút qua"| R
-    N["cron 03:30 (reconcile)"] -->|"mỗi org: 35 ngày gần nhất"| R
+    N["cron 03:30 (reconcile)"] -->|"mỗi org: 92 ngày gần nhất"| R
     A["api: xoá / sửa recorded_at"] -->|"sau commit: ngày cũ + ngày mới"| R
     R["job stats.rollup {orgId, day, span}"] --> L["pg_advisory_xact_lock(org, ngày)"]
     L --> U["INSERT … SELECT … ON CONFLICT DO UPDATE (tính lại cả ngày từ meetings)"]
 ```
 
 - **Tính lại, không cộng dồn.** `DashboardRepository.rollupDay` đọc `meetings` rồi ghi đè dòng `org_daily_stats` của ngày đó: chạy lại cho đúng một kết quả, ngày hết meeting về 0.
-- **Ba đường kích hoạt, cùng một job.** (a) Tick mỗi 5 phút lấy `(org, ngày VN của recorded_at)` của các meeting có `updated_at` trong 10 phút qua — NGÀY CỦA MEETING, không phải "hôm nay": pipeline có thể xong một meeting họp từ tuần trước. (b) Api xếp job SAU commit khi xoá meeting, hoặc sửa `recorded_at` sang NGÀY khác (cả ngày cũ lẫn ngày mới; cùng ngày thì không xếp). Redis lỗi lúc enqueue không làm hỏng thao tác — việc (c) tự lành. (c) Job đêm 03:30 giờ VN: mỗi tổ chức một job `span = 35`.
+- **Ba đường kích hoạt, cùng một job.** (a) Tick mỗi 5 phút lấy `(org, ngày VN của recorded_at)` của các meeting có `updated_at` trong 10 phút qua — NGÀY CỦA MEETING, không phải "hôm nay": pipeline có thể xong một meeting họp từ tuần trước. (b) Api xếp job SAU commit khi xoá meeting, hoặc sửa `recorded_at` sang NGÀY khác (cả ngày cũ lẫn ngày mới; cùng ngày thì không xếp). Redis lỗi lúc enqueue không làm hỏng thao tác — việc (c) tự lành. (c) Job đêm 03:30 giờ VN: mỗi tổ chức một job `span = 92` (đúng cửa sổ API cho xem: sau đêm đầu tiên mọi ngày xem được đều có dòng rollup; ngày chưa tính hiện 0 dù có meeting — `computedAt: null` báo hiệu điều đó).
 - **Khoá advisory theo (org, ngày).** Không có khoá, hai lần tính lại chồng nhau có thể để bản đọc cũ ghi đè bản mới. Có khoá, lần sau chờ lần trước commit rồi mới chạy câu `INSERT … SELECT` (READ COMMITTED lấy snapshot MỚI mỗi câu lệnh) nên luôn thấy nguồn mới nhất. Tổ chức / ngày khác không chờ nhau.
 - **jobId** `stats.rollup.<org>.<ngày>.<hậu tố>`, hậu tố: `e<ms>` (sự kiện), `t<ô 5 phút>` (tick), `n<ngày>` (đêm). Hậu tố PHẢI đổi giữa các yêu cầu thật sự khác nhau, nếu không BullMQ nuốt `add()` trùng id kể cả khi job cũ đã completed (xoá meeting sau khi rollup của ngày đó đã chạy sẽ không bao giờ được tính lại).
 - **Độ tươi.** Số "hôm nay" trễ tới ~5 phút (API trả `computedAt`). Xoá / đổi ngày meeting phản ánh gần như ngay (job sự kiện).

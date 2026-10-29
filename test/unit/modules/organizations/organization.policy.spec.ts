@@ -34,6 +34,7 @@ describe('orgPolicy — loại hành động theo vai trò', () => {
     ['org.upload', true, true, true],
     ['org.meeting.read', true, true, true],
     ['org.meeting.manage', true, true, true],
+    ['org.dashboard.read', true, true, false],
   ];
 
   it.each(

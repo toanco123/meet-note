@@ -158,19 +158,22 @@ describe('Rollup dashboard: job qua queue + worker (e2e)', () => {
     expect(row).toMatchObject({ meetingsCompleted: 1, meetingsFailed: 1 });
   });
 
-  it('job đêm: tính lại 35 ngày gần nhất của MỌI tổ chức (meeting hôm nay − 20 ngày được lấp)', async () => {
+  it('job đêm: tính lại 92 ngày gần nhất của MỌI tổ chức (meeting 20 và 60 ngày trước được lấp, 120 ngày trước thì không)', async () => {
     const today = localDate(new Date());
     const twentyAgo = new Date(Date.now() - 20 * 86_400_000);
     const day = localDate(twentyAgo);
-    const farAgo = localDate(new Date(Date.now() - 60 * 86_400_000));
+    const sixtyAgo = localDate(new Date(Date.now() - 60 * 86_400_000));
+    const farAgo = localDate(new Date(Date.now() - 120 * 86_400_000));
     await meeting(twentyAgo.toISOString());
-    await meeting(new Date(Date.now() - 60 * 86_400_000).toISOString()); // ngoài 35 ngày
+    await meeting(new Date(Date.now() - 60 * 86_400_000).toISOString());
+    await meeting(new Date(Date.now() - 120 * 86_400_000).toISOString()); // ngoài 92 ngày
     expect(await total(day)).toBeUndefined();
 
     await startWorker();
     const job = await runJob(JobName.StatsReconcile, {});
     expect(await job!.getState()).toBe('completed');
     await waitTotal(day, 1);
+    await waitTotal(sixtyAgo, 1);
     expect(await total(farAgo)).toBeUndefined(); // ngoài khoảng: không đụng
     expect(await total(today)).toBeDefined(); // hôm nay được tính (dòng 0 cũng là dòng)
   });

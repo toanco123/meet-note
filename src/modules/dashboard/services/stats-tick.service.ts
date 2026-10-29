@@ -7,8 +7,12 @@ const MINUTE = 60_000;
 /** Tick 5 phút nhìn lại 10 phút: một lần tick bị lỡ vẫn được lần sau phủ. */
 export const TICK_LOOKBACK_MS = 10 * MINUTE;
 export const TICK_BUCKET_MS = 5 * MINUTE;
-/** Số ngày job đêm tính lại cho mỗi tổ chức. */
-export const RECONCILE_DAYS = 35;
+/**
+ * Số ngày job đêm tính lại cho mỗi tổ chức = toàn bộ cửa sổ API cho xem (`MAX_RANGE_DAYS`): sau đêm đầu
+ * tiên mọi ngày xem được đều có dòng rollup (ngày chưa tính sẽ hiện 0 dù có meeting). Giá phải trả: ~92
+ * câu SQL có index cho mỗi tổ chức mỗi đêm.
+ */
+export const RECONCILE_DAYS = 92;
 const TICK_MAX_PAIRS = 1_000;
 const ORG_BATCH = 500;
 
