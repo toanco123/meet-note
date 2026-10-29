@@ -1,6 +1,6 @@
 # M12 — Action items
 
-- **Trạng thái:** Đang làm
+- **Trạng thái:** Xong (PR #14)
 - **Nhánh:** `m12-action-items`
 - **Tài liệu thiết kế liên quan:** `docs/design/03-database.md` (§ meeting, RLS), `04-authorization.md` (§3 quyền xem meeting, mục sửa transcript M13), `05-api.md`, `06-flows.md` §1.2 (pipeline) và §2 (báo cáo tuần), `10-roadmap.md` (M12). Plan M6 (summarizer), M9 (báo cáo), M13 (khoá lạc quan `If-Match`)
 
@@ -75,19 +75,19 @@ Sau khi pipeline xong, mỗi meeting có danh sách **việc cần làm** có ng
 - [x] **B6 — Báo cáo tuần có mục việc quá hạn**
   - Việc: repository lấy việc quá hạn của các meeting chia sẻ vào kênh, `ReportContent.overdueActionItems` + `truncated`, ghép ở `ReportGenerationService` (server, không qua model), DTO báo cáo; sửa 05 / 06 §2.
   - Test: unit chọn / cắt 20; integration: chỉ việc `open` + quá hạn + thuộc kênh; việc `done` / `dismissed` / không hạn / meeting không thuộc kênh bị loại; báo cáo cũ (không có field) vẫn đọc được (đột biến: bỏ lọc `status`).
-- [ ] **B7 — Tài liệu + openapi + đóng mốc**
+- [x] **B7 — Tài liệu + openapi + đóng mốc**
   - Việc: 02 (module), 03, 04, 05, 06, 07 (mã lỗi), roadmap nếu cần; `pnpm build && pnpm openapi:export`; README / CLAUDE.md; bài học.
 
 ## Tiêu chí hoàn thành
 
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở CI (local: 6 file cần ffmpeg lỗi do đã gỡ máy dev)
-- [ ] Pipeline chạy lại không sinh việc trùng, không đè việc đã sửa (có đột biến)
-- [ ] Map tên → thành viên không đoán bừa khi mơ hồ (bảng test + đột biến)
-- [ ] "Việc của tôi" không lộ việc của meeting người gọi không xem được (oracle)
-- [ ] Hai sửa song song cùng version: đúng một thành công (có đột biến)
-- [ ] Báo cáo tuần có mục việc quá hạn, đúng lọc
-- [ ] `openapi.json` đã cập nhật; `docs/design/` khớp code
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
+- [ ] `pnpm test:e2e` xanh ở CI (local: 905 xanh, chỉ 6 file cần ffmpeg lỗi do đã gỡ máy dev — tick sau khi CI xanh)
+- [x] Pipeline chạy lại không sinh việc trùng, không đè việc đã sửa (có đột biến)
+- [x] Map tên → thành viên không đoán bừa khi mơ hồ (bảng test + đột biến)
+- [x] "Việc của tôi" không lộ việc của meeting người gọi không xem được (oracle)
+- [x] Hai sửa song song cùng version: đúng một thành công (có đột biến)
+- [x] Báo cáo tuần có mục việc quá hạn, đúng lọc
+- [x] `openapi.json` đã cập nhật; `docs/design/` khớp code
 
 ## Điều sẽ học
 

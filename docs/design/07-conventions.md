@@ -231,3 +231,13 @@ Bật `@nestjs/swagger` CLI plugin trong `nest-cli.json` (`introspectComments: t
 
 - Conventional Commits: `feat(channels): transfer ownership with row lock`.
 - Mỗi mốc một nhánh `m2-organizations`. Merge khi CI xanh và đã tick hết checklist trong `docs/plans/Mx-*.md`.
+
+## Khoá lạc quan (`If-Match` / `ETag`)
+
+Dùng cho dữ liệu hai người cùng sửa được (đoạn transcript — M13, việc cần làm — M12). Mẫu chung:
+
+- Cột `version int NOT NULL DEFAULT 1`, tăng 1 ở MỌI lần sửa trong cùng câu `UPDATE … SET version = version + 1 … WHERE id = $id AND version = $expected RETURNING`. Không khoá dòng: điều kiện `version` chính là khoá. 0 dòng thì đọc thêm một lần để phân biệt 404 (không còn) với 412 (lệch).
+- `GET` trả `version`; `PATCH` bắt buộc `If-Match: "<version>"` (nhận cả `3` trần). Thiếu → 428, `W/"3"` / `*` / danh sách / sai dạng → 400, lệch → 412. Thành công trả bản mới kèm `ETag: "<version mới>"`.
+- Phân tích header ở `src/common/http/if-match.ts` (`parseIfMatchVersion`, `@IfMatchVersion(Errors.x.ifMatchRequired)`): mã lỗi 428 do tài nguyên chọn, mỗi tài nguyên có cặp mã `X_VERSION_MISMATCH` / `X_IF_MATCH_REQUIRED` trong catalog.
+- Quyết định quyền dựa trên bản vừa đọc, ghi bằng `WHERE version`: nếu giữa chừng có người sửa thì UPDATE thất bại, quyết định cũ không bao giờ áp lên bản mới.
+- Hành động của khoá ngoại (`ON DELETE SET NULL`…) không đi qua `UPDATE` này nên KHÔNG đổi `version`.
