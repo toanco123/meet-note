@@ -9,6 +9,28 @@ export interface ReportMeeting {
   summary: MeetingSummaryContent;
 }
 
+/**
+ * Việc `open` đã quá hạn của một kênh — SERVER ghép vào báo cáo (M12 Q9), không qua model: danh sách
+ * này là dữ liệu có thật, để model viết lại thì có thể bỏ / bịa việc.
+ */
+export interface OverdueActionItem {
+  id: string;
+  task: string;
+  /** Tên người được giao (thành viên) hoặc, nếu chưa map được, tên model nghe được; null = chưa ai. */
+  assignee: string | null;
+  /** Hạn 'YYYY-MM-DD' (giờ VN). */
+  dueDate: string;
+  meetingId: string;
+  meetingTitle: string;
+}
+
+/** Kết quả chọn việc quá hạn (xem `selectOverdueItems`). */
+export interface SelectedOverdueItems {
+  items: OverdueActionItem[];
+  /** Còn việc quá hạn khác bị cắt vì vượt trần. */
+  truncated: boolean;
+}
+
 /** Kết quả chọn meeting cho một prompt báo cáo (xem `selectMeetings`). */
 export interface SelectedMeetings {
   included: ReportMeeting[];

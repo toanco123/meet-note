@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildReportInput,
+  MAX_OVERDUE_ACTION_ITEMS,
   MAX_REPORT_MEETINGS,
   selectMeetings,
+  selectOverdueItems,
 } from '../../../../src/modules/reports/report-input.js';
-import type { ReportMeeting } from '../../../../src/modules/reports/reports.types.js';
+import type {
+  OverdueActionItem,
+  ReportMeeting,
+} from '../../../../src/modules/reports/reports.types.js';
 
 const meeting = (n: number): ReportMeeting => ({
   id: `m${n}`,
@@ -46,5 +51,39 @@ describe('buildReportInput', () => {
       ['m1', '2026-10-05T01:00:00.000Z', 'Tóm tắt 1'],
       ['m2', '2026-10-05T02:00:00.000Z', 'Tóm tắt 2'],
     ]);
+  });
+});
+
+describe('selectOverdueItems (M12 Q9)', () => {
+  const item = (n: number): OverdueActionItem => ({
+    id: `i${n}`,
+    task: `Việc ${n}`,
+    assignee: null,
+    dueDate: '2026-10-01',
+    meetingId: 'm',
+    meetingTitle: 'Họp',
+  });
+  const rows = (n: number) => Array.from({ length: n }, (_, i) => item(i));
+
+  it.each([
+    [0, 0, false],
+    [1, 1, false],
+    [MAX_OVERDUE_ACTION_ITEMS - 1, MAX_OVERDUE_ACTION_ITEMS - 1, false],
+    [MAX_OVERDUE_ACTION_ITEMS, MAX_OVERDUE_ACTION_ITEMS, false], // đúng trần: chưa cắt
+    [MAX_OVERDUE_ACTION_ITEMS + 1, MAX_OVERDUE_ACTION_ITEMS, true], // repository lấy trần + 1: dư 1 → cắt
+  ])('%i dòng → giữ %i, truncated=%s', (n, kept, truncated) => {
+    const out = selectOverdueItems(rows(n));
+    expect(out.items).toHaveLength(kept);
+    expect(out.truncated).toBe(truncated);
+  });
+
+  it('giữ các dòng ĐẦU (hạn cũ nhất, repository đã sắp) và đúng thứ tự', () => {
+    const out = selectOverdueItems(rows(5), 3);
+    expect(out.items.map((i) => i.id)).toEqual(['i0', 'i1', 'i2']);
+    expect(out.truncated).toBe(true);
+  });
+
+  it('trần mặc định là 20', () => {
+    expect(MAX_OVERDUE_ACTION_ITEMS).toBe(20);
   });
 });

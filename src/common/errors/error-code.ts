@@ -59,6 +59,12 @@ export const ErrorCode = {
   TranscriptVersionMismatch: 'TRANSCRIPT_VERSION_MISMATCH',
   TranscriptIfMatchRequired: 'TRANSCRIPT_IF_MATCH_REQUIRED',
 
+  // M12 — Action items
+  ActionItemNotFound: 'ACTION_ITEM_NOT_FOUND',
+  ActionItemVersionMismatch: 'ACTION_ITEM_VERSION_MISMATCH',
+  ActionItemIfMatchRequired: 'ACTION_ITEM_IF_MATCH_REQUIRED',
+  ActionItemAssigneeInvalid: 'ACTION_ITEM_ASSIGNEE_INVALID',
+
   // M9 — Báo cáo tuần
   ReportNotFound: 'REPORT_NOT_FOUND',
   ReportInProgress: 'REPORT_IN_PROGRESS',

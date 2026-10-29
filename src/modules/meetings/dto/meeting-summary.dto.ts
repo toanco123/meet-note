@@ -11,6 +11,15 @@ export class ActionItemDto {
 
   @ApiProperty({ type: String, nullable: true, description: 'Hạn như được nói, vd "thứ sáu".' })
   due: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      'Hạn đã quy ra ngày (YYYY-MM-DD, theo ngày họp). null nếu không có hạn rõ ràng hoặc tóm tắt tạo bằng phiên bản prompt cũ.',
+    example: '2026-10-30',
+  })
+  dueDate: string | null;
 }
 
 /** Tóm tắt AI của cuộc họp (M6). */
@@ -28,7 +37,7 @@ export class MeetingSummaryResponseDto {
   /** Model đã tạo bản tóm tắt (có thể là model dự phòng). @example "claude-opus-5-5" */
   model: string;
 
-  /** @example "v1" */
+  /** @example "v2" */
   promptVersion: string;
 
   /** @example "2026-10-22T03:00:00.000Z" */
@@ -40,7 +49,8 @@ export class MeetingSummaryResponseDto {
       overview: content.overview,
       keyPoints: content.keyPoints,
       decisions: content.decisions,
-      actionItems: content.actionItems,
+      // Tóm tắt `v1` đã lưu không có `dueDate`.
+      actionItems: content.actionItems.map((i) => ({ ...i, dueDate: i.dueDate ?? null })),
       model: row.model,
       promptVersion: row.promptVersion,
       createdAt: row.createdAt.toISOString(),

@@ -18,7 +18,7 @@ const SUMMARY = {
   overview: 'Họp về kế hoạch quý ba.',
   keyPoints: ['Ngân sách marketing'],
   decisions: ['Chốt kế hoạch quý ba'],
-  actionItems: [{ owner: 'Bình', task: 'Chuẩn bị ngân sách', due: 'thứ sáu' }],
+  actionItems: [{ owner: 'Bình', task: 'Chuẩn bị ngân sách', due: 'thứ sáu', dueDate: null }],
 };
 const message = (over: Record<string, unknown> = {}, content: unknown = SUMMARY) => ({
   id: 'msg_test',
@@ -101,11 +101,66 @@ describe('AnthropicSummarizer (HTTP stub)', () => {
     });
   const input = {
     meetingTitle: 'Giao ban',
+    meetingDate: '2026-10-27',
     segments: [
       { startMs: 2_000, text: 'Chào mọi người.' },
       { startMs: 3_725_000, text: 'Anh Bình chuẩn bị ngân sách trước thứ sáu.' },
     ],
   };
+
+  it('prompt mang NGÀY HỌP kèm thứ; hạn model quy đúng thì giữ, sai (năm cũ / rác) thì null mà tóm tắt vẫn hợp lệ', async () => {
+    const item = (task: string, dueDate: unknown) => ({ owner: 'An', task, due: 'x', dueDate });
+    replies.push({
+      body: message(
+        {},
+        {
+          ...SUMMARY,
+          actionItems: [
+            item('đúng', '2026-10-30'),
+            item('năm sai', '2024-10-30'),
+            item('rác', 'sớm'),
+          ],
+        },
+      ),
+    });
+    const result = await summarizer().summarize(input);
+    expect(JSON.stringify(requests[0]?.body.messages)).toContain(
+      'Ngày họp: Thứ ba, 2026-10-27 (giờ Việt Nam).',
+    );
+    expect(result.content.actionItems.map((i) => [i.task, i.dueDate])).toEqual([
+      ['đúng', '2026-10-30'],
+      ['năm sai', null],
+      ['rác', null],
+    ]);
+  });
+
+  // Đột biến: bỏ truyền ngày họp vào lượt MAP / REDUCE → chỉ lượt đơn có ngày, hạn quy sai khi dài.
+  it('transcript dài (map-reduce): MỌI lượt gọi đều mang ngày họp, và hạn được kiểm theo cùng ngày', async () => {
+    replies.push(
+      { body: message({}, SUMMARY) },
+      { body: message({}, SUMMARY) },
+      {
+        body: message(
+          {},
+          { ...SUMMARY, actionItems: [{ ...SUMMARY.actionItems[0], dueDate: '2024-01-01' }] },
+        ),
+      },
+    );
+    const long = {
+      meetingTitle: 'Dài',
+      meetingDate: '2026-10-27',
+      segments: [
+        { startMs: 0, text: 'a'.repeat(40) },
+        { startMs: 1_000, text: 'b'.repeat(40) },
+      ],
+    };
+    const result = await summarizer({ chunkChars: 50 }).summarize(long);
+    expect(requests).toHaveLength(3);
+    for (const r of requests) {
+      expect(JSON.stringify(r.body.messages)).toContain('Ngày họp: Thứ ba, 2026-10-27');
+    }
+    expect(result.content.actionItems[0]?.dueDate).toBeNull(); // 2024 ngoài khoảng quanh 2026-10-27
+  });
 
   it('một lượt: structured output + fallbacks "default" + effort; trả nội dung, model THẬT phục vụ, token cộng dồn', async () => {
     replies.push({ body: message({ model: 'claude-opus-4-8' }) }); // model dự phòng đã trả lời
@@ -115,7 +170,7 @@ describe('AnthropicSummarizer (HTTP stub)', () => {
     expect(result).toEqual({
       content: SUMMARY,
       model: 'claude-opus-4-8',
-      promptVersion: 'v1',
+      promptVersion: 'v2',
       inputTokens: 105,
       outputTokens: 20,
     });
@@ -208,6 +263,7 @@ describe('AnthropicSummarizer (HTTP stub)', () => {
     );
     const result = await summarizer({ chunkChars: 40 }).summarize({
       meetingTitle: 'Dài',
+      meetingDate: '2026-10-27',
       segments,
     });
     const reducePrompt = JSON.stringify(requests.at(-1)?.body.messages);

@@ -1,6 +1,11 @@
 import type { ReportInput } from '../../infra/llm/llm.types.js';
 import { addDays } from './report-week.js';
-import type { ReportMeeting, SelectedMeetings } from './reports.types.js';
+import type {
+  OverdueActionItem,
+  ReportMeeting,
+  SelectedMeetings,
+  SelectedOverdueItems,
+} from './reports.types.js';
 
 /**
  * Trần số meeting đưa vào MỘT prompt báo cáo. Đầu vào là tóm tắt (vài trăm token mỗi meeting) nên
@@ -19,6 +24,20 @@ export function selectMeetings(
 ): SelectedMeetings {
   if (meetings.length <= max) return { included: meetings, truncated: false };
   return { included: meetings.slice(meetings.length - max), truncated: true };
+}
+
+/** Trần số việc quá hạn trong MỘT báo cáo: đủ để thấy bức tranh, không biến báo cáo thành danh sách việc. */
+export const MAX_OVERDUE_ACTION_ITEMS = 20;
+
+/**
+ * Giữ tối đa `max` việc đầu danh sách (repository đã sắp theo hạn CŨ NHẤT trước: quá hạn lâu nhất là
+ * thứ cần nhắc nhất). Nhận `max + 1` dòng để biết còn dư hay không mà không cần đếm riêng.
+ */
+export function selectOverdueItems(
+  rows: OverdueActionItem[],
+  max: number = MAX_OVERDUE_ACTION_ITEMS,
+): SelectedOverdueItems {
+  return { items: rows.slice(0, max), truncated: rows.length > max };
 }
 
 export function buildReportInput(

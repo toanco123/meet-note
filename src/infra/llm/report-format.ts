@@ -56,7 +56,7 @@ export function formatReportPrompt(input: ReportInput): string {
     overview: m.summary.overview,
     keyPoints: m.summary.keyPoints,
     decisions: m.summary.decisions,
-    actionItems: m.summary.actionItems,
+    actionItems: m.summary.actionItems.map(({ owner, task, due }) => ({ owner, task, due })),
   }));
   return `Kênh: ${JSON.stringify(input.channelName)}. Tuần từ ${input.weekStart} đến ${input.weekEnd} (giờ Việt Nam), ${data.length} cuộc họp.\n\nDữ liệu các cuộc họp (JSON):\n${JSON.stringify(data)}`;
 }

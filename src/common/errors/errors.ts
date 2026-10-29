@@ -280,6 +280,40 @@ export const Errors = {
       ),
   },
 
+  actionItem: {
+    /** Không có việc này, HOẶC việc của meeting người gọi không xem được — một câu, không lộ khác biệt. */
+    notFound: () => notFound('Không tìm thấy việc cần làm.', ErrorCode.ActionItemNotFound),
+    /**
+     * Xem được nhưng không đủ quyền: nội dung / bỏ việc là của người quản lý meeting; người được giao
+     * chỉ đổi được mở ↔ xong.
+     */
+    forbidden: () =>
+      forbidden(
+        'Chỉ chủ cuộc họp được sửa nội dung hoặc bỏ việc (cuộc họp không còn chủ: Owner / Admin tổ chức). Người được giao chỉ đổi được trạng thái mở / xong.',
+      ),
+    /** `If-Match` lệch version hiện tại: có người sửa trước. Client tải lại việc rồi sửa tiếp. */
+    versionMismatch: () =>
+      new AppException(
+        ErrorCode.ActionItemVersionMismatch,
+        HttpStatus.PRECONDITION_FAILED,
+        'Việc này vừa được người khác sửa. Hãy tải lại rồi sửa tiếp.',
+      ),
+    /** Thiếu `If-Match`: không cho ghi mù. */
+    ifMatchRequired: () =>
+      new AppException(
+        ErrorCode.ActionItemIfMatchRequired,
+        HttpStatus.PRECONDITION_REQUIRED,
+        'Cần header If-Match mang version của việc đang sửa.',
+      ),
+    /** Người được giao không phải thành viên tổ chức, hoặc không xem được cuộc họp (giao cũng vô nghĩa). */
+    assigneeInvalid: () =>
+      new AppException(
+        ErrorCode.ActionItemAssigneeInvalid,
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'Người được giao phải là thành viên tổ chức và xem được cuộc họp này.',
+      ),
+  },
+
   report: {
     /** Kênh chưa có báo cáo cho tuần này (chưa tới lượt, kênh tắt báo cáo, hoặc tuần trước khi có kênh). */
     notFound: () => notFound('Chưa có báo cáo cho tuần này.', ErrorCode.ReportNotFound),

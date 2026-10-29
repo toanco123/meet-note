@@ -34,6 +34,10 @@ export const AUDIT_ACTIONS = [
   'meeting.retried',
   /** Người KHÔNG phải chủ (OrgAdm, meeting không chủ) sửa một đoạn transcript (M13). */
   'transcript.segment.edited',
+  /** Người KHÔNG phải chủ (OrgAdm, meeting không chủ) tạo việc cần làm thủ công (M12). */
+  'action_item.created',
+  /** Người KHÔNG phải chủ sửa nội dung / bỏ / khôi phục một việc cần làm (M12). Đổi mở ↔ xong thì không ghi. */
+  'action_item.updated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

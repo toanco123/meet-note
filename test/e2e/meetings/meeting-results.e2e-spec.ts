@@ -139,7 +139,8 @@ describe('Meeting: transcript / tóm tắt / chạy lại (e2e)', () => {
       .set(as(pending.author));
     expect(ok.body.data).toMatchObject({
       overview: 'Chốt kế hoạch',
-      actionItems: [{ owner: 'Bình', task: 't', due: null }],
+      // Tóm tắt `v1` đã lưu (ở trên) không có `dueDate` → API trả null, không bỏ trống field (M12).
+      actionItems: [{ owner: 'Bình', task: 't', due: null, dueDate: null }],
       model: 'claude-opus-5-5',
     });
     expect([notYet.status, notYet.body.error.code]).toEqual([409, 'MEETING_NOT_COMPLETED']);

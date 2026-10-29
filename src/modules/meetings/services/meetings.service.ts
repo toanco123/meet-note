@@ -92,13 +92,18 @@ export class MeetingsService {
     userId: string,
     meetingId: string,
   ): Promise<MeetingRow> {
-    const meeting = await this.repo.findVisible(
-      membership.orgId,
-      viewerOf(membership, userId),
-      meetingId,
-    );
+    const meeting = await this.findVisible(membership, userId, meetingId);
     if (!meeting) throw Errors.meeting.notFound();
     return meeting;
+  }
+
+  /** Như `assertVisible` nhưng không ném: caller tự chọn lỗi 404 (vd việc cần làm phải che cả meeting). */
+  findVisible(
+    membership: OrgMembershipContext,
+    userId: string,
+    meetingId: string,
+  ): Promise<MeetingRow | undefined> {
+    return this.repo.findVisible(membership.orgId, viewerOf(membership, userId), meetingId);
   }
 
   async list(

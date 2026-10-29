@@ -3,21 +3,24 @@ import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql } from 'drizzle-o
 import { DRIZZLE } from '../../infra/database/database.module.js';
 import type { Database, DbExecutor } from '../../infra/database/database.types.js';
 import {
+  actionItems,
   channels,
   meetings,
   meetingShares,
   meetingSummaries,
   organizationMembers,
+  users,
   type WeeklyReportRow,
   type WeeklyReportVersionRow,
   weeklyReports,
   weeklyReportVersions,
 } from '../../infra/database/schema/index.js';
 import type { MeetingSummaryContent } from '../../infra/llm/llm.types.js';
-import { REPORT_TIME_ZONE } from './report-week.js';
+import { addDays, REPORT_TIME_ZONE } from './report-week.js';
 import type {
   ClaimedReport,
   NewReportVersion,
+  OverdueActionItem,
   ReportMeeting,
   StuckReport,
 } from './reports.types.js';
@@ -73,6 +76,60 @@ export class ReportsRepository {
       )
       .orderBy(asc(meetingShares.recordedAt), asc(meetings.id));
     return rows.map((r) => ({ ...r, summary: r.summary as unknown as MeetingSummaryContent }));
+  }
+
+  /**
+   * Việc ĐANG MỞ có hạn TRƯỚC khi tuần `weekStart` kết thúc (`due_date < weekStart + 7`), của meeting
+   * đang được share vào kênh và chưa xoá (M12 Q9). Gồm cả việc quá hạn từ tuần trước còn chưa xong —
+   * đó chính là thứ báo cáo cần nhắc. `status` là trạng thái HIỆN TẠI: tạo lại báo cáo của một tuần
+   * cũ cho kết quả của hôm nay, không phải ảnh chụp lúc đó. Cũ nhất trước; lấy `limit` dòng (caller
+   * truyền trần + 1 để biết còn dư).
+   *
+   * Không đòi meeting `completed`: việc tay có thể có ở meeting chưa xong. Người đọc báo cáo
+   * (`channel.content.read`) đã xem được các meeting này vì chúng nằm trong kênh.
+   */
+  async overdueActionItems(
+    orgId: string,
+    channelId: string,
+    weekStart: string,
+    limit: number,
+  ): Promise<OverdueActionItem[]> {
+    const rows = await this.db
+      .select({
+        id: actionItems.id,
+        task: actionItems.task,
+        ownerName: actionItems.ownerName,
+        assigneeName: users.displayName,
+        dueDate: actionItems.dueDate,
+        meetingId: meetings.id,
+        meetingTitle: meetings.title,
+      })
+      .from(actionItems)
+      .innerJoin(
+        meetings,
+        and(eq(meetings.id, actionItems.meetingId), eq(meetings.orgId, actionItems.orgId)),
+      )
+      .leftJoin(users, eq(users.id, actionItems.assigneeId))
+      .where(
+        and(
+          eq(actionItems.orgId, orgId),
+          eq(actionItems.status, 'open'),
+          // `lt` loại luôn việc không hạn (NULL < x là NULL).
+          lt(actionItems.dueDate, addDays(weekStart, 7)),
+          isNull(meetings.deletedAt),
+          sql`exists (select 1 from ${meetingShares} where ${meetingShares.meetingId} = ${meetings.id} and ${meetingShares.channelId} = ${channelId})`,
+        ),
+      )
+      .orderBy(asc(actionItems.dueDate), asc(actionItems.id))
+      .limit(limit);
+    return rows.map((r) => ({
+      id: r.id,
+      task: r.task,
+      assignee: r.assigneeName ?? r.ownerName,
+      dueDate: r.dueDate!,
+      meetingId: r.meetingId,
+      meetingTitle: r.meetingTitle,
+    }));
   }
 
   /**

@@ -59,7 +59,9 @@ const input: ReportInput = {
         overview: 'Bàn ngân sách.',
         keyPoints: ['Marketing'],
         decisions: ['Chốt ngân sách'],
-        actionItems: [{ owner: 'Bình', task: 'Chuẩn bị ngân sách', due: 'thứ sáu' }],
+        actionItems: [
+          { owner: 'Bình', task: 'Chuẩn bị ngân sách', due: 'thứ sáu', dueDate: '2026-10-30' },
+        ],
       },
     },
   ],

@@ -92,8 +92,8 @@ sequenceDiagram
   W->>Q: add meeting.summarize
 
   Q->>W: meeting.summarize
-  W->>L: map: tóm tắt từng đoạn ~N token → reduce: tóm tắt tổng
-  W->>DB: UPSERT meeting_summaries; UPDATE status=completed
+  W->>L: map: tóm tắt từng đoạn ~N token → reduce: tóm tắt tổng (prompt kèm NGÀY HỌP giờ VN + thứ; model quy hạn ra `dueDate`, server validate lại — M12)
+  W->>DB: BEGIN; UPDATE status=completed (kiểm token); UPSERT meeting_summaries; INSERT action_items ON CONFLICT DO NOTHING; INSERT notification; COMMIT
   W->>R: emit meeting.status {completed}
   W->>Q: add notification.fanout {type: meeting.completed}
 ```
@@ -109,6 +109,7 @@ Retry & lỗi:
 - Lỗi không retry: ném `UnrecoverableError` của BullMQ.
 - Hết attempts: event `failed` đưa meeting vào `status=failed, failure_code`, emit `meeting.status`, gửi thông báo cho chủ meeting.
 - **Idempotent mọi bước — LEASE + FENCING TOKEN (M6 B4).** Job có thể chạy 2 lần (worker chết giữa chừng, job "stalled" bị chạy lại) và mỗi bước có retry. `status` là CHẶNG hiện tại (đang chờ hoặc đang chạy): preprocess xong → `transcribing`, transcribe xong → `summarizing`, summarize xong → `completed`.
+- **Action items (M12 B3):** việc cần làm được trích TRONG transaction của bước tóm tắt, sau khi `completeSummarize` xác nhận còn giữ lease — tóm tắt, `completed`, việc và thông báo cùng sống / cùng chết. Người phụ trách model nêu ("anh Bình") được map sang thành viên org bằng hàm thuần `matchAssignee`: chỉ gán khi **đúng một** người khớp (cả tên, hoặc tên gọi = từ cuối của họ tên; bỏ xưng hô), mơ hồ / không khớp thì để trống và giữ chữ gốc — **không đoán**. Chèn bằng `ON CONFLICT (meeting_id, source_index) WHERE origin = 'ai' DO NOTHING`: bước tóm tắt chạy lại không sinh trùng và không đè việc người đã sửa. Hệ quả: chạy lại tóm tắt **không** thay danh sách việc (muốn thế cần mốc "trích lại"). Tải danh sách thành viên chỉ khi có việc nêu tên người.
   - **Nhận việc** (`claim`): MỘT câu UPDATE đặt `stage_token` mới + `stage_lease_until`, CHỈ khi đúng `attempt`, chưa xoá, đúng chặng, và lease trống hoặc đã hết hạn. Hai worker cùng nhận → một bên 0 dòng → bỏ qua.
   - **Lỗi** (tạm hay vĩnh viễn) → nhả lease ngay để retry nhận lại được (bản đầu chỉ "UPDATE WHERE status = <chặng trước>": retry của BullMQ thấy status đã đổi → bỏ qua → meeting kẹt mãi).
   - **Ghi kết quả**: một transaction ngắn, chuyển chặng TRƯỚC với điều kiện `stage_token = token của mình` (fencing) — lease hết hạn và worker khác đã nhận thì 0 dòng → không ghi; rồi ghi kết quả kiểu "xoá rồi ghi" / upsert. Enqueue bước kế SAU commit.
@@ -160,6 +161,8 @@ sequenceDiagram
   4. COMMIT, rồi enqueue `jobId=weekly-report.generate.{id}.v{count+1}`.
 
   Tạo lại tính lại danh sách meeting từ đầu, nên meeting xong muộn cũng được đưa vào.
+
+- **Việc quá hạn (M12 Q9).** Cùng lúc chọn meeting, service lấy `overdueActionItems` từ bảng `action_items` và ghép vào `content` của phiên bản — model KHÔNG thấy danh sách này (prompt không đổi, không cần bump `REPORT_PROMPT_VERSION`): việc `open` có `due_date` TRƯỚC `weekStart + 7 ngày` (kể cả quá hạn từ tuần trước còn chưa xong), thuộc meeting đang share vào kênh và chưa xoá, hạn cũ nhất trước, tối đa 20 (lấy 21 dòng để biết còn dư → `overdueActionItemsTruncated`). Mỗi mục `{ id, task, assignee, dueDate, meetingId, meetingTitle }`; `assignee` là tên thành viên được giao, nếu chưa map được thì tên model nghe được. Trạng thái là LÚC TẠO: tạo lại báo cáo tuần cũ ra danh sách của hôm nay, không phải ảnh chụp tuần đó. Báo cáo `skipped` (dưới 2 meeting) không có phiên bản nên không có mục này. Phiên bản lưu trước M12 không có hai field: API trả `[]` / `false`.
 
 - **Lỡ lịch.** Redis down đúng lúc 08:00 thì tick bị lỡ. Chạy bù bằng `pnpm report:backfill --week 2026-10-05` (script xếp một job `weekly-report.tick` có `weekStart` tường minh; không có endpoint admin vì dự án chưa có khái niệm quản trị hệ thống). Idempotent nên chạy thừa an toàn; script thất bại nhanh (≈ 2 s) với thông báo rõ nếu Redis không chạy. Báo cáo `pending` mất job / `generating` hết lease được job quét 5 phút xếp lại (B7).
 - **Thông báo (M9 B7, Q7).** Bản THEO LỊCH: sau commit xếp MỘT job `notification.fanout` (`report-ready.{id}.v{n}`) → worker gửi theo lô cho thành viên kênh trừ Khách, `dedupe_key` chặn trùng khi chạy lại. Bản TẠO LẠI thủ công: chỉ người bấm (họ đang chờ; cả kênh nhận thêm tối đa 3 thông báo mỗi tuần là ồn), ghi TRONG transaction của phiên bản — rollback thì không có thông báo "ma" — và chỉ khi người đó CÒN là thành viên tổ chức (`FOR SHARE` dòng thành viên): thông báo có composite FK tới thành viên, người đã rời mà vẫn `INSERT` thì lỗi `23503` rollback cả phiên bản và báo cáo không bao giờ xong. `skipped` / job trùng / mất lease không thông báo. Enqueue fan-out lỗi chỉ log (phiên bản đã commit, báo cáo vẫn đọc được).

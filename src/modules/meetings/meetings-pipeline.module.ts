@@ -4,6 +4,7 @@ import type { EnvironmentVariables } from '../../config/env.validation.js';
 import { LlmModule } from '../../infra/llm/llm.module.js';
 import { MediaModule } from '../../infra/media/media.module.js';
 import { SpeechModule } from '../../infra/speech/speech.module.js';
+import { ActionItemsCoreModule } from '../action-items/action-items-core.module.js';
 import { NotificationsCoreModule } from '../notifications/notifications-core.module.js';
 import { MeetingsCoreModule } from './meetings-core.module.js';
 import type { PipelineOptions } from './meetings.types.js';
@@ -19,7 +20,14 @@ const MINUTE = 60_000;
  * nó chỉ cần `MeetingsCoreModule` để enqueue.
  */
 @Module({
-  imports: [MeetingsCoreModule, NotificationsCoreModule, MediaModule, SpeechModule, LlmModule],
+  imports: [
+    MeetingsCoreModule,
+    NotificationsCoreModule,
+    ActionItemsCoreModule,
+    MediaModule,
+    SpeechModule,
+    LlmModule,
+  ],
   providers: [
     MeetingPipelineRepository,
     MeetingPipelineService,
