@@ -60,7 +60,7 @@ Owner / Admin xem **số liệu tổng hợp** của tổ chức trong một kho
 - [x] **B4 — Service + quyền**
   - Việc: `DashboardService` (validate khoảng, điền đủ ngày, gom tuần Thứ Hai, tính tỉ lệ lỗi, `computedAt`), quyền `org.dashboard.read`; sửa 04.
   - Test (unit): bảng khoảng ngày (1 ngày, 92 / 93 ngày, `from > to`, qua năm, biên tuần), điền ngày trống, gom tuần, tỉ lệ lỗi khi mẫu = 0 (không chia cho 0), ma trận quyền Owner / Admin / Member.
-- [ ] **B5 — Controller + DTO + e2e + Swagger**
+- [x] **B5 — Controller + DTO + e2e + Swagger**
   - Việc: route, DTO (`*ResponseDto`, JSDoc), `@ApiErrorResponses(400, 403)`, `RateLimit` nếu cần, `openapi.json`; sửa 05.
   - Test (e2e): Owner / Admin 200, Member 403, người ngoài 404; **JSON không chứa tiêu đề meeting / tên việc / tên người** đã dựng trong fixture; xoá meeting rồi (gọi rollup) số giảm đúng; đầu vào sai → 400; tuần vs ngày cho cùng tổng.
 - [ ] **B6 — Tài liệu + đóng mốc**
@@ -103,3 +103,7 @@ Mỗi bước kèm **đột biến** cho phần có logic (bỏ lọc `deleted_a
 13. **`failureRate` có `null` khác `0`.** `null` = chưa có meeting nào kết thúc (không có gì để đo); `0` = có kết thúc, không lỗi. Mẫu số là `completed + failed`, không phải tổng meeting: meeting đang xử lý không làm tỉ lệ nhảy. Làm tròn 4 chữ số.
 14. **Phép tính ngày dùng chung ở `report-week.ts`** (`isCalendarDate`, `daysBetween`): số học trên ngày lịch, không cộng mili giây — kiểm 92 ngày qua năm và tháng 2 (đúng 92 / 93 ngày có ca riêng). Ca sai của chính mình: tôi đếm nhầm 1/12 → 2/3 là 93 ngày (thực tế 92) — test viết tay phải tính ngày bằng tay cho kỹ.
 15. **Đột biến B4: 22/22 đỏ.** Lượt đầu 3 sống sót, đều là lỗ hổng test thật: `computedAt` lấy mốc nhỏ nhất (mọi dòng cùng mốc), top kênh luôn 1 (fixture chỉ một kênh), tổng từ chuỗi đã làm tròn → thêm tổ chức nhiều dữ liệu (7 kênh, 3 ngày lệch làm tròn, `computed_at` đặt tay).
+16. **`@RequireOrgPermission` chạy trước pipe/validation → Member gọi với `from=sai` vẫn 403, không phải 400.** Có test riêng: người không có quyền không được biết gì về định dạng đầu vào. Đột biến bỏ decorator làm 8 test đỏ (cả outsider cũng lọt vì guard thành viên gắn kèm decorator này).
+17. **Hai lớp kiểm ngày, một đột biến tương đương.** DTO chỉ chặn chuỗi sai DẠNG (`Matches`); ngày không có thật (`2026-02-30`), khoảng, cửa sổ do `resolveRange` kiểm. Bỏ `Matches` ở DTO không đổi hành vi (service vẫn trả 400 cùng `VALIDATION_FAILED`) — giữ vì chặn sớm và Swagger mô tả đúng dạng.
+18. **Đột biến B5: 9 đột biến, 8 đỏ + 1 tương đương** (bài 17): bỏ/ đổi quyền, không truyền query, bỏ `IsIn granularity`, `computedAt`/`series`/`topChannels`/`range` rơi khỏi DTO. Test rò rỉ dựng tiêu đề, nội dung việc, email, tên hiển thị có dấu hiệu nhận dạng riêng rồi tìm trong JSON.
+19. **Test "xoá → số giảm" ở e2e gọi `rollupDay` thủ công** (worker không chạy trong file này); đường api→queue→worker→DB đã có ở `stats-rollup.e2e-spec.ts`. Tách hai nửa để mỗi test chỉ kiểm một thứ.

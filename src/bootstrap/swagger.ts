@@ -14,6 +14,7 @@ const TAGS: ReadonlyArray<[name: string, description: string]> = [
   ['Channels', 'Kênh và thành viên kênh'],
   ['Meetings', 'Upload, cuộc họp, transcript, tóm tắt, tìm kiếm'],
   ['Action items', 'Việc cần làm của cuộc họp, "việc của tôi"'],
+  ['Dashboard', 'Số liệu tổng hợp của tổ chức (Owner / Admin)'],
   ['Reports', 'Báo cáo tuần của kênh'],
   ['Notifications', 'Thông báo trong ứng dụng'],
 ];

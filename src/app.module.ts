@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CoreModule } from './core.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { ActionItemsModule } from './modules/action-items/action-items.module.js';
 import { AuditLogsModule } from './modules/audit/audit-logs.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
@@ -31,6 +32,7 @@ import { UploadsModule } from './modules/uploads/uploads.module.js';
     MeetingsModule,
     TranscriptsModule,
     ActionItemsModule,
+    DashboardModule,
     ReportsModule,
     AuditLogsModule,
     RealtimeModule,
