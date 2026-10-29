@@ -6,6 +6,7 @@ import { QueueName } from '../infra/queue/queue.module.js';
 import type {
   MeetingJobData,
   NotificationFanoutJobData,
+  StatsRollupJobData,
   WeeklyReportGenerateJobData,
   WeeklyReportTickJobData,
 } from '../infra/queue/queue.types.js';
@@ -13,6 +14,7 @@ import { NotificationFanoutService } from '../modules/notifications/services/not
 import { MaintenanceJobRunner } from './maintenance-job-runner.js';
 import { PipelineJobRunner } from './pipeline-job-runner.js';
 import { ReportJobRunner } from './report-job-runner.js';
+import { StatsJobRunner } from './stats-job-runner.js';
 
 /**
  * MỘT processor cho queue `default`, dispatch theo `job.name`. Không tách mỗi domain một
@@ -30,6 +32,7 @@ export class DefaultQueueProcessor extends WorkerHost {
     private readonly pipeline: PipelineJobRunner,
     private readonly maintenance: MaintenanceJobRunner,
     private readonly reports: ReportJobRunner,
+    private readonly stats: StatsJobRunner,
   ) {
     super();
   }
@@ -58,6 +61,13 @@ export class DefaultQueueProcessor extends WorkerHost {
         return this.reports.runTick(job as Job<WeeklyReportTickJobData>);
       case JobName.WeeklyReportGenerate:
         return this.reports.runGenerate(job as Job<WeeklyReportGenerateJobData>, token);
+      // Rollup dashboard (M17): tick 5 phút / đêm fan-out; rollup tính lại MỘT (tổ chức, ngày).
+      case JobName.StatsTick:
+        return this.stats.runTick();
+      case JobName.StatsReconcile:
+        return this.stats.runReconcile();
+      case JobName.StatsRollup:
+        return this.stats.runRollup(job as Job<StatsRollupJobData>);
       default:
         throw new UnrecoverableError(`Job không xác định: ${job.name}`);
     }

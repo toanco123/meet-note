@@ -13,6 +13,10 @@ export const JobName = {
   WeeklyReportTick: 'weekly-report.tick',
   WeeklyReportGenerate: 'weekly-report.generate',
   ReportSweepStuck: 'weekly-report.sweep-stuck',
+  // Rollup dashboard tổ chức (M17): tick 5 phút + đêm fan-out ra `stats.rollup` cho từng (tổ chức, ngày).
+  StatsTick: 'stats.tick',
+  StatsReconcile: 'stats.reconcile',
+  StatsRollup: 'stats.rollup',
 } as const;
 export type JobName = (typeof JobName)[keyof typeof JobName];
 
@@ -73,4 +77,16 @@ export function reportReadyFanoutJobId(reportId: string, version: number): strin
  */
 export function reportRequeueJobId(reportId: string, generation: number, version: string): string {
   return `${reportJobId(reportId, generation)}.r${version}`;
+}
+
+/**
+ * `stats.rollup.<orgId>.<ngày>.<hậu tố>` (M17). Hậu tố PHẢI khác nhau giữa các lần yêu cầu thật sự khác
+ * nhau: BullMQ bỏ qua `add()` trùng id kể cả job đã completed còn được giữ — dùng cố định `(org, ngày)`
+ * thì xoá một meeting SAU khi rollup của ngày đó đã chạy sẽ bị nuốt và ngày giữ số cũ (bài học M6 B5).
+ * - sự kiện (xoá / sửa meeting): `e<ms>`; - tick 5 phút: `t<ô 5 phút>` (cùng ô → cùng id, một job);
+ * - đêm: `n<ngày hôm nay>`.
+ * Tính lại là idempotent nên thừa job chỉ tốn một câu SQL, còn thiếu job mới là sai số.
+ */
+export function statsRollupJobId(orgId: string, day: string, suffix: string): string {
+  return `${JobName.StatsRollup}.${orgId}.${day}.${suffix}`;
 }

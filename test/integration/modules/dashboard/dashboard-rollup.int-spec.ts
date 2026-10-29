@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { meetings } from '../../../../src/infra/database/schema/index.js';
-import { DashboardRepository } from '../../../../src/modules/dashboard/dashboard.repository.js';
+import { DashboardRepository } from '../../../../src/modules/dashboard/repositories/dashboard.repository.js';
 import { insertMeeting, insertOrg, insertUser } from '../../../support/db-factories.js';
 import { createTestDb, type TestDb } from '../../../support/db.js';
 

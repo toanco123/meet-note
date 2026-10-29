@@ -1,9 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, gte, lte, sql } from 'drizzle-orm';
-import { DRIZZLE } from '../../infra/database/database.module.js';
-import type { Database, DbExecutor } from '../../infra/database/database.types.js';
-import { type OrgDailyStatsRow, orgDailyStats } from '../../infra/database/schema/index.js';
-import { REPORT_TIME_ZONE } from '../reports/report-week.js';
+import { and, asc, eq, gte, gt, lte, sql } from 'drizzle-orm';
+import { DRIZZLE } from '../../../infra/database/database.module.js';
+import type { Database, DbExecutor } from '../../../infra/database/database.types.js';
+import {
+  type OrgDailyStatsRow,
+  orgDailyStats,
+  organizations,
+} from '../../../infra/database/schema/index.js';
+import { REPORT_TIME_ZONE } from '../../reports/report-week.js';
 
 /** Truy vấn của dashboard tổ chức (M17). Mọi hàm lọc `org_id` TƯỜNG MINH, không trông cậy vào RLS. */
 @Injectable()
@@ -72,5 +76,44 @@ export class DashboardRepository {
         ),
       )
       .orderBy(asc(orgDailyStats.day));
+  }
+
+  /**
+   * Các (tổ chức, ngày VN của `recorded_at`) có meeting đổi từ `since` (theo `updated_at`) — gồm cả
+   * meeting đã xoá mềm. Dùng cho tick: chỉ tính lại ngày THẬT SỰ bị ảnh hưởng. `limit` chặn một đợt
+   * thay đổi hàng loạt; phần dư để lần tick sau / job đêm. Không có index theo `updated_at` cho meeting
+   * đã xong (thêm sẽ làm mất HOT update của bảng được sửa liên tục bởi pipeline) — quét tuần tự 5 phút
+   * một lần là chấp nhận được ở quy mô này; đo lại nếu bảng `meetings` lớn lên.
+   */
+  async findChangedDays(
+    since: Date,
+    limit: number,
+    executor: DbExecutor = this.db,
+  ): Promise<Array<{ orgId: string; day: string }>> {
+    const result = await executor.execute<{ org_id: string; day: string }>(sql`
+      select distinct
+        org_id,
+        to_char((recorded_at at time zone ${REPORT_TIME_ZONE})::date, 'YYYY-MM-DD') as day
+      from meetings
+      where updated_at >= ${since.toISOString()}::timestamptz
+      order by org_id, day
+      limit ${limit}
+    `);
+    return result.rows.map((r) => ({ orgId: r.org_id, day: r.day }));
+  }
+
+  /** Id tổ chức theo thứ tự `id`, keyset — job đêm duyệt hết mọi tổ chức theo lô. */
+  async listOrgIds(
+    after: string | undefined,
+    limit: number,
+    executor: DbExecutor = this.db,
+  ): Promise<string[]> {
+    const rows = await executor
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(after ? gt(organizations.id, after) : undefined)
+      .orderBy(asc(organizations.id))
+      .limit(limit);
+    return rows.map((r) => r.id);
   }
 }

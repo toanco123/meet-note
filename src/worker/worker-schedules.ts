@@ -21,6 +21,9 @@ export const SCHEDULES = [
   { id: 'upload-cleanup', pattern: '*/10 * * * *', name: JobName.UploadCleanup },
   { id: 'idempotency-cleanup', pattern: '*/10 * * * *', name: JobName.IdempotencyCleanup },
   { id: 'channel-purge', pattern: '0 3 * * *', name: JobName.ChannelPurge },
+  // Rollup dashboard (M17): tick bắt thay đổi gần đây, đêm tính lại 35 ngày làm lưới an toàn.
+  { id: 'stats-tick', pattern: '*/5 * * * *', name: JobName.StatsTick },
+  { id: 'stats-reconcile', pattern: '30 3 * * *', name: JobName.StatsReconcile },
   // 08:00 Thứ Hai giờ VN: báo cáo của TUẦN TRƯỚC (D8). Cron có `tz` để BullMQ tính đúng mốc.
   { id: 'weekly-report-tick', pattern: '0 8 * * 1', name: JobName.WeeklyReportTick },
 ] as const;

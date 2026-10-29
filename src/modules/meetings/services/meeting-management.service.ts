@@ -7,6 +7,8 @@ import type { Database, Transaction } from '../../../infra/database/database.typ
 import type { MeetingRow } from '../../../infra/database/schema/index.js';
 import { AuditService } from '../../audit/audit.service.js';
 import type { UserAuditContext } from '../../audit/audit.types.js';
+import { StatsScheduler } from '../../dashboard/stats.scheduler.js';
+import { localDate } from '../../reports/report-week.js';
 import type { OrgMembershipContext } from '../../organizations/organizations.types.js';
 import type { UpdateMeetingDto } from '../dto/update-meeting.dto.js';
 import { canManageMeeting } from '../meeting.policy.js';
@@ -29,6 +31,7 @@ export class MeetingManagementService {
     private readonly audit: AuditService,
     @Inject(REALTIME_PUBLISHER) private readonly realtime: RealtimePublisher,
     @Inject(PIPELINE_SCHEDULER) private readonly pipeline: PipelineScheduler,
+    private readonly stats: StatsScheduler,
   ) {}
 
   /**
@@ -80,10 +83,17 @@ export class MeetingManagementService {
       ...(dto.recordedAt !== undefined && { recordedAt: new Date(dto.recordedAt) }),
     };
     // Body rỗng vẫn đi qua kiểm quyền: trả đúng 403 / 404 như một lần sửa thật, chỉ không ghi.
-    await this.db.transaction(async (tx) => {
-      await this.lockManageable(membership, ctx.actorId, meetingId, tx);
+    const before = await this.db.transaction(async (tx) => {
+      const current = await this.lockManageable(membership, ctx.actorId, meetingId, tx);
       if (Object.keys(patch).length > 0) await this.repo.update(meetingId, patch, tx);
+      return current;
     });
+    // Chuyển meeting sang NGÀY khác: rollup của ngày cũ không tự biết (tick chỉ thấy ngày mới) → cả hai.
+    // Cùng ngày VN thì số liệu không đổi (thời lượng / trạng thái giữ nguyên) → không xếp job.
+    if (patch.recordedAt) {
+      const [from, to] = [localDate(before.recordedAt), localDate(patch.recordedAt)];
+      if (from !== to) await this.refreshStats(membership.orgId, [from, to], ctx.requestId ?? null);
+    }
   }
 
   /**
@@ -95,7 +105,7 @@ export class MeetingManagementService {
     ctx: UserAuditContext,
     meetingId: string,
   ): Promise<void> {
-    await this.db.transaction(async (tx) => {
+    const deleted = await this.db.transaction(async (tx) => {
       const meeting = await this.lockManageable(membership, ctx.actorId, meetingId, tx);
       await this.repo.softDelete(meetingId, tx);
       if (meeting.ownerId !== ctx.actorId) {
@@ -107,8 +117,29 @@ export class MeetingManagementService {
           metadata: { before: { title: meeting.title, ownerId: meeting.ownerId } },
         });
       }
+      return meeting;
     });
     this.realtime.revalidateAccess({ kind: 'meeting', meetingId });
+    await this.refreshStats(
+      membership.orgId,
+      [localDate(deleted.recordedAt)],
+      ctx.requestId ?? null,
+    );
+  }
+
+  /**
+   * Báo rollup dashboard tính lại các ngày vừa đổi — SAU commit (enqueue trước commit thì worker có thể
+   * đọc nguồn cũ). Lỗi enqueue (Redis sập) KHÔNG làm hỏng thao tác của người dùng: job đêm (03:30)
+   * tính lại 35 ngày gần nhất nên số liệu tự lành.
+   */
+  private async refreshStats(orgId: string, days: string[], requestId: string | null) {
+    for (const day of days) {
+      await this.stats
+        .enqueueDayChanged(orgId, day, requestId)
+        .catch((error: unknown) =>
+          this.logger.error({ err: error, orgId, day }, 'Enqueue rollup dashboard lỗi'),
+        );
+    }
   }
 
   private async lockManageable(
