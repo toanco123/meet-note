@@ -81,7 +81,7 @@ Sau khi pipeline xong, mỗi meeting có danh sách **việc cần làm** có ng
 ## Tiêu chí hoàn thành
 
 - [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở CI (local: 905 xanh, chỉ 6 file cần ffmpeg lỗi do đã gỡ máy dev — tick sau khi CI xanh)
+- [x] `pnpm test:e2e` xanh ở CI (PR #14: cả hai job xanh; local: 905 xanh, chỉ 6 file cần ffmpeg lỗi do đã gỡ máy dev)
 - [x] Pipeline chạy lại không sinh việc trùng, không đè việc đã sửa (có đột biến)
 - [x] Map tên → thành viên không đoán bừa khi mơ hồ (bảng test + đột biến)
 - [x] "Việc của tôi" không lộ việc của meeting người gọi không xem được (oracle)
