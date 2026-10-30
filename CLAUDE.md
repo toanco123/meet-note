@@ -110,6 +110,7 @@ Skill riêng của dự án (`.claude/skills/`). Dùng khi việc đang làm kh�
 | `bullmq-jobs`        | Queue, processor, cron, pipeline xử lý                |
 | `testing`            | Viết/chạy/sửa unit, integration, e2e test             |
 | `add-dependency`     | Thêm/nâng cấp thư viện, lỗi pnpm                      |
+| `review-pr`          | Review PR của member theo luật riêng của repo         |
 
 Plugin khai báo trong `.claude/settings.json`. Claude Code gợi ý cài khi mở repo:
 
