@@ -21,6 +21,7 @@ O = Owner, A = Admin, M = Member. ✓ = được, ✗ = không, ghi chú = có �
 | Xem danh sách mọi kênh, kể cả riêng tư (chỉ metadata)     |                         ✓                          |       ✓       | chỉ kênh công khai + kênh riêng tư mình là thành viên |
 | Quản trị bất kỳ kênh (lưu trữ, xoá, chỉ định chủ kênh)    |                         ✓                          |       ✓       |                           ✗                           |
 | Xem audit log                                             |                         ✓                          |       ✓       |                           ✗                           |
+| Xem dashboard tổ chức (M17)                               |                         ✓                          |       ✓       |                           ✗                           |
 
 Quy tắc chung: **không ai được tác động lên người có vai trò ≥ mình**, trừ Owner.
 

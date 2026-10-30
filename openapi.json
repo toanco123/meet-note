@@ -6177,6 +6177,121 @@
         ]
       }
     },
+    "/v1/orgs/{orgId}/dashboard": {
+      "get": {
+        "description": "Chỉ số, không tiêu đề cuộc họp / nội dung / tên người. Khoảng tính theo ngày lịch giờ Việt\nNam, gồm cả hai đầu, tối đa 92 ngày và nằm trong 92 ngày gần nhất (mặc định 30 ngày tới hôm nay).\nChuỗi theo ngày / tuần đến từ bảng rollup do worker cập nhật — \"hôm nay\" có thể trễ vài phút\n(`computedAt`); xoá hoặc đổi ngày cuộc họp được tính lại gần như ngay. Thành viên hoạt động, dung\nlượng, top kênh và số việc tính lúc gọi. Giới hạn 60 lần / phút.",
+        "operationId": "Dashboard_overview",
+        "parameters": [
+          {
+            "name": "orgId",
+            "required": true,
+            "in": "path",
+            "description": "Id tổ chức",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "granularity",
+            "required": false,
+            "in": "query",
+            "description": "`day`: một điểm mỗi ngày. `week`: một điểm mỗi tuần (Thứ Hai → Chủ nhật, nhãn là Thứ Hai).\n@default \"day\"",
+            "schema": {
+              "$ref": "#/components/schemas/DashboardGranularity"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Ngày bắt đầu (giờ Việt Nam), `YYYY-MM-DD`, gồm cả ngày này. Mặc định: 29 ngày trước `to`.",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Ngày kết thúc (giờ Việt Nam), `YYYY-MM-DD`, gồm cả ngày này. Mặc định: hôm nay.",
+            "schema": {
+              "example": "2026-10-29",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/DashboardResponseDto"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/ResponseMetaDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ (`VALIDATION_FAILED`, `INVALID_CURSOR`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai access token (`UNAUTHENTICATED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền với hành động này (`FORBIDDEN`).\n\nKhông đủ quyền với hành động này (`FORBIDDEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc bạn không được phép thấy (`NOT_FOUND`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Số liệu tổng hợp của tổ chức (Owner / Admin).",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
     "/v1/orgs/{orgId}/channels/{channelId}/reports": {
       "get": {
         "description": "Cần đọc được nội dung kênh: thành viên kênh, hoặc thành viên tổ chức với kênh công khai.\nKênh chỉ có báo cáo từ tuần đầu tiên sau khi bật báo cáo; không có dòng cho tuần không có gì.",
@@ -7048,6 +7163,10 @@
     {
       "name": "Action items",
       "description": "Việc cần làm của cuộc họp, \"việc của tôi\""
+    },
+    {
+      "name": "Dashboard",
+      "description": "Số liệu tổng hợp của tổ chức (Owner / Admin)"
     },
     {
       "name": "Reports",
@@ -9033,6 +9152,237 @@
             "maxLength": 500
           }
         }
+      },
+      "DashboardGranularity": {
+        "type": "string",
+        "enum": [
+          "day",
+          "week"
+        ]
+      },
+      "DashboardPointDto": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string",
+            "description": "Ngày `YYYY-MM-DD`, hoặc Thứ Hai của tuần khi `granularity=week`.",
+            "example": "2026-10-26"
+          },
+          "meetings": {
+            "type": "number",
+            "description": "Số cuộc họp ghi trong kỳ (chưa xoá)."
+          },
+          "completed": {
+            "type": "number",
+            "description": "Đã xử lý xong."
+          },
+          "failed": {
+            "type": "number",
+            "description": "Pipeline lỗi."
+          },
+          "recordedMinutes": {
+            "type": "number",
+            "description": "Tổng thời lượng các cuộc họp đã biết thời lượng, làm tròn phút."
+          },
+          "transcribedMinutes": {
+            "type": "number",
+            "description": "Tổng thời lượng các cuộc họp đã xử lý xong, làm tròn phút."
+          }
+        },
+        "required": [
+          "period",
+          "meetings",
+          "completed",
+          "failed",
+          "recordedMinutes",
+          "transcribedMinutes"
+        ]
+      },
+      "DashboardTopChannelDto": {
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Kinh doanh"
+          },
+          "meetings": {
+            "type": "number",
+            "description": "Số cuộc họp chia sẻ vào kênh trong khoảng."
+          }
+        },
+        "required": [
+          "channelId",
+          "name",
+          "meetings"
+        ]
+      },
+      "DashboardRangeDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "example": "2026-10-01"
+          },
+          "to": {
+            "type": "string",
+            "example": "2026-10-29"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "DashboardTotalsDto": {
+        "type": "object",
+        "properties": {
+          "failureRate": {
+            "type": "number",
+            "nullable": true,
+            "description": "`failed / (completed + failed)` trong 0..1. `null` = chưa có cuộc họp nào kết thúc (khác 0 là \"có, không lỗi\"). Cuộc họp đang xử lý không tính.",
+            "example": 0.0833
+          },
+          "meetings": {
+            "type": "number"
+          },
+          "completed": {
+            "type": "number"
+          },
+          "failed": {
+            "type": "number"
+          },
+          "recordedMinutes": {
+            "type": "number"
+          },
+          "transcribedMinutes": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "failureRate",
+          "meetings",
+          "completed",
+          "failed",
+          "recordedMinutes",
+          "transcribedMinutes"
+        ]
+      },
+      "DashboardMembersDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "description": "Tổng thành viên hiện tại."
+          },
+          "active": {
+            "type": "number",
+            "description": "Số chủ cuộc họp khác nhau có cuộc họp trong khoảng (chưa có lịch sử đăng nhập nên \"hoạt động\" = đã ghi một cuộc họp)."
+          }
+        },
+        "required": [
+          "total",
+          "active"
+        ]
+      },
+      "DashboardStorageDto": {
+        "type": "object",
+        "properties": {
+          "bytes": {
+            "type": "number",
+            "description": "Tổng dung lượng file gốc của các cuộc họp chưa xoá, tại thời điểm gọi (không đổi theo khoảng)."
+          },
+          "meetings": {
+            "type": "number",
+            "description": "Số cuộc họp có file."
+          }
+        },
+        "required": [
+          "bytes",
+          "meetings"
+        ]
+      },
+      "DashboardActionItemsDto": {
+        "type": "object",
+        "properties": {
+          "open": {
+            "type": "number",
+            "description": "Việc đang mở (thời điểm gọi)."
+          },
+          "overdue": {
+            "type": "number",
+            "description": "Đang mở và hạn trước hôm nay (giờ VN); hạn đúng hôm nay chưa quá hạn."
+          },
+          "doneInRange": {
+            "type": "number",
+            "description": "Việc hoàn thành trong khoảng."
+          }
+        },
+        "required": [
+          "open",
+          "overdue",
+          "doneInRange"
+        ]
+      },
+      "DashboardResponseDto": {
+        "type": "object",
+        "properties": {
+          "granularity": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DashboardGranularity"
+              }
+            ]
+          },
+          "series": {
+            "description": "Điền đủ mọi kỳ trong khoảng (kỳ không có cuộc họp là 0), tăng dần.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardPointDto"
+            }
+          },
+          "topChannels": {
+            "description": "Tối đa 5 kênh nhiều cuộc họp nhất trong khoảng (kể cả kênh riêng tư — Owner / Admin đã thấy mọi kênh).",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardTopChannelDto"
+            }
+          },
+          "computedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "Lần tính rollup gần nhất của các ngày trong khoảng. `null` = chưa ngày nào được tính (số theo ngày là 0 vì chưa tính).",
+            "example": "2026-10-29T05:00:12.000Z"
+          },
+          "range": {
+            "$ref": "#/components/schemas/DashboardRangeDto"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DashboardTotalsDto"
+          },
+          "members": {
+            "$ref": "#/components/schemas/DashboardMembersDto"
+          },
+          "storage": {
+            "$ref": "#/components/schemas/DashboardStorageDto"
+          },
+          "actionItems": {
+            "$ref": "#/components/schemas/DashboardActionItemsDto"
+          }
+        },
+        "required": [
+          "granularity",
+          "series",
+          "topChannels",
+          "computedAt",
+          "range",
+          "totals",
+          "members",
+          "storage",
+          "actionItems"
+        ]
       },
       "ReportStatus": {
         "type": "string",

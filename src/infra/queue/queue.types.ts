@@ -48,3 +48,14 @@ export interface WeeklyReportTickJobData {
   weekStart?: string;
   requestId?: string | null;
 }
+
+/**
+ * `stats.rollup` (M17): tính lại rollup của MỘT tổ chức. `day` = ngày lịch giờ VN ('YYYY-MM-DD');
+ * `span` > 1 tính lại `span` ngày kết thúc ở `day` (job đêm làm lưới an toàn: mặc định 1).
+ */
+export interface StatsRollupJobData {
+  orgId: string;
+  day: string;
+  span?: number;
+  requestId?: string | null;
+}

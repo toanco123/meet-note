@@ -27,7 +27,7 @@ Lớp phòng thủ THỨ HAI (lớp một: guard + `org_id` trong mọi query + 
 
 - `app.org_id` do pool của app (`OrgContextPool` trong `createPgPool`) đặt mỗi lần cho mượn connection, từ `OrgContext` (`AsyncLocalStorage`): middleware HTTP mở ngữ cảnh rỗng, `OrgMemberGuard` điền org sau khi xác nhận thành viên; realtime bọc `runInOrg`. Chỉ gửi `set_config` khi giá trị ĐỔI so với lần trước trên connection (~1 round-trip ≈ 150 µs mỗi lần đổi tổ chức; thời gian thực thi query không đổi đáng kể — đo ở plan M11).
 - Policy chỉ giữ ranh giới tổ chức, KHÔNG chứa quy tắc xem meeting (04 §3 ở code).
-- M6 (migration `0013`) thêm `transcript_segments`, `meeting_summaries` cùng mẫu (M6 Q8). M9 thêm `weekly_reports`, `weekly_report_versions` (`0015`); M12 thêm `action_items` (`0018`).
+- M6 (migration `0013`) thêm `transcript_segments`, `meeting_summaries` cùng mẫu (M6 Q8). M9 thêm `weekly_reports`, `weekly_report_versions` (`0015`); M12 thêm `action_items` (`0018`); M17 thêm `org_daily_stats` (`0019`).
 - Không RLS: bảng tài khoản (`users`, `sessions`…), `organizations` / `organization_members` (đăng nhập, "tổ chức của tôi" đọc xuyên tổ chức), `notifications` (theo người dùng), `invites` / `join_requests` (chấp nhận link mời chưa là thành viên), `audit_logs`, `idempotency_keys`.
 - Superuser và role `BYPASSRLS` (worker) luôn được miễn — vì thế api không được chạy bằng superuser (B6). Kiểm tra FK / cascade (gỡ thành viên → xoá `channel_members`) là thao tác toàn vẹn tham chiếu, không bị RLS chặn.
 
@@ -438,6 +438,14 @@ Dùng cho các POST không tự idempotent, theo header `Idempotency-Key` (`@Ide
 - **`created_at` = lúc giữ chỗ gần nhất, dùng làm fencing token:** lưu response / xoá chỗ giữ đều có `WHERE status = 'processing' AND created_at = <token>`. Request cũ "sống dậy" sau khi bị chiếm chỗ không ghi đè được. Token đi dạng text (đủ micro giây), không qua JS `Date`.
 - Handler lỗi → **xoá** chỗ giữ (lỗi không được ghi nhớ, client sửa rồi gửi lại cùng key). Lưu `data` thô (trước envelope); trả lại thì bọc với `requestId` mới.
 - Dọn dòng hết hạn: `IdempotencyRepository.deleteExpiredBatch` theo lô (`SKIP LOCKED`), worker chạy mỗi 10 phút (job `idempotency.cleanup`, M6 B8).
+
+## 6b. Dashboard tổ chức (M17)
+
+### `org_daily_stats`
+
+PK `(org_id, day)` (`org_daily_stats_pk`), `org_id` FK `organizations` ON DELETE CASCADE (`org_daily_stats_org_fk`; **RLS** theo `org_id`, policy `org_daily_stats_org_isolation`, migration `0019`). `day date` = ngày lịch **giờ VN** (`Asia/Ho_Chi_Minh`) của `meetings.recorded_at`. Chỉ chứa số **cộng được**: `meetings_total`, `meetings_completed`, `meetings_failed` (int), `recorded_ms` (tổng `duration_ms` mọi meeting đã biết thời lượng), `transcribed_ms` (tổng `duration_ms` meeting `completed`) (bigint), `computed_at`. CHECK: mọi số ≥ 0, `completed + failed <= total` (`org_daily_stats_counts_ck`), `transcribed_ms <= recorded_ms` (`org_daily_stats_ms_ck`).
+
+Worker **tính lại cả ngày** từ `meetings` rồi ghi đè (`INSERT … SELECT … ON CONFLICT DO UPDATE`, `DashboardRepository.rollupDay`) — không có bộ đếm cộng dồn nên chạy lại cho đúng một kết quả; ngày hết meeting thì dòng về 0. Meeting xoá mềm không tính. Rollup là chuỗi thời gian theo ngày; số không cộng được (người hoạt động phân biệt, dung lượng hiện tại, top kênh, việc mở / quá hạn) tính trực tiếp khi gọi API. Rollup chọn vì mục tiêu học (độ tươi đổi lấy chi phí); ở quy mô hiện tại đếm trực tiếp trên `meetings_org_recorded_idx` cũng đủ nhanh.
 
 ## 7. Thứ tự khoá chung (M4) và tóm tắt chỗ cần transaction / khoá
 

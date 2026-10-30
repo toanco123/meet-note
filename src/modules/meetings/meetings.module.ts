@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { DashboardCoreModule } from '../dashboard/dashboard-core.module.js';
 import { ChannelsModule } from '../channels/channels.module.js';
 import { MeetingsCoreModule } from './meetings-core.module.js';
 import { NotificationsCoreModule } from '../notifications/notifications-core.module.js';
@@ -16,7 +17,13 @@ import { MeetingsService } from './services/meetings.service.js';
  * M6 tách phần không-HTTP (repository, service, queue) ra `MeetingsCoreModule` cho worker dùng.
  */
 @Module({
-  imports: [OrganizationsModule, ChannelsModule, NotificationsCoreModule, MeetingsCoreModule],
+  imports: [
+    OrganizationsModule,
+    ChannelsModule,
+    NotificationsCoreModule,
+    MeetingsCoreModule,
+    DashboardCoreModule,
+  ],
   controllers: [MeetingsController, ChannelMeetingsController],
   providers: [
     MeetingsRepository,
