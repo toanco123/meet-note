@@ -71,7 +71,7 @@ Mỗi bước kèm **đột biến** cho phần có logic (bỏ lọc `deleted_a
 ## Tiêu chí hoàn thành
 
 - [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` xanh
-- [ ] `pnpm test:e2e` xanh ở CI (tick sau khi CI xanh)
+- [x] `pnpm test:e2e` xanh ở CI (PR #15: Lint · Test · Build và Docker image đều pass)
 - [x] Admin xem số liệu 30 ngày; Member gọi bị 403; người ngoài 404
 - [x] Xoá meeting (kể cả meeting cũ) rồi rollup → số giảm đúng; sửa `recorded_at` → cả hai ngày đúng
 - [x] Rollup chạy lại / chạy song song không đếm trùng, không để số cũ ghi đè số mới (có đột biến)
